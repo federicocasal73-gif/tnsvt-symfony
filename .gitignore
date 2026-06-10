@@ -7,6 +7,7 @@
 /public/bundles/
 /var/
 /vendor/
+/php-ext/
 ###< symfony/framework-bundle ###
 
 ###> phpunit/phpunit ###
