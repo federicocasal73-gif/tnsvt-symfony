@@ -135,12 +135,23 @@ class FeedController extends AbstractController
             return $this->json(['error' => 'Post no encontrado'], Response::HTTP_NOT_FOUND);
         }
 
-        $comments = $post->getComments() ?? [];
-        $comments[] = [
+        $text = trim($data['text'] ?? '');
+        $photo = $data['photo'] ?? null;
+        if ($text === '' && empty($photo)) {
+            return $this->json(['error' => 'Comentario vacío'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $comment = [
             'author' => $data['author'] ?? 'Trader',
-            'text' => $data['text'] ?? '',
+            'text' => $text,
             'date' => (new \DateTimeImmutable())->format('c'),
         ];
+        if (!empty($photo) && is_string($photo)) {
+            $comment['photo'] = $photo;
+        }
+
+        $comments = $post->getComments() ?? [];
+        $comments[] = $comment;
 
         $post->setComments($comments);
         $this->em->flush();

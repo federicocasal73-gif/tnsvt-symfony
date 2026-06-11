@@ -78,10 +78,13 @@ class CalendarController extends AbstractController
     ];
 
     #[Route('/calendar/widget', name: 'app_calendar_widget', methods: ['GET'])]
-    public function widget(): Response
+    public function widget(\Symfony\Component\HttpFoundation\Request $request): Response
     {
         $cacheFile = sys_get_temp_dir() . '/tnsvt_calendar_cache.json';
         $cacheTtl = 900;
+
+        $countriesFilter = $this->parseCountriesFilter($request->query->get('countries'));
+        $impactFilter = $this->parseImpactFilter($request->query->get('impact'));
 
         $events = $this->loadFromCache($cacheFile, $cacheTtl);
         if ($events === null) {
@@ -91,11 +94,76 @@ class CalendarController extends AbstractController
             }
         }
 
+        $filtered = $this->applyFilters($events ?? [], $countriesFilter, $impactFilter);
+
         return $this->render('calendar/widget.html.twig', [
-            'events' => $events ?? [],
-            'has_data' => $events !== null && count($events) > 0,
-            'fetched_at' => file_exists($cacheFile) ? filemtime($cacheFile) : time(),
+            'events' => $filtered,
+            'has_data' => count($filtered) > 0,
+            'total_count' => count($events ?? []),
+            'filtered_count' => count($filtered),
+            'countries' => $countriesFilter,
+            'impact' => $impactFilter,
         ]);
+    }
+
+    private function parseCountriesFilter(?string $raw): array
+    {
+        if ($raw === null || $raw === '') return [];
+        $ccyToCountry = [
+            'USD' => 'US', 'EUR' => 'EU', 'GBP' => 'GB', 'JPY' => 'JP',
+            'CAD' => 'CA', 'AUD' => 'AU', 'CHF' => 'CH', 'CNY' => 'CN',
+            'MXN' => 'MX', 'BRL' => 'BR', 'INR' => 'IN', 'NZD' => 'NZ',
+        ];
+        $parts = array_filter(array_map('trim', explode(',', strtoupper($raw))));
+        $countries = [];
+        foreach ($parts as $ccy) {
+            if (isset($ccyToCountry[$ccy])) {
+                $countries[] = $ccyToCountry[$ccy];
+            } else {
+                $countries[] = $ccy;
+            }
+        }
+        return array_values(array_unique($countries));
+    }
+
+    private function parseImpactFilter(?string $raw): array
+    {
+        if ($raw === null || $raw === '') return [];
+        $parts = array_filter(array_map('trim', explode(',', $raw)));
+        $impact = [];
+        foreach ($parts as $p) {
+            $n = (int)$p;
+            if ($n >= 1 && $n <= 3) $impact[] = $n;
+        }
+        return array_values(array_unique($impact));
+    }
+
+    private function normalizeImportance(int $raw): int
+    {
+        return match(true) {
+            $raw >= 1 => 3,    // High
+            $raw === 0 => 2,   // Medium
+            $raw < 0 => 1,     // Low
+            default => 1,
+        };
+    }
+
+    private function applyFilters(?array $events, array $countries, array $impact): array
+    {
+        if (!is_array($events)) return [];
+        if (empty($countries) && empty($impact)) return $events;
+
+        return array_values(array_filter($events, function ($e) use ($countries, $impact) {
+            if (!empty($countries)) {
+                $code = $e['country_code'] ?? null;
+                if (!$code || !in_array($code, $countries, true)) return false;
+            }
+            if (!empty($impact)) {
+                $imp = (int)($e['importance'] ?? 0);
+                if ($imp <= 0 || !in_array($imp, $impact, true)) return false;
+            }
+            return true;
+        }));
     }
 
     private function loadFromCache(string $cacheFile, int $ttl): ?array
@@ -172,9 +240,11 @@ class CalendarController extends AbstractController
                 'time' => $dtAr->format('H:i'),
                 'datetime_label' => $dtAr->format('d M H:i'),
                 'country' => self::COUNTRY_MAP[$country] ?? ($country . ' ' . $currency),
+                'country_code' => $country,
+                'currency' => $currency,
                 'title' => $this->translateTitle($title),
                 'original_title' => $title,
-                'importance' => $importance,
+                'importance' => $this->normalizeImportance($importance),
                 'actual' => $this->formatValue($row['actual'] ?? null, $row['unit'] ?? ''),
                 'forecast' => $this->formatValue($row['forecast'] ?? null, $row['unit'] ?? ''),
                 'previous' => $this->formatValue($row['previous'] ?? null, $row['unit'] ?? ''),

@@ -2181,61 +2181,56 @@
     </div>
   </div>
 
-  <!-- Selector de fuente -->
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
-    <button onclick="showCalSource('tv')" id="cal-btn-tv"
-      style="padding:8px 18px;background:var(--gold);border:none;border-radius:8px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:1px;cursor:pointer;">
-      📊 TradingView
-    </button>
-    <button onclick="showCalSource('investing')" id="cal-btn-investing"
-      style="padding:8px 18px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:8px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.62rem;cursor:pointer;">
-      🌐 Investing.com
-    </button>
-    <button onclick="showCalSource('tv-imp')" id="cal-btn-tv-imp"
-      style="padding:8px 18px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:8px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.62rem;cursor:pointer;">
-      🎯 Alto Impacto
-    </button>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:0.65rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:1px;">
-      <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
-      TIEMPO REAL
+  <!-- Filtros del calendario -->
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:#a499b8;letter-spacing:1px;min-width:70px;">PAÍS:</span>
+      <div id="cal-country-filters" style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button data-country="USD" class="cal-country-btn active"
+          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">USD</button>
+        <button data-country="EUR" class="cal-country-btn active"
+          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">EUR</button>
+        <button data-country="GBP" class="cal-country-btn"
+          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">GBP</button>
+        <button data-country="JPY" class="cal-country-btn"
+          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">JPY</button>
+        <button data-country="CAD" class="cal-country-btn"
+          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">CAD</button>
+        <button data-country="AUD" class="cal-country-btn"
+          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">AUD</button>
+        <button data-country="CHF" class="cal-country-btn"
+          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">CHF</button>
+        <button data-country="CNY" class="cal-country-btn"
+          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">CNY</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:#a499b8;letter-spacing:1px;min-width:70px;">IMPACTO:</span>
+      <div id="cal-impact-filters" style="display:flex;gap:4px;">
+        <button data-impact="1" class="cal-impact-btn active"
+          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">Bajo</button>
+        <button data-impact="2" class="cal-impact-btn active"
+          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">Medio</button>
+        <button data-impact="3" class="cal-impact-btn active"
+          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">Alto</button>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:0.6rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:1px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
+        TIEMPO REAL · Reuters
+      </div>
     </div>
   </div>
 
-  <!-- TradingView Widget Completo (en español) -->
-  <div id="cal-source-tv" style="border-radius:12px;overflow:hidden;border:1px solid rgba(212,175,55,0.15);">
-    <div class="tradingview-widget-container" style="height:600px;">
-      <iframe
-        src="https://www.tradingview.com/embed-widget/events/?locale=es#%7B%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Afalse%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22600%22%2C%22importanceFilter%22%3A%22-1%2C0%2C1%22%2C%22currencyFilter%22%3A%22USD%2CEUR%2CGBP%2CJPY%2CCAD%2CAUD%2CCHF%22%7D"
-        style="width:100%;height:600px;border:none;"
-        allowtransparency="true"
-        frameborder="0"
-        scrolling="no">
-      </iframe>
-    </div>
-  </div>
-
-  <!-- Investing.com Proxy Widget (en español) -->
-  <div id="cal-source-investing" style="display:none;border-radius:12px;overflow:hidden;border:1px solid rgba(212,175,55,0.15);">
+  <!-- Calendario (Investing.com vía proxy server-side) -->
+  <div id="cal-source-investing" style="border-radius:12px;overflow:hidden;border:1px solid rgba(212,175,55,0.15);">
     <iframe
-      src="{{ path('app_calendar_widget') }}"
+      id="cal-iframe"
+      src="{{ path('app_calendar_widget') }}?countries=USD,EUR&impact=1,2,3"
       style="width:100%;height:600px;border:none;background:#0a0516;"
       frameborder="0"
       marginwidth="0"
       marginheight="0">
     </iframe>
-  </div>
-
-  <!-- TradingView Widget Solo Alto Impacto USD/EUR (en español) -->
-  <div id="cal-source-tv-imp" style="display:none;border-radius:12px;overflow:hidden;border:1px solid rgba(212,175,55,0.15);">
-    <div class="tradingview-widget-container" style="height:600px;">
-      <iframe
-        src="https://www.tradingview.com/embed-widget/events/?locale=es#%7B%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Afalse%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22600%22%2C%22importanceFilter%22%3A%221%22%2C%22currencyFilter%22%3A%22USD%2CEUR%22%7D"
-        style="width:100%;height:600px;border:none;"
-        allowtransparency="true"
-        frameborder="0"
-        scrolling="no">
-      </iframe>
-    </div>
   </div>
 
   <!-- Leyenda de colores -->
@@ -2568,13 +2563,38 @@
 
 <!-- ==================== PESTAÑA CHAT DE EJECUTORES ==================== -->
 <div id="tab-chat" class="tab-content">
-  <h3 style="font-family:'Cinzel'; margin-bottom:10px; color:var(--gold-bright);">Canal de Sincronización en Tiempo Real</h3>
-  <div class="chat-wrapper">
-    <div class="chat-stream" id="chatStream"></div>
-    <div class="chat-input-area">
-      <input type="text" id="chatInput" class="chat-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-      <button class="post-btn" onclick="sendChatMessage()">Enviar</button>
-    </div>
+  <div class="chat-layout">
+    <aside class="chat-sidebar">
+      <div class="chat-sidebar-header">
+        <span class="chat-sidebar-title">💬 Conversaciones</span>
+      </div>
+      <div class="chat-conv-list" id="chatConvList">
+        <!-- JS-rendered: cada item con avatar, nombre, last message preview, unread badge -->
+      </div>
+    </aside>
+    <main class="chat-main">
+      <div class="chat-header" id="chatHeader">
+        <div class="chat-header-info">
+          <span class="chat-header-name" id="chatHeaderName">—</span>
+          <span class="chat-header-sub" id="chatHeaderSub">Seleccioná una conversación</span>
+        </div>
+      </div>
+      <div class="chat-stream" id="chatStream">
+        <div class="chat-empty">Elegí una conversación para empezar</div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-photo-preview-row" id="chatPhotoPreviewRow" style="display:none">
+          <img id="chatPhotoPreview" class="chat-photo-preview" alt="preview">
+          <button class="chat-photo-remove" id="chatPhotoRemove" type="button" title="Quitar foto">✕</button>
+        </div>
+        <div class="chat-input-row">
+          <input type="file" id="chatPhotoInput" accept="image/*" hidden>
+          <button class="chat-photo-btn" id="chatPhotoBtn" type="button" title="Adjuntar foto (máx 10MB)">📷</button>
+          <input type="text" id="chatInput" class="chat-input" placeholder="Escribí un mensaje..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+          <button class="post-btn" id="chatSendBtn" type="button">Enviar</button>
+        </div>
+      </div>
+    </main>
   </div>
 </div>
 

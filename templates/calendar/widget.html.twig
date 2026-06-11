@@ -60,7 +60,7 @@
 <body>
   <div class="header">
     <h1>📊 CALENDARIO ECONÓMICO</h1>
-    <span class="source">Investing.com · Proxy</span>
+    <span class="source">Reuters · {{ filtered_count }} de {{ total_count }} eventos</span>
   </div>
 
   {% if has_data %}
@@ -100,9 +100,8 @@
     </div>
   {% else %}
     <div class="empty">
-      <h2>⚠️ No se pudo cargar el calendario</h2>
-      <p>Investing.com bloqueó la petición server-side.</p>
-      <p>Refrescá en unos minutos o usá el botón "📊 TradingView" en la otra pestaña.</p>
+      <h2>⚠️ Sin eventos para los filtros</h2>
+      <p>Probá con otros países o quitá algunos niveles de impacto.</p>
     </div>
   {% endif %}
 

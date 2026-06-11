@@ -291,6 +291,7 @@ let sb = window.API;
         initDivineBackground();
         drawDivineBackground();
         checkAuthStatus();
+        setupCalFilters();
         setTimeout(() => { if (document.getElementById('svgLines')) drawLines(); }, 200);
         window.addEventListener('resize', () => setTimeout(drawLines, 100));
       };
@@ -1088,6 +1089,7 @@ let sb = window.API;
 
       // ── Foto adjunta al post ──
       let postPhotoData = null;
+      let commentPhotoData = {};
 
       function attachPostPhoto(input) {
         if (!input.files[0]) return;
@@ -1105,6 +1107,24 @@ let sb = window.API;
         postPhotoData = null;
         const prev = document.getElementById('postPhotoPreview');
         if (prev) prev.style.display = 'none';
+      }
+
+      function attachCommentPhoto(input, postId) {
+        if (!input.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          commentPhotoData[postId] = e.target.result;
+          const prev = document.getElementById('comment-photo-preview-' + postId);
+          if (prev) { prev.src = commentPhotoData[postId]; prev.style.display = 'block'; }
+          input.value = '';
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+
+      function removeCommentPhoto(postId) {
+        commentPhotoData[postId] = null;
+        const prev = document.getElementById('comment-photo-preview-' + postId);
+        if (prev) { prev.src = ''; prev.style.display = 'none'; }
       }
 
       async function createNewPost() {
@@ -1195,18 +1215,24 @@ let sb = window.API;
 
       async function submitComment(postId) {
         const input = document.getElementById('comment-input-'+postId);
+        const photoPreview = document.getElementById('comment-photo-preview-'+postId);
         if(!input) return;
         const text = input.value.trim();
-        if(!text) return;
+        const photo = commentPhotoData[postId] || null;
+        if(!text && !photo) { showToast('⚠️ Escribí un comentario o adjuntá una foto.'); return; }
         if(!window.TNSVT_USER){ showToast('⚠️ Iniciá sesión primero'); return; }
         try {
-          await sb.commentPost(postId, window.TNSVT_USER.name || 'Trader', text);
+          await sb.commentPost(postId, window.TNSVT_USER.name || 'Trader', text, photo);
           input.value = '';
+          commentPhotoData[postId] = null;
+          if (photoPreview) { photoPreview.src = ''; photoPreview.style.display = 'none'; }
           const listEl = document.getElementById('comment-list-'+postId);
           if(listEl){
             const div = document.createElement('div');
             div.className = 'comment-item';
-            div.innerHTML = '<div class="comment-avatar">'+window.TNSVT_USER.name.charAt(0)+'</div><div class="comment-text"><span class="comment-author">'+window.TNSVT_USER.name+': </span>'+text+'</div>';
+            const safeText = sanitizePostText(text);
+            const photoHtml = photo ? '<div class="comment-photo-wrap"><img class="comment-photo" src="'+photo+'" onclick="window.open(this.src)"></div>' : '';
+            div.innerHTML = '<div class="comment-avatar">'+window.TNSVT_USER.name.charAt(0)+'</div><div class="comment-body"><div class="comment-text"><span class="comment-author">'+window.TNSVT_USER.name+': </span>'+safeText+'</div>'+photoHtml+'</div>';
             listEl.appendChild(div);
           }
           const box = document.getElementById('comments-'+postId);
@@ -1219,17 +1245,20 @@ let sb = window.API;
           showToast('❌ Error al comentar: ' + (e.message||''));
         }
       }
-      
-      
+
+
       function renderCommentsList(comments) {
         if(!comments || !comments.length) return '';
         return comments.map(function(c) {
           var author = (c.author || 'Trader');
           var initial = author.charAt(0).toUpperCase();
           var text = c.text || '';
+          var photo = c.photo || '';
+          var safeText = sanitizePostText(text);
+          var photoHtml = photo ? '<div class="comment-photo-wrap"><img class="comment-photo" src="'+photo+'" onclick="window.open(this.src)"></div>' : '';
           return '<div class="comment-item">'
             + '<div class="comment-avatar">' + initial + '</div>'
-            + '<div class="comment-text"><span class="comment-author">' + author + ': </span>' + text + '</div>'
+            + '<div class="comment-body"><div class="comment-text"><span class="comment-author">' + author + ': </span>' + safeText + '</div>' + photoHtml + '</div>'
             + '</div>';
         }).join('');
       }
@@ -1317,7 +1346,12 @@ let sb = window.API;
                 </div>
                 <div class="comment-box" id="comments-${p.id}">
                   <div class="comment-list" id="comment-list-${p.id}">${renderCommentsList(p.comments)}</div>
+                  <div class="comment-photo-preview-row">
+                    <img id="comment-photo-preview-${p.id}" style="display:none;max-height:80px;border-radius:6px;margin-bottom:4px;cursor:pointer;" onclick="removeCommentPhoto('${p.id}')" title="Click para quitar">
+                  </div>
                   <div class="comment-input-row">
+                    <button class="comment-photo-btn" onclick="document.getElementById('comment-photo-input-${p.id}').click()" title="Adjuntar foto">📷</button>
+                    <input type="file" id="comment-photo-input-${p.id}" accept="image/*" style="display:none" onchange="attachCommentPhoto(this, '${p.id}')">
                     <input type="text" id="comment-input-${p.id}" placeholder="Escribí un comentario..." onkeydown="if(event.key==='Enter')submitComment('${p.id}')">
                     <button class="comment-submit" onclick="submitComment('${p.id}')">Enviar</button>
                   </div>
@@ -1611,22 +1645,332 @@ let sb = window.API;
       }
 
       // ==================== CHAT ====================
-      function loadChats() {
-        const stream = document.getElementById('chatStream');
-        if (stream && stream.innerHTML === '') {
-          stream.innerHTML = '<div class="chat-msg student"><div class="chat-user">Sistema</div>Bienvenido al Canal de Ejecutores.</div>';
+      const CHAT_MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
+      let chatConversations = [];
+      let activeConvId = null;
+      let chatPhotoData = null;
+      let chatLastMessageId = 0;
+      let chatPollTimer = null;
+
+      function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function formatChatTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const now = new Date();
+        const sameDay = d.toDateString() === now.toDateString();
+        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+        const isYesterday = d.toDateString() === yesterday.toDateString();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        if (sameDay) return `${hh}:${mm}`;
+        if (isYesterday) return `ayer ${hh}:${mm}`;
+        return `${d.getDate()}/${d.getMonth()+1} ${hh}:${mm}`;
+      }
+
+      function convDisplayName(conv) {
+        if (conv.type === 'group') return conv.title || 'Grupo';
+        if (conv.type === 'dm') return conv.other_user_name || conv.other_user_code || 'Conversación';
+        if (conv.type === 'ai') return '🤖 T.N.S.V.T Coach';
+        return 'Conversación';
+      }
+
+      function convAvatar(conv) {
+        if (conv.type === 'group') return { text: '#', cls: 'group' };
+        if (conv.type === 'ai') return { text: 'IA', cls: 'ai' };
+        const name = conv.other_user_name || conv.other_user_code || '?';
+        return { text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
+      }
+
+      function renderConversations() {
+        const list = document.getElementById('chatConvList');
+        if (!list) return;
+        if (!chatConversations.length) {
+          list.innerHTML = '<div style="padding:20px;text-align:center;color:#a499b8;font-size:0.8rem;">Sin conversaciones</div>';
+          return;
+        }
+        list.innerHTML = chatConversations.map(c => {
+          const av = convAvatar(c);
+          const active = c.id === activeConvId ? ' active' : '';
+          const unread = c.unread_count > 0 ? `<span class="chat-unread-badge">${c.unread_count}</span>` : '';
+          let preview = '—';
+          if (c.last_message) {
+            const sender = c.last_message.sender_name || (c.last_message.is_ai ? 'IA' : '');
+            const text = c.last_message.has_photo
+              ? (sender ? `${sender}: 📷 Foto` : '📷 Foto')
+              : (sender ? `${sender}: ${c.last_message.content || ''}` : (c.last_message.content || ''));
+            preview = escapeHtml(text.length > 60 ? text.slice(0, 60) + '…' : text);
+          }
+          return `
+            <div class="chat-conv-item${active}" data-conv-id="${c.id}" onclick="selectConversation(${c.id})">
+              <div class="chat-conv-avatar ${av.cls}">${av.text}</div>
+              <div class="chat-conv-info">
+                <div class="chat-conv-name">${escapeHtml(convDisplayName(c))}</div>
+                <div class="chat-conv-preview">${preview}</div>
+              </div>
+              ${unread}
+            </div>`;
+        }).join('');
+      }
+
+      async function loadConversations() {
+        if (!window.TNSVT_USER) return;
+        try {
+          const data = await sb.getConversations(window.TNSVT_USER.code);
+          chatConversations = data || [];
+          renderConversations();
+          // Auto-select first conv if none active
+          if (!activeConvId && chatConversations.length > 0) {
+            const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
+            selectConversation(groupConv.id);
+          }
+        } catch(e) {
+          console.error('Error cargando conversaciones:', e);
         }
       }
 
-      function sendChatMessage() {
-        const inp = document.getElementById('chatInput');
-        const msg = inp?.value.trim();
-        if (!msg) return;
+      function renderMessage(msg, position) {
+        const me = window.TNSVT_USER;
+        const isMe = msg.sender_code === me?.code;
+        const isSystem = !msg.sender_code;
+        const avatarChar = isSystem ? '⚙' : (isMe ? (me.name || '?').charAt(0).toUpperCase() : (msg.sender_name || '?').charAt(0).toUpperCase());
+        const photoHtml = msg.photo ? `<img class="chat-msg-photo" src="${escapeHtml(msg.photo)}" onclick="openChatLightbox('${encodeURIComponent(msg.photo)}')" alt="foto">` : '';
+        const textHtml = msg.content ? `<div class="chat-msg-text">${escapeHtml(msg.content)}</div>` : '';
+        const metaName = isSystem ? 'Sistema' : (msg.sender_name || '—');
+        const metaTime = formatChatTime(msg.created_at);
+
+        if (isSystem) {
+          return `<div class="chat-msg system">
+            <div class="chat-msg-avatar">${avatarChar}</div>
+            <div class="chat-msg-body">
+              <div class="chat-msg-meta"><strong>${escapeHtml(metaName)}</strong> · ${metaTime}</div>
+              <div class="chat-msg-bubble">${textHtml}${photoHtml}</div>
+            </div>
+          </div>`;
+        }
+        return `<div class="chat-msg ${isMe ? 'me' : 'other'}">
+          <div class="chat-msg-avatar">${avatarChar}</div>
+          <div class="chat-msg-body ${isMe ? 'chat-msg-me' : ''}">
+            <div class="chat-msg-meta"><strong>${escapeHtml(metaName)}</strong> · ${metaTime}</div>
+            <div class="chat-msg-bubble">${textHtml}${photoHtml}</div>
+          </div>
+        </div>`;
+      }
+
+      async function loadMessages(convId, beforeId = null) {
+        if (!window.TNSVT_USER) return;
+        try {
+          const data = await sb.getMessages(convId, window.TNSVT_USER.code, beforeId);
+          return data || [];
+        } catch(e) {
+          console.error('Error cargando mensajes:', e);
+          return [];
+        }
+      }
+
+      async function selectConversation(convId) {
+        if (!window.TNSVT_USER) return;
+        activeConvId = convId;
+        renderConversations();
+        const conv = chatConversations.find(c => c.id === convId);
+        if (!conv) return;
+
+        // Header
+        const nameEl = document.getElementById('chatHeaderName');
+        const subEl = document.getElementById('chatHeaderSub');
+        if (nameEl) nameEl.textContent = convDisplayName(conv);
+        if (subEl) {
+          if (conv.type === 'group') subEl.textContent = 'Conversación grupal';
+          else if (conv.type === 'ai') subEl.textContent = 'Coach IA';
+          else subEl.textContent = 'Mensaje directo';
+        }
+
         const stream = document.getElementById('chatStream');
         if (stream) {
-          stream.innerHTML += `<div class="chat-msg me"><div class="chat-user">Yo</div>${msg}</div>`;
-          inp.value = '';
-          stream.scrollTop = stream.scrollHeight;
+          stream.innerHTML = '<div class="chat-empty">Cargando…</div>';
+        }
+
+        // Mark as read
+        try { await sb.markChatRead(convId, window.TNSVT_USER.code); } catch(e) {}
+
+        // Load latest 50
+        const messages = await loadMessages(convId, null);
+        renderStream(messages);
+        chatLastMessageId = messages.length ? messages[messages.length - 1].id : 0;
+
+        // Update local unread
+        const c = chatConversations.find(x => x.id === convId);
+        if (c) c.unread_count = 0;
+        renderConversations();
+      }
+
+      function renderStream(messages) {
+        const stream = document.getElementById('chatStream');
+        if (!stream) return;
+        if (!messages || !messages.length) {
+          stream.innerHTML = '<div class="chat-empty">Sin mensajes todavía. ¡Sé el primero!</div>';
+          return;
+        }
+        stream.innerHTML = messages.map(m => renderMessage(m)).join('');
+        stream.scrollTop = stream.scrollHeight;
+      }
+
+      function appendMessage(msg) {
+        const stream = document.getElementById('chatStream');
+        if (!stream) return;
+        // Remove "empty" or "loading" placeholders
+        const empty = stream.querySelector('.chat-empty');
+        if (empty) empty.remove();
+        stream.insertAdjacentHTML('beforeend', renderMessage(msg));
+        stream.scrollTop = stream.scrollHeight;
+      }
+
+      function attachChatPhoto(input) {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > CHAT_MAX_PHOTO_BYTES) {
+          showToast('❌ Foto demasiado grande (máx 10MB)');
+          input.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = e => {
+          chatPhotoData = e.target.result;
+          const prev = document.getElementById('chatPhotoPreview');
+          const row = document.getElementById('chatPhotoPreviewRow');
+          if (prev) prev.src = chatPhotoData;
+          if (row) row.style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function removeChatPhoto() {
+        chatPhotoData = null;
+        const prev = document.getElementById('chatPhotoPreview');
+        const row = document.getElementById('chatPhotoPreviewRow');
+        const input = document.getElementById('chatPhotoInput');
+        if (prev) prev.src = '';
+        if (row) row.style.display = 'none';
+        if (input) input.value = '';
+      }
+
+      async function sendChatMessage() {
+        if (!window.TNSVT_USER) { showToast('⚠️ Iniciá sesión primero'); return; }
+        if (!activeConvId) { showToast('⚠️ Seleccioná una conversación'); return; }
+        const input = document.getElementById('chatInput');
+        const content = (input?.value || '').trim();
+        if (!content && !chatPhotoData) return;
+
+        const btn = document.getElementById('chatSendBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+        try {
+          const msg = await sb.sendMessage(activeConvId, window.TNSVT_USER.code, content, chatPhotoData);
+          input.value = '';
+          removeChatPhoto();
+          appendMessage(msg);
+          chatLastMessageId = msg.id;
+          // Update conversation's last message
+          const c = chatConversations.find(x => x.id === activeConvId);
+          if (c) {
+            c.last_message = {
+              id: msg.id, sender_code: msg.sender_code, sender_name: msg.sender_name,
+              content: msg.content, has_photo: !!msg.photo, is_ai: msg.is_ai, created_at: msg.created_at
+            };
+            c.unread_count = 0;
+            renderConversations();
+          }
+        } catch(e) {
+          showToast('❌ Error al enviar: ' + (e.message || ''));
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+        }
+      }
+
+      function openChatLightbox(dataUrl) {
+        const existing = document.getElementById('chatLightbox');
+        if (existing) existing.remove();
+        const div = document.createElement('div');
+        div.id = 'chatLightbox';
+        div.className = 'chat-lightbox';
+        div.onclick = () => div.remove();
+        const img = document.createElement('img');
+        img.src = decodeURIComponent(dataUrl);
+        div.appendChild(img);
+        document.body.appendChild(div);
+      }
+
+      async function pollChat() {
+        if (!window.TNSVT_USER) return;
+        if (document.getElementById('tab-chat')?.classList.contains('active') && activeConvId) {
+          try {
+            const messages = await sb.getMessages(activeConvId, window.TNSVT_USER.code, null);
+            if (!messages || !messages.length) return;
+            const maxId = Math.max(...messages.map(m => m.id));
+            if (maxId > chatLastMessageId) {
+              const newMsgs = messages.filter(m => m.id > chatLastMessageId);
+              for (const m of newMsgs) appendMessage(m);
+              chatLastMessageId = maxId;
+              // Update sidebar preview
+              const last = messages[messages.length - 1];
+              const c = chatConversations.find(x => x.id === activeConvId);
+              if (c) {
+                c.last_message = {
+                  id: last.id, sender_code: last.sender_code, sender_name: last.sender_name,
+                  content: last.content, has_photo: !!last.photo, is_ai: last.is_ai, created_at: last.created_at
+                };
+                renderConversations();
+              }
+            }
+          } catch(e) {}
+        }
+        // Refresh sidebar every poll
+        try {
+          const data = await sb.getConversations(window.TNSVT_USER.code);
+          if (data) {
+            chatConversations = data;
+            renderConversations();
+          }
+        } catch(e) {}
+      }
+
+      function initChatPolling() {
+        if (chatPollTimer) clearInterval(chatPollTimer);
+        chatPollTimer = setInterval(pollChat, 5000);
+      }
+
+      function loadChats() {
+        loadConversations();
+        initChatPolling();
+        // Wire up input area
+        const photoBtn = document.getElementById('chatPhotoBtn');
+        const photoInput = document.getElementById('chatPhotoInput');
+        const photoRemove = document.getElementById('chatPhotoRemove');
+        const sendBtn = document.getElementById('chatSendBtn');
+        if (photoBtn && photoInput && !photoBtn._wired) {
+          photoBtn.addEventListener('click', () => photoInput.click());
+          photoBtn._wired = true;
+        }
+        if (photoInput && !photoInput._wired) {
+          photoInput.addEventListener('change', e => attachChatPhoto(e.target));
+          photoInput._wired = true;
+        }
+        if (photoRemove && !photoRemove._wired) {
+          photoRemove.addEventListener('click', removeChatPhoto);
+          photoRemove._wired = true;
+        }
+        if (sendBtn && !sendBtn._wired) {
+          sendBtn.addEventListener('click', sendChatMessage);
+          sendBtn._wired = true;
         }
       }
 
@@ -1708,6 +2052,8 @@ let sb = window.API;
       window.deletePost = deletePost;
       window.attachPostPhoto = attachPostPhoto;
       window.removePostPhoto = removePostPhoto;
+      window.attachCommentPhoto = attachCommentPhoto;
+      window.removeCommentPhoto = removeCommentPhoto;
       window.renderFeed = renderFeed;
       window.initFeedRealtime = initFeedRealtime;
       window.renderAcademia = renderAcademia;
@@ -1723,6 +2069,10 @@ let sb = window.API;
       window.playLesson = playLesson;
       window.loadChats = loadChats;
       window.sendChatMessage = sendChatMessage;
+      window.selectConversation = selectConversation;
+      window.attachChatPhoto = attachChatPhoto;
+      window.removeChatPhoto = removeChatPhoto;
+      window.openChatLightbox = openChatLightbox;
       window.initAllPanels = initAllPanels;
 
       // ==================== SISTEMA DE NOTIFICACIONES ====================
@@ -1888,27 +2238,7 @@ let sb = window.API;
         localStorage.setItem('tnsvt_push_dismissed', '1');
       }
 
-      function showCalSource(source) {
-        const sources = {
-          tv: { div: 'cal-source-tv', btn: 'cal-btn-tv' },
-          investing: { div: 'cal-source-investing', btn: 'cal-btn-investing' },
-          'tv-imp': { div: 'cal-source-tv-imp', btn: 'cal-btn-tv-imp' },
-        };
-        Object.entries(sources).forEach(([key, ids]) => {
-          const div = document.getElementById(ids.div);
-          const btn = document.getElementById(ids.btn);
-          if (!div || !btn) return;
-          if (key === source) {
-            div.style.display = 'block';
-            btn.style.background = 'var(--gold)';
-            btn.style.color = '#000';
-          } else {
-            div.style.display = 'none';
-            btn.style.background = 'transparent';
-            btn.style.color = '#a499b8';
-          }
-        });
-      }
+      // Calendario económico — los filtros se manejan en setupCalFilters()
 
       function fireBrowserNotif(type, text) {
         if (!pushPermGranted || Notification.permission !== 'granted') return;
@@ -1943,7 +2273,39 @@ let sb = window.API;
       window.requestPushPermission = requestPushPermission;
       window.dismissPushBar = dismissPushBar;
       window.checkPushPermission = checkPushPermission;
-      window.showCalSource = showCalSource;
+      function setupCalFilters() {
+        const countries = document.querySelectorAll('.cal-country-btn');
+        const impacts = document.querySelectorAll('.cal-impact-btn');
+        const iframe = document.getElementById('cal-iframe');
+        if (!iframe) return;
+
+        function applyFilters() {
+          const selCountries = [...countries].filter(b => b.classList.contains('active'))
+            .map(b => b.getAttribute('data-country'));
+          const selImpacts = [...impacts].filter(b => b.classList.contains('active'))
+            .map(b => b.getAttribute('data-impact'));
+          const url = '/calendar/widget?countries=' + (selCountries.join(',') || 'USD') + '&impact=' + (selImpacts.join(',') || '1,2,3');
+          iframe.src = url;
+        }
+
+        [...countries, ...impacts].forEach(btn => {
+          btn.addEventListener('click', () => {
+            btn.classList.toggle('active');
+            if (btn.classList.contains('active')) {
+              btn.style.background = 'var(--gold)';
+              btn.style.color = '#000';
+              btn.style.border = 'none';
+            } else {
+              btn.style.background = 'transparent';
+              btn.style.color = '#a499b8';
+              btn.style.border = '1px solid rgba(212,175,55,0.3)';
+            }
+            applyFilters();
+          });
+        });
+      }
+
+      window.setupCalFilters = setupCalFilters;
 
       console.log('✅ T.N.S.V.T - Todas las funciones cargadas correctamente.');
       // ==================== MÓDULO MULTIFRACTAL — TABS Y CHECKLIST ====================

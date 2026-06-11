@@ -36,8 +36,10 @@ const API = {
     return this.post(`/api/feed/${postId}/like`, { author_code: userCode, action });
   },
 
-  async commentPost(postId, author, text) {
-    return this.post(`/api/feed/${postId}/comment`, { author, text });
+  async commentPost(postId, author, text, photo = null) {
+    const body = { author, text };
+    if (photo) body.photo = photo;
+    return this.post(`/api/feed/${postId}/comment`, body);
   },
 
   async deletePost(postId, userCode) {
@@ -94,6 +96,35 @@ const API = {
 
   async getNotifCount(userCode) {
     return this.get(`/api/notifications/count?user_code=${userCode}`);
+  },
+
+  // Chat
+  async getConversations(userCode) {
+    return this.get(`/api/chat/conversations?user_code=${userCode}`);
+  },
+
+  async createDm(userCode, otherCode) {
+    return this.post('/api/chat/conversations', { user_code: userCode, other_code: otherCode });
+  },
+
+  async getMessages(convId, userCode, beforeId = null) {
+    const params = new URLSearchParams({ user_code: userCode, limit: '50' });
+    if (beforeId) params.set('before_id', String(beforeId));
+    return this.get(`/api/chat/conversations/${convId}/messages?${params}`);
+  },
+
+  async sendMessage(convId, userCode, content, photo = null) {
+    const body = { user_code: userCode, content: content || '' };
+    if (photo) body.photo = photo;
+    return this.post(`/api/chat/conversations/${convId}/messages`, body);
+  },
+
+  async markChatRead(convId, userCode) {
+    return this.post(`/api/chat/conversations/${convId}/read`, { user_code: userCode });
+  },
+
+  async getChatUsers(userCode) {
+    return this.get(`/api/chat/users?user_code=${userCode}`);
   }
 };
 
