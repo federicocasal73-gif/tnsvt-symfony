@@ -519,15 +519,33 @@ let sb = window.API;
       }
 
       // ==================== FUNCIONES DE TAREAS Y 2 STEPS ====================
-      let initialTasks = [
-        { id: 1, title: "Sintonización Inicial del Ser", desc: "Leer los módulos de identidad TNSVT.", completed: true },
-        { id: 2, title: "Mapeo de Liquidez Externa", desc: "Identificar 5 gráficos marcando Puntos A.", completed: false },
-        { id: 3, title: "Análisis del PMI y Diferenciales", desc: "Mapear divergencia de políticas monetarias.", completed: false }
-      ];
+      // Tareas ahora vienen de la API. Estado "completado" se guarda en localStorage
+      // con la key 'tnsv_task_completed_<id>' (true/false).
+      let initialTasks = [];
 
-      function loadTasks() {
+      function _getTaskCompleted(id) {
+        return localStorage.getItem('tnsv_task_completed_' + id) === 'true';
+      }
+      function _setTaskCompleted(id, completed) {
+        if (completed) localStorage.setItem('tnsv_task_completed_' + id, 'true');
+        else localStorage.removeItem('tnsv_task_completed_' + id);
+      }
+
+      async function loadTasks() {
         const container = document.getElementById('taskListContainer');
         if (!container) return;
+        try {
+          const data = await sb.get('/api/tasks');
+          initialTasks = (data || []).map(t => ({
+            id: t.id,
+            title: t.title,
+            desc: t.description || '',
+            completed: _getTaskCompleted(t.id)
+          }));
+        } catch (e) {
+          console.error('Error cargando tareas:', e);
+          initialTasks = [];
+        }
         let completeCount = 0;
         container.innerHTML = initialTasks.map(t => {
           if (t.completed) completeCount++;
@@ -535,8 +553,8 @@ let sb = window.API;
             <div class="task-card ${t.completed ? 'completed' : ''}">
               <div class="task-check" onclick="toggleTask(${t.id})">${t.completed ? '✓' : ''}</div>
               <div class="task-content-area">
-                <div class="task-title">${t.title}</div>
-                <div class="task-desc">${t.desc}</div>
+                <div class="task-title">${escapeHtml(t.title)}</div>
+                <div class="task-desc">${escapeHtml(t.desc)}</div>
               </div>
             </div>`;
         }).join('');
@@ -548,6 +566,7 @@ let sb = window.API;
         const task = initialTasks.find(x => x.id === id);
         if (task) {
           task.completed = !task.completed;
+          _setTaskCompleted(id, task.completed);
           loadTasks();
           showToast("Estado de tarea actualizado.");
         }
@@ -1798,6 +1817,146 @@ let sb = window.API;
         adminRefreshList();
       }
 
+      // ==================== ADMIN TASK MANAGEMENT ====================
+      function adminShowSubtab(tab) {
+        const usersBtn = document.getElementById('adminSubtabUsers');
+        const tasksBtn = document.getElementById('adminSubtabTasks');
+        const usersContent = document.getElementById('adminSubtabContentUsers');
+        const tasksContent = document.getElementById('adminSubtabContentTasks');
+        if (tab === 'tasks') {
+          usersBtn.style.color = '#645a78';
+          usersBtn.style.borderBottomColor = 'transparent';
+          tasksBtn.style.color = 'var(--gold-bright)';
+          tasksBtn.style.borderBottomColor = 'var(--gold)';
+          usersContent.style.display = 'none';
+          tasksContent.style.display = 'block';
+          adminRefreshTasks();
+        } else {
+          tasksBtn.style.color = '#645a78';
+          tasksBtn.style.borderBottomColor = 'transparent';
+          usersBtn.style.color = 'var(--gold-bright)';
+          usersBtn.style.borderBottomColor = 'var(--gold)';
+          tasksContent.style.display = 'none';
+          usersContent.style.display = 'block';
+        }
+      }
+
+      async function adminRefreshTasks() {
+        const tbody = document.getElementById('adminTasksTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; color:#645a78;">Cargando...</td></tr>';
+        try {
+          const tasks = await sb.get('/api/admin/tasks');
+          tbody.innerHTML = '';
+          if (!tasks || tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">No hay tareas creadas</td></tr>';
+            return;
+          }
+          tasks.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid rgba(255,255,255,0.04)';
+            const statusBadge = t.active
+              ? '<span style="color:#34c759;">🟢 Activa</span>'
+              : '<span style="color:#ff3b30;">🔴 Inactiva</span>';
+            tr.innerHTML = `
+              <td style="padding:10px 8px; font-family:'Orbitron',sans-serif; font-size:0.75rem; color:#645a78;">${t.orden}</td>
+              <td style="padding:10px 8px; color:#fff; font-size:0.85rem;">${escapeHtml(t.title)}</td>
+              <td style="padding:10px 8px; color:#a499b8; font-size:0.78rem; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(t.description || '—')}</td>
+              <td style="padding:10px 8px; text-align:center;">${statusBadge}</td>
+              <td style="padding:10px 8px; text-align:right; white-space:nowrap;">
+                <button class="admin-btn-edit" onclick="adminShowTaskEditForm(${t.id},'${escapeHtml(t.title).replace(/'/g,"\\'")}','${escapeHtml(t.description || '').replace(/'/g,"\\'")}',${t.orden},${t.active})">✏️</button>
+                <button class="admin-btn-edit" onclick="adminToggleTaskActive(${t.id})" title="${t.active ? 'Desactivar' : 'Activar'}">${t.active ? '🔒' : '🔓'}</button>
+                <button class="admin-btn-danger" onclick="adminDeleteTask(${t.id})">🗑️</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } catch(e) {
+          tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#ff3b30;">Error: ${e.message}</td></tr>`;
+        }
+      }
+
+      function adminShowTaskCreateForm() {
+        document.getElementById('adminEditTaskId').value = '';
+        document.getElementById('adminTaskTitle').value = '';
+        document.getElementById('adminTaskDesc').value = '';
+        document.getElementById('adminTaskOrden').value = '99';
+        document.getElementById('adminTaskActive').checked = true;
+        document.getElementById('adminTaskFormTitle').textContent = '➕ Nueva Tarea';
+        document.getElementById('adminTaskForm').style.display = 'block';
+        document.getElementById('adminTaskFormFeedback').textContent = '';
+      }
+
+      function adminShowTaskEditForm(id, title, desc, orden, active) {
+        document.getElementById('adminEditTaskId').value = id;
+        document.getElementById('adminTaskTitle').value = title;
+        document.getElementById('adminTaskDesc').value = desc;
+        document.getElementById('adminTaskOrden').value = orden;
+        document.getElementById('adminTaskActive').checked = active;
+        document.getElementById('adminTaskFormTitle').textContent = '✏️ Editando: ' + title;
+        document.getElementById('adminTaskForm').style.display = 'block';
+        document.getElementById('adminTaskFormFeedback').textContent = '';
+      }
+
+      function adminCancelTaskForm() {
+        document.getElementById('adminTaskForm').style.display = 'none';
+        document.getElementById('adminTaskFormFeedback').textContent = '';
+      }
+
+      async function adminSaveTask() {
+        const id = document.getElementById('adminEditTaskId').value;
+        const title = document.getElementById('adminTaskTitle').value.trim();
+        const desc = document.getElementById('adminTaskDesc').value.trim();
+        const orden = parseInt(document.getElementById('adminTaskOrden').value) || 99;
+        const active = document.getElementById('adminTaskActive').checked;
+        const feedback = document.getElementById('adminTaskFormFeedback');
+        if (!title) {
+          feedback.textContent = '⚠️ El título es requerido';
+          feedback.style.color = '#ff3b30';
+          return;
+        }
+        feedback.textContent = '🔄 Guardando...';
+        feedback.style.color = '#645a78';
+        try {
+          if (id) {
+            await sb.put(`/api/admin/tasks/${id}`, { title, description: desc, orden, active });
+            feedback.textContent = '✅ Tarea actualizada';
+          } else {
+            await sb.post('/api/admin/tasks', { title, description: desc, orden, active });
+            feedback.textContent = '✅ Tarea creada';
+          }
+          feedback.style.color = '#34c759';
+          setTimeout(() => {
+            adminCancelTaskForm();
+            adminRefreshTasks();
+          }, 800);
+        } catch(e) {
+          feedback.textContent = '❌ ' + e.message;
+          feedback.style.color = '#ff3b30';
+        }
+      }
+
+      async function adminDeleteTask(id) {
+        if (!confirm('¿Eliminar esta tarea? Los alumnos ya no la verán.')) return;
+        try {
+          await sb.del(`/api/admin/tasks/${id}`);
+          showToast('🗑️ Tarea eliminada');
+          adminRefreshTasks();
+        } catch(e) {
+          showToast('❌ Error: ' + e.message);
+        }
+      }
+
+      async function adminToggleTaskActive(id) {
+        try {
+          await sb.put(`/api/admin/tasks/${id}/toggle-active`);
+          adminRefreshTasks();
+          showToast('🔄 Estado actualizado');
+        } catch(e) {
+          showToast('❌ Error: ' + e.message);
+        }
+      }
+
       // ==================== CHAT ====================
       const CHAT_MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
       let chatConversations = [];
@@ -2232,6 +2391,14 @@ let sb = window.API;
       window.adminSaveUser = adminSaveUser;
       window.adminToggleActive = adminToggleActive;
       window.adminCreateBatch = adminCreateBatch;
+      window.adminShowSubtab = adminShowSubtab;
+      window.adminRefreshTasks = adminRefreshTasks;
+      window.adminShowTaskCreateForm = adminShowTaskCreateForm;
+      window.adminShowTaskEditForm = adminShowTaskEditForm;
+      window.adminCancelTaskForm = adminCancelTaskForm;
+      window.adminSaveTask = adminSaveTask;
+      window.adminDeleteTask = adminDeleteTask;
+      window.adminToggleTaskActive = adminToggleTaskActive;
       window.toggleAdminPassField = toggleAdminPassField;
       window.playLesson = playLesson;
       window.loadChats = loadChats;

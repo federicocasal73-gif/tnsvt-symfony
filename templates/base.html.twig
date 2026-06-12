@@ -2610,47 +2610,102 @@
     </div>
   </div>
 
-  <!-- Dashboard stats -->
-  <div id="adminDashboard" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:20px;"></div>
-
-  <!-- Acciones rápidas -->
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
-    <button class="post-btn" onclick="adminShowCreateForm()">➕ Nuevo Alumno</button>
-    <button class="post-btn" onclick="adminCreateBatch()">👥 Crear alumnos faltantes</button>
-    <button class="back-btn" onclick="adminRefreshList()">🔄 Refrescar</button>
+  <!-- Sub-pestañas del admin -->
+  <div style="display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid rgba(212,175,55,0.15);">
+    <button class="admin-subtab-btn active" id="adminSubtabUsers" onclick="adminShowSubtab('users')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid var(--gold); color:var(--gold-bright); font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">👥 Alumnos</button>
+    <button class="admin-subtab-btn" id="adminSubtabTasks" onclick="adminShowSubtab('tasks')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">📋 Tareas Operativas</button>
   </div>
 
-  <!-- Formulario crear/editar -->
-  <div id="adminUserForm" style="display:none; background:rgba(13,8,24,0.9); border:1px solid rgba(212,175,55,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">
-    <h3 id="adminFormTitle" style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:12px;">➕ Nuevo Alumno</h3>
-    <input type="hidden" id="adminEditUserId">
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-      <input type="text" id="adminUserCode" class="feed-input" placeholder="Código (ej: ALUMNO12)" style="padding:10px;">
-      <input type="text" id="adminUserName" class="feed-input" placeholder="Nombre completo" style="padding:10px;">
+  <!-- SUB-PESTAÑA: ALUMNOS -->
+  <div id="adminSubtabContentUsers">
+    <!-- Dashboard stats -->
+    <div id="adminDashboard" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:20px;"></div>
+
+    <!-- Acciones rápidas -->
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+      <button class="post-btn" onclick="adminShowCreateForm()">➕ Nuevo Alumno</button>
+      <button class="post-btn" onclick="adminCreateBatch()">👥 Crear alumnos faltantes</button>
+      <button class="back-btn" onclick="adminRefreshList()">🔄 Refrescar</button>
     </div>
-    <div style="display:flex; gap:10px; margin-top:12px;">
-      <button class="post-btn" onclick="adminSaveUser()">💾 Guardar</button>
-      <button class="back-btn" onclick="adminCancelForm()">Cancelar</button>
+
+    <!-- Formulario crear/editar -->
+    <div id="adminUserForm" style="display:none; background:rgba(13,8,24,0.9); border:1px solid rgba(212,175,55,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">
+      <h3 id="adminFormTitle" style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:12px;">➕ Nuevo Alumno</h3>
+      <input type="hidden" id="adminEditUserId">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <input type="text" id="adminUserCode" class="feed-input" placeholder="Código (ej: ALUMNO12)" style="padding:10px;">
+        <input type="text" id="adminUserName" class="feed-input" placeholder="Nombre completo" style="padding:10px;">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="post-btn" onclick="adminSaveUser()">💾 Guardar</button>
+        <button class="back-btn" onclick="adminCancelForm()">Cancelar</button>
+      </div>
+      <p id="adminFormFeedback" style="font-size:0.8rem; margin-top:8px;"></p>
     </div>
-    <p id="adminFormFeedback" style="font-size:0.8rem; margin-top:8px;"></p>
+
+    <!-- Tabla de usuarios -->
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(212,175,55,0.2);">
+            <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">CÓDIGO</th>
+            <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">NOMBRE</th>
+            <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ROL</th>
+            <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ESTADO</th>
+            <th style="padding:10px 8px; text-align:right; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="adminUsersTableBody">
+          <tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Tabla de usuarios -->
-  <div style="overflow-x:auto;">
-    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-      <thead>
-        <tr style="border-bottom:1px solid rgba(212,175,55,0.2);">
-          <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">CÓDIGO</th>
-          <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">NOMBRE</th>
-          <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ROL</th>
-          <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ESTADO</th>
-          <th style="padding:10px 8px; text-align:right; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ACCIONES</th>
-        </tr>
-      </thead>
-      <tbody id="adminUsersTableBody">
-        <tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">Cargando...</td></tr>
-      </tbody>
-    </table>
+  <!-- SUB-PESTAÑA: TAREAS -->
+  <div id="adminSubtabContentTasks" style="display:none;">
+    <!-- Acciones -->
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+      <button class="post-btn" onclick="adminShowTaskCreateForm()">➕ Nueva Tarea</button>
+      <button class="back-btn" onclick="adminRefreshTasks()">🔄 Refrescar</button>
+    </div>
+
+    <!-- Formulario crear/editar tarea -->
+    <div id="adminTaskForm" style="display:none; background:rgba(13,8,24,0.9); border:1px solid rgba(212,175,55,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">
+      <h3 id="adminTaskFormTitle" style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:12px;">➕ Nueva Tarea</h3>
+      <input type="hidden" id="adminEditTaskId">
+      <div style="display:grid; grid-template-columns:1fr 100px; gap:10px;">
+        <input type="text" id="adminTaskTitle" class="feed-input" placeholder="Título de la tarea" style="padding:10px;">
+        <input type="number" id="adminTaskOrden" class="feed-input" placeholder="Orden" min="0" style="padding:10px;">
+      </div>
+      <textarea id="adminTaskDesc" class="feed-input" placeholder="Descripción / instrucciones" style="padding:10px; margin-top:10px; min-height:70px; font-family:inherit;"></textarea>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:0.85rem; color:#a499b8;">
+        <input type="checkbox" id="adminTaskActive" checked> Activa (visible para alumnos)
+      </label>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="post-btn" onclick="adminSaveTask()">💾 Guardar</button>
+        <button class="back-btn" onclick="adminCancelTaskForm()">Cancelar</button>
+      </div>
+      <p id="adminTaskFormFeedback" style="font-size:0.8rem; margin-top:8px;"></p>
+    </div>
+
+    <!-- Tabla de tareas -->
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(212,175,55,0.2);">
+            <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px; width:40px;">#</th>
+            <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">TÍTULO</th>
+            <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">DESCRIPCIÓN</th>
+            <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ESTADO</th>
+            <th style="padding:10px 8px; text-align:right; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="adminTasksTableBody">
+          <tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
