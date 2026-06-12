@@ -80,18 +80,37 @@ let sb = window.API;
       };
 
       // ==================== FUNCIONES DE LOGIN Y NAVEGACIÓN ====================
+      function toggleAdminPassField() {
+        const code = document.getElementById('gateKey').value.trim().toUpperCase();
+        const passField = document.getElementById('gatePass');
+        const hint = document.getElementById('adminPassHint');
+        if (code === 'ADMIN01') {
+          passField.style.display = 'block';
+          hint.style.display = 'block';
+        } else {
+          passField.style.display = 'none';
+          hint.style.display = 'none';
+        }
+      }
+
       async function verifyGateKey() {
         const code = document.getElementById('gateKey').value.trim().toUpperCase();
+        const password = document.getElementById('gatePass')?.value || '';
         if (!code) { showToast("⚠️ Ingresá tu código de acceso."); return; }
         if (!sb) { showToast("❌ API no disponible."); return; }
         showToast("🔄 Verificando código...");
         try {
-          const data = await sb.login(code);
-          if (!data.success || !data.user) { showToast("❌ Código inválido — contactá a tu instructor."); return; }
-          activeUserSession = { codename: data.user.name || "Alma Electa", token: code };
+          const data = await sb.login(code, password);
+          if (!data.success || !data.user) {
+            const err = data.error || 'Código inválido';
+            showToast("❌ " + err);
+            return;
+          }
+          const isAdmin = data.user.isAdmin || false;
+          activeUserSession = { codename: data.user.name || "Alma Electa", token: code, isAdmin };
           sessionStorage.setItem('tnsv_auth', 'true');
           localStorage.setItem('tnsv_user', JSON.stringify(activeUserSession));
-          window.TNSVT_USER = { code: code, name: data.user.name || 'Trader' };
+          window.TNSVT_USER = { code: code, name: data.user.name || 'Trader', isAdmin };
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
           document.getElementById('profileCodename').innerText = data.user.name || "Alma Electa";
@@ -106,9 +125,14 @@ let sb = window.API;
       function logout() {
         sessionStorage.removeItem('tnsv_auth');
         localStorage.removeItem('tnsv_user');
+        window.TNSVT_USER = null;
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('gateKey').value = '';
+        document.getElementById('gatePass').value = '';
+        document.getElementById('gatePass').style.display = 'none';
+        document.getElementById('adminPassHint').style.display = 'none';
+        document.getElementById('adminSidebarBtn').style.display = 'none';
         document.getElementById('hub-view').style.display = 'flex';
         document.getElementById('module-panel').style.display = 'none';
         document.getElementById('trading-panel').style.display = 'none';
@@ -225,7 +249,9 @@ let sb = window.API;
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
-        event.currentTarget.classList.add('active');
+        const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
+        if (btn) btn.classList.add('active');
+        if (tabId === 'tab-admin') adminRefreshList();
       }
       function switchTradingTab(tabId) { switchTab(tabId); }
 
@@ -1644,6 +1670,134 @@ let sb = window.API;
         if (modeTitle) modeTitle.textContent = '➕ Nuevo Curso';
       }
 
+      // ==================== ADMIN USER MANAGEMENT ====================
+      async function adminRefreshList() {
+        const tbody = document.getElementById('adminUsersTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; color:#645a78;">Cargando...</td></tr>';
+        try {
+          const users = await sb.get('/api/admin/users');
+          const stats = await sb.get('/api/admin/dashboard');
+          const dashboardEl = document.getElementById('adminDashboard');
+          if (dashboardEl && stats) {
+            dashboardEl.innerHTML = `
+              <div class="mf-info-card"><div style="font-size:1.3rem; margin-bottom:4px; color:var(--gold-bright);">${stats.totalUsers}</div><div style="font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif;">TOTAL</div></div>
+              <div class="mf-info-card"><div style="font-size:1.3rem; margin-bottom:4px; color:#34c759;">${stats.activeUsers}</div><div style="font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif;">ACTIVOS</div></div>
+              <div class="mf-info-card"><div style="font-size:1.3rem; margin-bottom:4px; color:#ff3b30;">${stats.inactiveUsers}</div><div style="font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif;">INACTIVOS</div></div>
+              <div class="mf-info-card"><div style="font-size:1.3rem; margin-bottom:4px; color:var(--violet);">${stats.students}</div><div style="font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif;">ALUMNOS</div></div>
+            `;
+          }
+          tbody.innerHTML = '';
+          if (!users || users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">No hay usuarios</td></tr>';
+            return;
+          }
+          users.forEach(u => {
+            const isAdmin = u.isAdmin ? '<span style="color:var(--gold);">👑 Admin</span>' : '<span style="color:#645a78;">Alumno</span>';
+            const activeBadge = u.active
+              ? '<span style="color:#34c759;">🟢 Activo</span>'
+              : '<span style="color:#ff3b30;">🔴 Inactivo</span>';
+            const actions = u.isAdmin
+              ? '<span style="color:#645a78; font-size:0.75rem;">—</span>'
+              : `<button class="admin-btn-edit" onclick="adminShowEditForm(${u.id},'${u.code}','${u.name.replace(/'/g,"\\'")}')">✏️</button>
+                 <button class="admin-btn-danger" onclick="adminToggleActive(${u.id})">${u.active ? '🔒' : '🔓'}</button>`;
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid rgba(255,255,255,0.04)';
+            tr.innerHTML = `
+              <td style="padding:10px 8px; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; color:#fff;">${escapeHtml(u.code)}</td>
+              <td style="padding:10px 8px; color:#a499b8;">${escapeHtml(u.name)}</td>
+              <td style="padding:10px 8px; text-align:center;">${isAdmin}</td>
+              <td style="padding:10px 8px; text-align:center;">${activeBadge}</td>
+              <td style="padding:10px 8px; text-align:right; white-space:nowrap;">${actions}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } catch(e) {
+          tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#ff3b30;">Error: ${e.message}</td></tr>`;
+        }
+      }
+
+      function adminShowCreateForm() {
+        document.getElementById('adminEditUserId').value = '';
+        document.getElementById('adminUserCode').value = '';
+        document.getElementById('adminUserName').value = '';
+        document.getElementById('adminFormTitle').textContent = '➕ Nuevo Alumno';
+        document.getElementById('adminUserForm').style.display = 'block';
+        document.getElementById('adminFormFeedback').textContent = '';
+      }
+
+      function adminShowEditForm(id, code, name) {
+        document.getElementById('adminEditUserId').value = id;
+        document.getElementById('adminUserCode').value = code;
+        document.getElementById('adminUserName').value = name;
+        document.getElementById('adminFormTitle').textContent = '✏️ Editando: ' + name;
+        document.getElementById('adminUserForm').style.display = 'block';
+        document.getElementById('adminFormFeedback').textContent = '';
+      }
+
+      function adminCancelForm() {
+        document.getElementById('adminUserForm').style.display = 'none';
+        document.getElementById('adminFormFeedback').textContent = '';
+      }
+
+      async function adminSaveUser() {
+        const id = document.getElementById('adminEditUserId').value;
+        const code = document.getElementById('adminUserCode').value.trim().toUpperCase();
+        const name = document.getElementById('adminUserName').value.trim();
+        const feedback = document.getElementById('adminFormFeedback');
+        if (!code || !name) {
+          feedback.textContent = '⚠️ Completá todos los campos';
+          feedback.style.color = '#ff3b30';
+          return;
+        }
+        feedback.textContent = '🔄 Guardando...';
+        feedback.style.color = '#645a78';
+        try {
+          if (id) {
+            await sb.put(`/api/admin/users/${id}`, { code, name });
+            feedback.textContent = '✅ Alumno actualizado';
+          } else {
+            await sb.post('/api/admin/users', { code, name });
+            feedback.textContent = '✅ Alumno creado';
+          }
+          feedback.style.color = '#34c759';
+          adminCancelForm();
+          adminRefreshList();
+        } catch(e) {
+          feedback.textContent = '❌ ' + e.message;
+          feedback.style.color = '#ff3b30';
+        }
+      }
+
+      async function adminToggleActive(id) {
+        try {
+          await sb.put(`/api/admin/users/${id}/toggle-active`);
+          adminRefreshList();
+          showToast('🔄 Estado actualizado');
+        } catch(e) {
+          showToast('❌ Error: ' + e.message);
+        }
+      }
+
+      async function adminCreateBatch() {
+        const codes = [];
+        for (let i = 1; i <= 11; i++) {
+          const c = 'ALUMNO' + String(i).padStart(2, '0');
+          codes.push(c);
+        }
+        showToast('🔄 Creando alumnos faltantes...');
+        let created = 0;
+        for (const code of codes) {
+          try {
+            const name = 'Alumno';
+            await sb.post('/api/admin/users', { code, name });
+            created++;
+          } catch(e) {}
+        }
+        showToast(`✅ ${created} alumnos creados`);
+        adminRefreshList();
+      }
+
       // ==================== CHAT ====================
       const CHAT_MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
       let chatConversations = [];
@@ -1988,6 +2142,11 @@ let sb = window.API;
         updateBadge();
         setTimeout(() => { if (document.getElementById('mc-rate-slider')) mcCalcInterest(); }, 100);
         updateInnerLocks();
+        const u = window.TNSVT_USER;
+        if (u && u.isAdmin) {
+          document.getElementById('adminSidebarBtn').style.display = 'block';
+          adminRefreshList();
+        }
       }
 
       async function loadJournalFromApi() {
@@ -2066,6 +2225,14 @@ let sb = window.API;
       window.adminEditCourse = adminEditCourse;
       window.adminDeleteCourse = adminDeleteCourse;
       window.adminClearForm = adminClearForm;
+      window.adminRefreshList = adminRefreshList;
+      window.adminShowCreateForm = adminShowCreateForm;
+      window.adminShowEditForm = adminShowEditForm;
+      window.adminCancelForm = adminCancelForm;
+      window.adminSaveUser = adminSaveUser;
+      window.adminToggleActive = adminToggleActive;
+      window.adminCreateBatch = adminCreateBatch;
+      window.toggleAdminPassField = toggleAdminPassField;
       window.playLesson = playLesson;
       window.loadChats = loadChats;
       window.sendChatMessage = sendChatMessage;

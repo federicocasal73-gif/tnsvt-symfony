@@ -114,8 +114,10 @@
     <div class="gate-box">
       <h2>⛧ T.N.S.V.T ⛧</h2>
       <p class="sub">NEURO-SPIRITUAL VALUE THEORY</p>
-      <input type="password" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" autofocus>
+      <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" autofocus oninput="toggleAdminPassField()">
+      <input type="password" id="gatePass" placeholder="CONTRASEÑA (solo admin)" style="display:none;">
       <button class="login-btn" onclick="verifyGateKey()">ENTRAR AL GATEWAY</button>
+      <p id="adminPassHint" style="display:none; font-size:0.75rem; color:var(--gold); margin-top:4px;">👑 Admin: ingresá tu contraseña</p>
     </div>
   </div>
 
@@ -206,6 +208,7 @@
             <button class="sidebar-btn" onclick="switchTab('tab-journal')">📊 Trading Journal</button>
             <button class="sidebar-btn" onclick="switchTab('tab-academia')">🎓 Academia</button>
             <button class="sidebar-btn" onclick="switchTab('tab-chat')">💬 Chat de Ejecutores</button>
+            <button class="sidebar-btn" id="adminSidebarBtn" onclick="switchTab('tab-admin')" style="display:none;">⚙️ Admin</button>
           </div>
 
           <div class="trading-main">
@@ -2595,6 +2598,59 @@
         </div>
       </div>
     </main>
+  </div>
+</div>
+
+<!-- ==================== ADMIN TAB ==================== -->
+<div id="tab-admin" class="tab-content" style="padding:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <h2 style="font-family:'Cinzel',serif; color:var(--gold-bright);">⚙️ Panel de Administración</h2>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <span id="adminStats" style="font-size:0.75rem; color:#645a78;"></span>
+    </div>
+  </div>
+
+  <!-- Dashboard stats -->
+  <div id="adminDashboard" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:20px;"></div>
+
+  <!-- Acciones rápidas -->
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+    <button class="post-btn" onclick="adminShowCreateForm()">➕ Nuevo Alumno</button>
+    <button class="post-btn" onclick="adminCreateBatch()">👥 Crear alumnos faltantes</button>
+    <button class="back-btn" onclick="adminRefreshList()">🔄 Refrescar</button>
+  </div>
+
+  <!-- Formulario crear/editar -->
+  <div id="adminUserForm" style="display:none; background:rgba(13,8,24,0.9); border:1px solid rgba(212,175,55,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">
+    <h3 id="adminFormTitle" style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:12px;">➕ Nuevo Alumno</h3>
+    <input type="hidden" id="adminEditUserId">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <input type="text" id="adminUserCode" class="feed-input" placeholder="Código (ej: ALUMNO12)" style="padding:10px;">
+      <input type="text" id="adminUserName" class="feed-input" placeholder="Nombre completo" style="padding:10px;">
+    </div>
+    <div style="display:flex; gap:10px; margin-top:12px;">
+      <button class="post-btn" onclick="adminSaveUser()">💾 Guardar</button>
+      <button class="back-btn" onclick="adminCancelForm()">Cancelar</button>
+    </div>
+    <p id="adminFormFeedback" style="font-size:0.8rem; margin-top:8px;"></p>
+  </div>
+
+  <!-- Tabla de usuarios -->
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(212,175,55,0.2);">
+          <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">CÓDIGO</th>
+          <th style="padding:10px 8px; text-align:left; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">NOMBRE</th>
+          <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ROL</th>
+          <th style="padding:10px 8px; text-align:center; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ESTADO</th>
+          <th style="padding:10px 8px; text-align:right; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ACCIONES</th>
+        </tr>
+      </thead>
+      <tbody id="adminUsersTableBody">
+        <tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">Cargando...</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 

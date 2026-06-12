@@ -1,6 +1,6 @@
 security:
     password_hashers:
-        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+        App\Entity\User: 'auto'
 
     providers:
         app_user_provider:
@@ -19,6 +19,7 @@ security:
             entry_point: App\Security\CodeAuthenticator
 
     access_control:
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/logout, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: PUBLIC_ACCESS }

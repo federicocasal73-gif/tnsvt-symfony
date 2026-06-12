@@ -10,24 +10,39 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[AsCommand(name: 'app:seed-users')]
 class SeedUsersCommand extends Command
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly UserPasswordHasherInterface $passwordHasher,
     ) {
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $hashedPassword = $this->passwordHasher->hashPassword(new User(), 'admin:TNSVT');
+
         $usersData = [
             ['code' => 'DEMO', 'name' => 'Demo', 'roles' => ['ROLE_USER']],
-            ['code' => 'ADMIN01', 'name' => 'Admin', 'roles' => ['ROLE_USER', 'ROLE_ADMIN']],
+            ['code' => 'ADMIN01', 'name' => 'Admin', 'roles' => ['ROLE_USER', 'ROLE_ADMIN'], 'password' => $hashedPassword],
             ['code' => 'EXEC01', 'name' => 'Carlos', 'roles' => ['ROLE_USER']],
             ['code' => 'EXEC02', 'name' => 'María', 'roles' => ['ROLE_USER']],
             ['code' => 'EXEC03', 'name' => 'Diego', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO01', 'name' => 'Lucas', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO02', 'name' => 'Yesid', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO03', 'name' => 'Lucho', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO04', 'name' => 'Wiss', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO05', 'name' => 'Alejandro', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO06', 'name' => 'Guille', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO07', 'name' => 'Damian', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO08', 'name' => 'Aikme', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO09', 'name' => 'Matias', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO10', 'name' => 'Mijael', 'roles' => ['ROLE_USER']],
+            ['code' => 'ALUMNO11', 'name' => 'Gustavo', 'roles' => ['ROLE_USER']],
         ];
 
         $userRepository = $this->entityManager->getRepository(User::class);
@@ -45,6 +60,9 @@ class SeedUsersCommand extends Command
             $user->setCode($data['code']);
             $user->setName($data['name']);
             $user->setRoles($data['roles']);
+            if (isset($data['password'])) {
+                $user->setPassword($data['password']);
+            }
 
             $this->entityManager->persist($user);
             $output->writeln(sprintf('Created user "%s".', $data['code']));
