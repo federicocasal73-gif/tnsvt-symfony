@@ -1571,14 +1571,7 @@ let sb = window.API;
 
       async function checkAdminPass() {
         const pass = document.getElementById('adminPassInput')?.value.trim();
-        const code = document.getElementById('adminCode2FA')?.value.trim();
-        if (!pass || !code) { showToast('⚠️ Completá ambos campos'); return; }
-        // Verificar 2FA primero (rápido, sin esperar hash)
-        if (code !== _getDailyCode()) {
-          showToast('❌ Código diario incorrecto');
-          document.getElementById('adminCode2FA').value = '';
-          return;
-        }
+        if (!pass) { showToast('⚠️ Ingresá la contraseña'); return; }
         // Verificar contraseña via SHA-256
         const inputHash = await _sha256(pass);
         if (inputHash !== _H) {

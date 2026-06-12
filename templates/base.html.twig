@@ -2515,11 +2515,8 @@
         <div class="admin-title">⚙️ Panel Admin <button class="admin-close" onclick="closeAdminPanel()">✕</button></div>
         <div class="admin-login">
           <p>Contraseña de administrador</p>
-          <input class="admin-input" type="password" id="adminPassInput" placeholder="Contraseña admin" onkeypress="if(event.key==='Enter')document.getElementById('adminCode2FA').focus()">
-          <p style="margin-top:8px;">Código diario (2FA)</p>
-          <input class="admin-input" type="text" id="adminCode2FA" placeholder="Código de 4 dígitos" maxlength="4" onkeypress="if(event.key==='Enter')checkAdminPass()">
+          <input class="admin-input" type="password" id="adminPassInput" placeholder="Contraseña admin" onkeypress="if(event.key==='Enter')checkAdminPass()">
           <button class="admin-btn-primary" onclick="checkAdminPass()">INGRESAR</button>
-          <p style="font-size:0.72rem;color:#645a78;margin-top:6px;">El código diario cambia cada día automáticamente.</p>
         </div>
       </div>
 
