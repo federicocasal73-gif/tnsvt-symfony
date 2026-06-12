@@ -202,7 +202,7 @@
           <div class="trading-sidebar">
             <button class="sidebar-btn active" onclick="switchTab('tab-posts')">📰 Manuscrito &amp; Comunidad</button>
             <button class="sidebar-btn" onclick="switchTab('tab-macro')">🌐 Macroeconomía Avanzada</button>
-            <button class="sidebar-btn" onclick="switchTab('tab-2steps-adv')">⚡ Metodología 2 Steps <span class="lock-badge" id="badge-2step-lock">🔒 Bloqueado</span></button>
+            <button class="sidebar-btn" onclick="switchTab('tab-2steps-adv')">⚡ Metodología 2 Steps <span class="lock-badge" id="badge-2step-lock" style="background:rgba(52,199,89,0.15); border-color:#34c759;">⚡ Activo</span></button>
             <button class="sidebar-btn" onclick="switchTab('tab-tasks')">✍️ Tareas Operativas <span id="task-counter" style="font-size:0.8rem; color:var(--gold-bright);"></span></button>
             <button class="sidebar-btn" onclick="switchTab('tab-calendar')">📅 Calendario Económico</button>
             <button class="sidebar-btn" onclick="switchTab('tab-journal')">📊 Trading Journal</button>
@@ -1718,14 +1718,7 @@
 
 <!-- ==================== PESTAÑA METODOLOGÍA 2 STEPS ==================== -->
 <div id="tab-2steps-adv" class="tab-content">
-  <div id="panel-2steps-locked" class="locked-panel-wrapper">
-    <div class="locked-panel-icon">⚙️🔒</div>
-    <h3 style="font-family:'Cinzel'; color:var(--gold-bright);">Módulo Multifractal Avanzado Bloqueado</h3>
-    <p style="color:#a499b8;">Requiere completar al menos 1 tarea obligatoria y validar el token operativo.</p>
-    <input type="password" id="key2Steps" placeholder="CÓDIGO DE DESBLOQUEO">
-    <button class="post-btn" onclick="verify2StepsKey()">Validar Algoritmo</button>
-  </div>
-  <div id="panel-2steps-unlocked" style="display:none;">
+  <div id="panel-2steps-unlocked" style="display:block;">
 
     <!-- HEADER DEL MÓDULO -->
     <div class="mf-header">

@@ -25,6 +25,8 @@ let sb = window.API;
 
       // ==================== TOKEN Y VARIABLES GLOBALES ====================
       const CORRECT_TOKEN = "TNSV777YWHV";
+      // Limpiar keys obsoletas (codigo BOS2026 eliminado)
+      localStorage.removeItem('tnsv_2step_inner_unlocked');
       let activeUserSession = null;
       let learnedNodes = new Set(JSON.parse(localStorage.getItem('tnsv_learned_nodes')) || []);
       let godActivated = sessionStorage.getItem('tnsv_god_activated') === 'true';
@@ -572,38 +574,20 @@ let sb = window.API;
         }
       }
 
-      let inner2StepsUnlocked = localStorage.getItem('tnsv_2step_inner_unlocked') === 'true';
+      // Modulo 2 Steps siempre desbloqueado (codigo BOS2026 eliminado)
+      let inner2StepsUnlocked = true;
 
       function updateInnerLocks() {
         const badge = document.getElementById('badge-2step-lock');
-        if (inner2StepsUnlocked) {
-          if (badge) {
-            badge.textContent = "⚡ Desbloqueado";
-            badge.style.background = "rgba(52,199,89,0.15)";
-            badge.style.borderColor = "#34c759";
-          }
-          const lockedDiv = document.getElementById('panel-2steps-locked');
-          const unlockedDiv = document.getElementById('panel-2steps-unlocked');
-          if (lockedDiv) lockedDiv.style.display = 'none';
-          if (unlockedDiv) unlockedDiv.style.display = 'block';
+        if (badge) {
+          badge.textContent = "⚡ Desbloqueado";
+          badge.style.background = "rgba(52,199,89,0.15)";
+          badge.style.borderColor = "#34c759";
         }
-      }
-
-      function verify2StepsKey() {
-        const hasTaskDone = initialTasks.some(t => t.completed);
-        if (!hasTaskDone) {
-          showToast("❌ Completá al menos una tarea operativa antes de avanzar.");
-          return;
-        }
-        const keyInput = document.getElementById('key2Steps');
-        if (keyInput && keyInput.value.trim().toUpperCase() === 'BOS2026') {
-          inner2StepsUnlocked = true;
-          localStorage.setItem('tnsv_2step_inner_unlocked', 'true');
-          updateInnerLocks();
-          showToast("⚡ Lógica estructural 2 Steps desplegada.");
-        } else {
-          showToast("❌ Token incorrecto para el algoritmo.");
-        }
+        const lockedDiv = document.getElementById('panel-2steps-locked');
+        const unlockedDiv = document.getElementById('panel-2steps-unlocked');
+        if (lockedDiv) lockedDiv.style.display = 'none';
+        if (unlockedDiv) unlockedDiv.style.display = 'block';
       }
 
       // ==================== CALENDARIO ECONÓMICO ====================
@@ -2354,7 +2338,7 @@ let sb = window.API;
       window.geoQ = geoQ;
       window.loadTasks = loadTasks;
       window.toggleTask = toggleTask;
-      window.verify2StepsKey = verify2StepsKey;
+      window.updateInnerLocks = updateInnerLocks;
       window.loadCalendarData = loadCalendarData;
       window.tjTab = tjTab;
       window.tjPhotoPreview = tjPhotoPreview;
