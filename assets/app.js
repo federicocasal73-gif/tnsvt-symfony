@@ -1417,23 +1417,9 @@ let sb = window.API;
       // ==================== ACADEMIA ====================
       // ==================== ACADEMIA (SUPABASE) ====================
 
-      // 🔐 SISTEMA DE AUTENTICACIÓN ADMIN — SHA-256 + 2FA DIARIO
-      // El hash está partido en fragmentos — nunca aparece completo en el código
-      // Una IA o inspector no puede reconstruir la contraseña original
-      const _q7 = "7ab991fb0cf1efe3";
-      const _r2 = "a86831a0a9c416d8";
-      const _m9 = "fac41cfc83d4961c";
-      const _k4 = "fdde4cc9be636376";
-      const _H  = _q7 + _r2 + _m9 + _k4; // hash SHA-256 reconstruido en runtime
-
-      // Número secreto personal para el 2FA (solo vos sabés este número)
-      // El código diario = (día_actual + mes_actual + este_número) % 9999
-      const _S = 4291; // ← TU SALT SECRETO — no lo compartas
-
-      async function _sha256(msg) {
-        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
-        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-      }
+      // 🔐 SISTEMA DE AUTENTICACIÓN ADMIN — validado en backend
+      // La contraseña del panel Academia se valida en POST /api/admin/verify-academia-pass
+      // y está configurada en la variable de entorno ACADEMIA_ADMIN_PASS
 
       function _getDailyCode() {
         const now = new Date();
@@ -1572,18 +1558,18 @@ let sb = window.API;
       async function checkAdminPass() {
         const pass = document.getElementById('adminPassInput')?.value.trim();
         if (!pass) { showToast('⚠️ Ingresá la contraseña'); return; }
-        // Verificar contraseña via SHA-256
-        const inputHash = await _sha256(pass);
-        if (inputHash !== _H) {
-          showToast('❌ Contraseña incorrecta');
+        try {
+          await sb.post('/api/admin/verify-academia-pass', { password: pass });
+          adminAuthenticated = true;
+          document.getElementById('admin-login-view').style.display = 'none';
+          document.getElementById('admin-main-view').style.display = 'block';
           document.getElementById('adminPassInput').value = '';
-          return;
+          loadAdminCourseList();
+          showToast('✅ Acceso admin concedido');
+        } catch (e) {
+          document.getElementById('adminPassInput').value = '';
+          showToast('❌ ' + (e.message || 'Contraseña incorrecta'));
         }
-        adminAuthenticated = true;
-        document.getElementById('admin-login-view').style.display = 'none';
-        document.getElementById('admin-main-view').style.display = 'block';
-        loadAdminCourseList();
-        showToast('✅ Acceso admin concedido');
       }
 
       async function loadAdminCourseList() {
