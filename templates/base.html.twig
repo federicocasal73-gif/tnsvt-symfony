@@ -251,6 +251,10 @@
                 <button class="post-btn" style="float:none;padding:8px 20px;" onclick="createNewPost()">Publicar</button>
                   </div>
                 </div>
+                <div id="postPhotoPreview" style="display:none; margin-top:10px; padding:10px; background:rgba(13,8,24,0.6); border:1px solid rgba(212,175,55,0.2); border-radius:8px; position:relative;">
+                  <img id="postPhotoImg" src="" alt="preview" style="max-width:100%; max-height:200px; border-radius:6px; display:block;">
+                  <button type="button" onclick="removePostPhoto()" style="position:absolute; top:14px; right:14px; background:rgba(255,59,48,0.85); border:none; color:#fff; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:0.9rem; line-height:1;">✕</button>
+                </div>
                 <div class="show-signal-form" id="signalForm">
                   <div style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📊 Datos de la Señal</div>
                   <div class="sig-input-row">

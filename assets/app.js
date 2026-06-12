@@ -1130,7 +1130,14 @@ let sb = window.API;
         btn.classList.add('sel');
       }
 
-      function toggleSignalForm() { document.getElementById('signalForm')?.classList.toggle('vis'); }
+      function toggleSignalForm() {
+        const sf = document.getElementById('signalForm');
+        if (!sf) return;
+        sf.classList.toggle('vis');
+        if (sf.classList.contains('vis')) {
+          sf.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
 
       // ── Foto adjunta al post ──
       let postPhotoData = null;
