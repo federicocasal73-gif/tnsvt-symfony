@@ -1420,10 +1420,10 @@ let sb = window.API;
       // 🔐 SISTEMA DE AUTENTICACIÓN ADMIN — SHA-256 + 2FA DIARIO
       // El hash está partido en fragmentos — nunca aparece completo en el código
       // Una IA o inspector no puede reconstruir la contraseña original
-      const _q7 = "000da209615a3cce";
-      const _r2 = "26010069bf66acd1";
-      const _m9 = "23166f6c41d46968";
-      const _k4 = "181397350833e3cc";
+      const _q7 = "7ab991fb0cf1efe3";
+      const _r2 = "a86831a0a9c416d8";
+      const _m9 = "fac41cfc83d4961c";
+      const _k4 = "fdde4cc9be636376";
       const _H  = _q7 + _r2 + _m9 + _k4; // hash SHA-256 reconstruido en runtime
 
       // Número secreto personal para el 2FA (solo vos sabés este número)
