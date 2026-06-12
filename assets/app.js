@@ -2245,6 +2245,78 @@ let sb = window.API;
         chatPollTimer = setInterval(pollChat, 5000);
       }
 
+      // ==================== NUEVO DM ====================
+      let newDmUsersCache = [];
+
+      async function openNewDmModal() {
+        if (!window.TNSVT_USER) return;
+        const overlay = document.getElementById('newDmOverlay');
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+        document.getElementById('newDmSearch').value = '';
+        const list = document.getElementById('newDmUserList');
+        list.innerHTML = '<div style="padding:20px; text-align:center; color:#645a78;">Cargando usuarios...</div>';
+        try {
+          newDmUsersCache = await sb.getChatUsers(window.TNSVT_USER.code) || [];
+          renderNewDmUserList(newDmUsersCache);
+        } catch(e) {
+          list.innerHTML = `<div style="padding:20px; text-align:center; color:#ff3b30;">Error: ${e.message}</div>`;
+        }
+        setTimeout(() => document.getElementById('newDmSearch')?.focus(), 100);
+      }
+
+      function closeNewDmModal() {
+        const overlay = document.getElementById('newDmOverlay');
+        if (overlay) overlay.style.display = 'none';
+      }
+
+      function filterNewDmList() {
+        const q = (document.getElementById('newDmSearch')?.value || '').toLowerCase().trim();
+        const filtered = !q ? newDmUsersCache : newDmUsersCache.filter(u =>
+          (u.name || '').toLowerCase().includes(q) || (u.code || '').toLowerCase().includes(q)
+        );
+        renderNewDmUserList(filtered);
+      }
+
+      function renderNewDmUserList(users) {
+        const list = document.getElementById('newDmUserList');
+        if (!list) return;
+        if (!users || users.length === 0) {
+          list.innerHTML = '<div style="padding:20px; text-align:center; color:#645a78;">No hay usuarios disponibles</div>';
+          return;
+        }
+        list.innerHTML = users.map(u => {
+          const initial = (u.name || u.code || '?').charAt(0).toUpperCase();
+          return `
+            <div class="chat-conv-item" style="cursor:pointer; padding:10px 12px;" onclick="startDmWith('${escapeAttr(u.code)}')">
+              <div class="chat-conv-avatar">${initial}</div>
+              <div class="chat-conv-info">
+                <div class="chat-conv-name">${escapeHtml(u.name || u.code)}</div>
+                <div class="chat-conv-preview">${escapeHtml(u.code)}${u.is_admin ? ' · 👑 Admin' : ''}</div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      function escapeAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+      async function startDmWith(otherCode) {
+        if (!window.TNSVT_USER) return;
+        try {
+          const conv = await sb.createDm(window.TNSVT_USER.code, otherCode);
+          // Upsert en chatConversations
+          const idx = chatConversations.findIndex(c => c.id === conv.id);
+          if (idx >= 0) chatConversations[idx] = { ...chatConversations[idx], ...conv };
+          else chatConversations.unshift(conv);
+          renderConversations();
+          selectConversation(conv.id);
+          closeNewDmModal();
+          showToast('✉️ Conversación abierta');
+        } catch(e) {
+          showToast('❌ Error: ' + e.message);
+        }
+      }
+
       function loadChats() {
         loadConversations();
         initChatPolling();
@@ -2386,6 +2458,10 @@ let sb = window.API;
       window.toggleAdminPassField = toggleAdminPassField;
       window.playLesson = playLesson;
       window.loadChats = loadChats;
+      window.openNewDmModal = openNewDmModal;
+      window.closeNewDmModal = closeNewDmModal;
+      window.filterNewDmList = filterNewDmList;
+      window.startDmWith = startDmWith;
       window.sendChatMessage = sendChatMessage;
       window.selectConversation = selectConversation;
       window.attachChatPhoto = attachChatPhoto;
