@@ -23,7 +23,7 @@ class PushService
         private readonly DeviceRepository $deviceRepository,
         private readonly UserRepository $userRepository,
         private readonly LoggerInterface $logger,
-        string $firebaseCredentialsPath = '',
+        ?string $firebaseCredentialsPath = '',
     ) {
         if (!empty($firebaseCredentialsPath) && file_exists($firebaseCredentialsPath)) {
             try {
