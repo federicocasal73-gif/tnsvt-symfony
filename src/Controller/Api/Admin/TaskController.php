@@ -4,6 +4,7 @@ namespace App\Controller\Api\Admin;
 
 use App\Entity\Task;
 use App\Repository\TaskRepository;
+use App\Repository\UserRepository;
 use App\Service\PushService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -11,19 +12,28 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 #[Route('/api/admin/tasks')]
 class TaskController extends AbstractController
 {
+    use RequireAdminTrait;
+
     public function __construct(
         private EntityManagerInterface $em,
         private TaskRepository $taskRepository,
         private PushService $pushService,
+        private UserRepository $userRepository,
+        private TokenStorageInterface $tokenStorage,
     ) {}
 
     #[Route('', name: 'api_admin_tasks_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $tasks = $this->taskRepository->findAllOrdered();
 
         $data = array_map(fn(Task $t) => [
@@ -41,6 +51,10 @@ class TaskController extends AbstractController
     #[Route('', name: 'api_admin_tasks_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $data = json_decode($request->getContent(), true);
 
         $title = trim($data['title'] ?? '');
@@ -76,6 +90,10 @@ class TaskController extends AbstractController
     #[Route('/{id}', name: 'api_admin_tasks_update', methods: ['PUT'])]
     public function update(int $id, Request $request): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $task = $this->taskRepository->find($id);
         if (!$task) {
             return $this->json(['error' => 'Tarea no encontrada'], Response::HTTP_NOT_FOUND);
@@ -102,6 +120,10 @@ class TaskController extends AbstractController
     #[Route('/{id}', name: 'api_admin_tasks_delete', methods: ['DELETE'])]
     public function delete(int $id): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $task = $this->taskRepository->find($id);
         if (!$task) {
             return $this->json(['error' => 'Tarea no encontrada'], Response::HTTP_NOT_FOUND);
@@ -116,6 +138,10 @@ class TaskController extends AbstractController
     #[Route('/{id}/toggle-active', name: 'api_admin_tasks_toggle', methods: ['PUT'])]
     public function toggleActive(int $id): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $task = $this->taskRepository->find($id);
         if (!$task) {
             return $this->json(['error' => 'Tarea no encontrada'], Response::HTTP_NOT_FOUND);

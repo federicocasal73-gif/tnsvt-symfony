@@ -10,13 +10,25 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 #[Route('/api/admin/users')]
 class UserController extends AbstractController
 {
+    use RequireAdminTrait;
+
+    public function __construct(
+        private UserRepository $userRepository,
+        private TokenStorageInterface $tokenStorage,
+    ) {}
+
     #[Route('', name: 'api_admin_users_list', methods: ['GET'])]
     public function list(UserRepository $userRepository): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $users = $userRepository->findAll();
         $data = array_map(fn(User $u) => [
             'id' => $u->getId(),
@@ -35,6 +47,10 @@ class UserController extends AbstractController
     #[Route('/{id}', name: 'api_admin_users_get', methods: ['GET'])]
     public function get(User $user): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         return $this->json([
             'id' => $user->getId(),
             'code' => $user->getCode(),
@@ -48,6 +64,10 @@ class UserController extends AbstractController
     #[Route('', name: 'api_admin_users_create', methods: ['POST'])]
     public function create(Request $request, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $data = json_decode($request->getContent(), true);
         $code = strtoupper(trim($data['code'] ?? ''));
         $name = trim($data['name'] ?? '');
@@ -81,6 +101,10 @@ class UserController extends AbstractController
     #[Route('/{id}', name: 'api_admin_users_update', methods: ['PUT'])]
     public function update(Request $request, User $user, EntityManagerInterface $em): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $data = json_decode($request->getContent(), true);
 
         if (isset($data['name'])) {
@@ -107,6 +131,10 @@ class UserController extends AbstractController
     #[Route('/{id}/toggle-active', name: 'api_admin_users_toggle', methods: ['PUT'])]
     public function toggleActive(User $user, EntityManagerInterface $em): JsonResponse
     {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+
         $user->setActive(!$user->isActive());
         $em->flush();
 

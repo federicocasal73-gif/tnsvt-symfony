@@ -19,9 +19,15 @@ security:
             entry_point: App\Security\CodeAuthenticator
 
     access_control:
-        - { path: ^/api/admin, roles: ROLE_ADMIN }
         - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/logout, roles: PUBLIC_ACCESS }
+        - { path: ^/api/devices, roles: PUBLIC_ACCESS }
+        - { path: ^/api/notifications, roles: PUBLIC_ACCESS }
+        - { path: ^/api/feed, roles: PUBLIC_ACCESS }
+        - { path: ^/api/chat, roles: PUBLIC_ACCESS }
+        - { path: ^/api/tasks, roles: PUBLIC_ACCESS }
+        - { path: ^/api/academia, roles: PUBLIC_ACCESS }
+        - { path: ^/api/auth/check, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: PUBLIC_ACCESS }
 
 when@test:
