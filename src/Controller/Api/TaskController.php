@@ -21,6 +21,7 @@ class TaskController extends AbstractController
             'title' => $t->getTitle(),
             'description' => $t->getDescription(),
             'orden' => $t->getOrden(),
+            'active' => $t->isActive(),
         ], $tasks);
 
         return $this->json($data);
