@@ -7,6 +7,7 @@ use App\Entity\LikedPost;
 use App\Repository\FeedPostRepository;
 use App\Repository\LikedPostRepository;
 use App\Repository\UserRepository;
+use App\Service\PushService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,6 +22,8 @@ class FeedController extends AbstractController
         private EntityManagerInterface $em,
         private FeedPostRepository $feedPostRepository,
         private LikedPostRepository $likedPostRepository,
+        private UserRepository $userRepository,
+        private PushService $pushService,
     ) {}
 
     #[Route('', name: 'api_feed_list', methods: ['GET'])]
@@ -141,8 +144,13 @@ class FeedController extends AbstractController
             return $this->json(['error' => 'Comentario vacío'], Response::HTTP_BAD_REQUEST);
         }
 
+        $authorCode = isset($data['author_code']) ? strtoupper(trim((string) $data['author_code'])) : '';
+        $author = $authorCode !== '' ? $this->userRepository->findByCode($authorCode) : null;
+        $authorName = $author?->getName() ?? ($data['author'] ?? 'Trader');
+
         $comment = [
-            'author' => $data['author'] ?? 'Trader',
+            'author' => $authorName,
+            'author_code' => $authorCode,
             'text' => $text,
             'date' => (new \DateTimeImmutable())->format('c'),
         ];
@@ -155,6 +163,36 @@ class FeedController extends AbstractController
 
         $post->setComments($comments);
         $this->em->flush();
+
+        $preview = mb_substr($text, 0, 80);
+        $notifiedCodes = [];
+
+        if ($post->getAuthor() && $post->getAuthor()->getId() !== ($author?->getId())) {
+            $this->pushService->notify(
+                $post->getAuthor(),
+                'comment',
+                sprintf('%s comentó tu publicación: %s', $authorName, $preview !== '' ? $preview : '[foto]'),
+                ['post_id' => (string) $post->getId(), 'from_code' => $authorCode]
+            );
+            $notifiedCodes[$post->getAuthor()->getCode()] = true;
+        }
+
+        if (preg_match_all('/@([A-Z0-9_]{2,20})/i', $text, $matches)) {
+            foreach (array_unique($matches[1]) as $code) {
+                $code = strtoupper($code);
+                if (isset($notifiedCodes[$code])) continue;
+                $mentioned = $this->userRepository->findByCode($code);
+                if ($mentioned && $mentioned->isActive() && (!$author || $mentioned->getId() !== $author->getId())) {
+                    $this->pushService->notify(
+                        $mentioned,
+                        'mention',
+                        sprintf('%s te mencionó: %s', $authorName, $preview !== '' ? $preview : '[foto]'),
+                        ['post_id' => (string) $post->getId(), 'from_code' => $authorCode]
+                    );
+                    $notifiedCodes[$code] = true;
+                }
+            }
+        }
 
         return $this->json(['success' => true, 'comments' => $comments]);
     }

@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\AcademiaContent;
 use App\Repository\AcademiaContentRepository;
+use App\Service\PushService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,6 +18,7 @@ class AcademiaController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private AcademiaContentRepository $academiaRepository,
+        private PushService $pushService,
     ) {}
 
     #[Route('', name: 'api_academia_list', methods: ['GET'])]
@@ -57,6 +59,12 @@ class AcademiaController extends AbstractController
         $this->em->persist($course);
         $this->em->flush();
 
+        $this->pushService->broadcast(
+            'academia',
+            sprintf('%s Nuevo curso en Academia: %s', $course->getEmoji() ?: '📚', $course->getTitle()),
+            ['course_id' => (string) $course->getId()]
+        );
+
         return $this->json(['success' => true, 'id' => $course->getId()], Response::HTTP_CREATED);
     }
 
@@ -78,6 +86,12 @@ class AcademiaController extends AbstractController
         if (isset($data['orden'])) $course->setOrden((int) $data['orden']);
 
         $this->em->flush();
+
+        $this->pushService->broadcast(
+            'academia',
+            sprintf('Curso actualizado: %s', $course->getTitle()),
+            ['course_id' => (string) $course->getId()]
+        );
 
         return $this->json(['success' => true]);
     }

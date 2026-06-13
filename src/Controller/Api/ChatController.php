@@ -5,11 +5,11 @@ namespace App\Controller\Api;
 use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Message;
-use App\Entity\Notification;
 use App\Entity\User;
 use App\Repository\ConversationRepository;
 use App\Repository\MessageRepository;
 use App\Repository\UserRepository;
+use App\Service\PushService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,6 +25,7 @@ class ChatController extends AbstractController
         private ConversationRepository $conversationRepository,
         private MessageRepository $messageRepository,
         private UserRepository $userRepository,
+        private PushService $pushService,
     ) {}
 
     private function resolveUser(Request $request): ?User
@@ -193,15 +194,15 @@ class ChatController extends AbstractController
             foreach ($conv->getParticipants() as $p) {
                 $other = $p->getUser();
                 if ($other && $other->getId() !== $me->getId()) {
-                    $preview = $content !== '' ? mb_substr($content, 0, 80) : '📷 Foto';
-                    $notif = new Notification();
-                    $notif->setUser($other);
-                    $notif->setType('dm');
-                    $notif->setContent(sprintf('%s: %s', $me->getName(), $preview));
-                    $this->em->persist($notif);
+                    $preview = $content !== '' ? mb_substr($content, 0, 80) : '?? Foto';
+                    $this->pushService->notify(
+                        $other,
+                        'dm',
+                        sprintf('%s: %s', $me->getName(), $preview),
+                        ['conversation_id' => (string) $conv->getId(), 'sender_code' => (string) $me->getCode()]
+                    );
                 }
             }
-            $this->em->flush();
         }
 
         return $this->json($this->serializeMessage($msg), 201);

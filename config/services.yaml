@@ -4,9 +4,8 @@
 # Files in the packages/ subdirectory configure your dependencies.
 # See also https://symfony.com/doc/current/service_container/import.html
 
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    app.firebase.credentials_path: '%env(default::FIREBASE_CREDENTIALS_PATH)%'
 
 services:
     # default configuration for services in *this* file
@@ -18,6 +17,11 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+
+    # PushService recibe la ruta a las credenciales de Firebase como parametro
+    App\Service\PushService:
+        arguments:
+            $firebaseCredentialsPath: '%app.firebase.credentials_path%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

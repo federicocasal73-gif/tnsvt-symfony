@@ -4,6 +4,7 @@ namespace App\Controller\Api\Admin;
 
 use App\Entity\Task;
 use App\Repository\TaskRepository;
+use App\Service\PushService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,6 +18,7 @@ class TaskController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private TaskRepository $taskRepository,
+        private PushService $pushService,
     ) {}
 
     #[Route('', name: 'api_admin_tasks_list', methods: ['GET'])]
@@ -56,6 +58,12 @@ class TaskController extends AbstractController
         $this->em->persist($task);
         $this->em->flush();
 
+        $this->pushService->broadcast(
+            'task',
+            sprintf('Nueva tarea operativa: %s', $task->getTitle()),
+            ['task_id' => (string) $task->getId()]
+        );
+
         return $this->json([
             'id' => $task->getId(),
             'title' => $task->getTitle(),
@@ -81,6 +89,12 @@ class TaskController extends AbstractController
         if (isset($data['active'])) $task->setActive((bool) $data['active']);
 
         $this->em->flush();
+
+        $this->pushService->broadcast(
+            'task',
+            sprintf('Tarea actualizada: %s', $task->getTitle()),
+            ['task_id' => (string) $task->getId()]
+        );
 
         return $this->json(['success' => true]);
     }
@@ -109,6 +123,14 @@ class TaskController extends AbstractController
 
         $task->setActive(!$task->isActive());
         $this->em->flush();
+
+        if ($task->isActive()) {
+            $this->pushService->broadcast(
+                'task',
+                sprintf('Tarea activada: %s', $task->getTitle()),
+                ['task_id' => (string) $task->getId()]
+            );
+        }
 
         return $this->json(['id' => $task->getId(), 'active' => $task->isActive()]);
     }
