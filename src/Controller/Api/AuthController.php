@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
 use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -9,14 +10,20 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 #[Route('/api/auth')]
 class AuthController extends AbstractController
 {
     #[Route('/login', name: 'api_auth_login', methods: ['POST'])]
-    public function login(Request $request, UserRepository $userRepository, UserPasswordHasherInterface $passwordHasher): JsonResponse
-    {
+    public function login(
+        Request $request,
+        UserRepository $userRepository,
+        UserPasswordHasherInterface $passwordHasher,
+        TokenStorageInterface $tokenStorage,
+    ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         $code = strtoupper(trim($data['code'] ?? ''));
         $password = $data['password'] ?? null;
@@ -43,6 +50,10 @@ class AuthController extends AbstractController
         $user->setLastLogin(new \DateTimeImmutable());
         $userRepository->getEntityManager()->flush();
 
+        $token = new UsernamePasswordToken($user, 'main', $user->getRoles());
+        $tokenStorage->setToken($token);
+        $request->getSession()->save();
+
         return $this->json([
             'success' => true,
             'user' => [
@@ -54,7 +65,7 @@ class AuthController extends AbstractController
     }
 
     #[Route('/check', name: 'api_auth_check', methods: ['GET'])]
-    public function check(#[CurrentUser] ?\App\Entity\User $user): JsonResponse
+    public function check(#[CurrentUser] ?User $user): JsonResponse
     {
         if (!$user) {
             return $this->json(['authenticated' => false]);
