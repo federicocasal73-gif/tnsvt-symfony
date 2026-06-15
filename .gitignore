@@ -30,3 +30,9 @@
 /public/audio/cache-*.bin.meta.json
 /public/audio/track-*.*
 ###< tnsvt/music ###
+
+# Backups locales (no commitear)
+/.git.zip
+*.zip
+*.tar.gz
+*.bak
