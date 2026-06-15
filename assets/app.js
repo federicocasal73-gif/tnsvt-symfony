@@ -178,6 +178,8 @@ let sb = window.API;
           updateNodeStates();
           loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
+          // Mostrar la barra persistente de música en cualquier sección
+          musicShowBar();
           // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
           const adminBtn = document.getElementById('adminSidebarBtn');
           if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
@@ -192,6 +194,10 @@ let sb = window.API;
         sessionStorage.removeItem('tnsv_auth');
         localStorage.removeItem('tnsv_user');
         window.TNSVT_USER = null;
+        musicHideBar();
+        musicHideFullPlayer();
+        const a = document.getElementById('bgMusicAudio');
+        if (a) { try { a.pause(); } catch (_) {} }
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('gateKey').value = '';
@@ -361,6 +367,7 @@ let sb = window.API;
           } catch(e) { return; }
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
+          musicShowBar();
           const cachedUser = localStorage.getItem('tnsv_user');
           if (cachedUser) {
             activeUserSession = JSON.parse(cachedUser);
@@ -2893,6 +2900,11 @@ let sb = window.API;
       window.musicSelectTrack = musicSelectTrack;
       window.musicCycleLoop = musicCycleLoop;
       window.musicToggleQueue = musicToggleQueue;
+      window.musicShowBar = musicShowBar;
+      window.musicHideBar = musicHideBar;
+      window.musicShowFullPlayer = musicShowFullPlayer;
+      window.musicHideFullPlayer = musicHideFullPlayer;
+      window.musicSeekBar = musicSeekBar;
       window.musicSeek = musicSeek;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;
@@ -2921,6 +2933,11 @@ let sb = window.API;
         if (!btn) return;
         btn.innerHTML = playing ? '⏸' : '▶';
         btn.title = playing ? 'Pausar' : 'Reproducir';
+        // Sincronizar barra persistente
+        const pbtn = document.getElementById('mpbPlayBtn');
+        if (pbtn) { pbtn.innerHTML = playing ? '⏸' : '▶'; pbtn.title = playing ? 'Pausar' : 'Reproducir'; }
+        const cover = document.getElementById('mpbCover');
+        if (cover) cover.classList.toggle('playing', !!playing);
       }
       function musicGetLoopIcon() {
         if (musicLoop === 'all') return '🔁';
@@ -2951,6 +2968,11 @@ let sb = window.API;
             qb.style.display = 'none';
           }
         }
+        // Sincronizar barra persistente
+        const bt = document.getElementById('mpbTitle');
+        const bs = document.getElementById('mpbSub');
+        if (bt) bt.textContent = track ? track.name : 'Sin música';
+        if (bs) bs.textContent = (musicPlaylist.length > 0) ? ((musicActiveIndex + 1) + ' / ' + musicPlaylist.length + ' — T.N.S.V.T') : 'T.N.S.V.T';
         musicUpdateLoopBtn();
       }
       function musicRenderQueue() {
@@ -3114,6 +3136,20 @@ let sb = window.API;
         const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
         a.currentTime = ratio * a.duration;
       }
+      function musicSeekBar(event) {
+        const a = musicGetAudio();
+        const wrap = document.getElementById('mpbBar');
+        if (!a || !a.duration || !wrap) return;
+        const rect = wrap.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        a.currentTime = ratio * a.duration;
+      }
+      function musicFormatTime(sec) {
+        if (!isFinite(sec) || sec < 0) sec = 0;
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+      }
       function musicUpdateProgress() {
         const a = musicGetAudio();
         const bar = document.getElementById('musicProgressBar');
@@ -3124,6 +3160,19 @@ let sb = window.API;
         } else {
           bar.style.width = '0%';
         }
+        // Sincronizar barra persistente
+        const pfill = document.getElementById('mpbBarFill');
+        const ptCur = document.getElementById('mpbTimeCur');
+        const ptDur = document.getElementById('mpbTimeDur');
+        if (pfill) {
+          if (a.duration && isFinite(a.duration)) {
+            pfill.style.width = ((a.currentTime / a.duration) * 100) + '%';
+          } else {
+            pfill.style.width = '0%';
+          }
+        }
+        if (ptCur) ptCur.textContent = musicFormatTime(a.currentTime || 0);
+        if (ptDur) ptDur.textContent = musicFormatTime(a.duration || 0);
       }
       function musicMinimize() {
         document.getElementById('musicPlayer').style.display = 'none';
@@ -3132,6 +3181,34 @@ let sb = window.API;
       function musicExpand() {
         document.getElementById('musicPlayer').style.display = 'flex';
         document.getElementById('musicPlayerMini').style.display = 'none';
+      }
+      // ====== BARRA PERSISTENTE (Spotify-style) ======
+      function musicShowBar() {
+        const bar = document.getElementById('musicPlayerBar');
+        if (bar) bar.classList.add('visible');
+        document.body.classList.add('music-bar-active');
+      }
+      function musicHideBar() {
+        const bar = document.getElementById('musicPlayerBar');
+        if (bar) bar.classList.remove('visible');
+        document.body.classList.remove('music-bar-active');
+      }
+      function musicShowFullPlayer() {
+        // Mostrar card expandido, ocultar la mini-ball
+        const p = document.getElementById('musicPlayer');
+        const m = document.getElementById('musicPlayerMini');
+        if (p) p.style.display = 'flex';
+        if (m) m.style.display = 'none';
+      }
+      function musicHideFullPlayer() {
+        // Cerrar card expandido y volver a la barra
+        const p = document.getElementById('musicPlayer');
+        const m = document.getElementById('musicPlayerMini');
+        if (p) p.style.display = 'none';
+        if (m) m.style.display = 'none';
+        // También cerrar la cola si estaba abierta
+        const q = document.getElementById('musicQueuePanel');
+        if (q) q.style.display = 'none';
       }
       async function musicCycleLoop() {
         const order = ['all', 'one', 'off'];
@@ -3168,10 +3245,12 @@ let sb = window.API;
         if (!musicVizActive) return;
         const cv = document.getElementById('musicVisualizer');
         const cvMini = document.getElementById('musicMiniVisualizer');
+        const cvBar = document.getElementById('mpbViz');
         const a = musicGetAudio();
         const playing = a && !a.paused && !a.ended;
         if (cv) musicDrawOnCanvas(cv, playing);
         if (cvMini) musicDrawOnCanvas(cvMini, playing, true);
+        if (cvBar) musicDrawOnCanvas(cvBar, playing, true);
         musicVizRAF = requestAnimationFrame(musicDrawViz);
       }
       function musicDrawOnCanvas(canvas, playing, mini) {
