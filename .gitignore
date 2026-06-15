@@ -36,3 +36,28 @@
 *.zip
 *.tar.gz
 *.bak
+
+###> capacitor ###
+# Android build output y cache (no commitear)
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/capacitor-cordova-android-plugins/
+/android/.idea/
+/android/*.iml
+/android/app/release/
+# Assets compilados que el sync de Capacitor copia desde public/ a android/
+# Se regeneran corriendo `npx cap sync` antes del build
+/android/app/src/main/assets/public/assets/
+# Pero SI commitear: configuracion, manifest, recursos, gradle
+# (la carpeta android/ queda commiteada parcialmente via .gitignore)
+###< capacitor ###
+
+# Node y npm
+/node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build output de Capacitor
+/public/assets/

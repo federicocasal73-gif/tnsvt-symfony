@@ -1,0 +1,32 @@
+{
+	"appId": "com.tnsvt.app",
+	"appName": "TNSVT",
+	"webDir": "public",
+	"server": {
+		"androidScheme": "https",
+		"url": "http://192.168.1.2:8000",
+		"cleartext": true,
+		"errorPath": "error.html"
+	},
+	"android": {
+		"allowMixedContent": true,
+		"captureInput": true,
+		"webContentsDebuggingEnabled": true
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 1500,
+			"launchAutoHide": true,
+			"backgroundColor": "#0d0818",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER_CROP",
+			"showSpinner": true,
+			"androidSpinnerStyle": "small",
+			"spinnerColor": "#d4af37"
+		},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#0d0818"
+		}
+	}
+}

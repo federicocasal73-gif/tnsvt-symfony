@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="tnsvt_gold">#d4af37</color>
+    <color name="tnsvt_gold_bright">#f0c040</color>
+    <color name="tnsvt_violet">#8a3cff</color>
+    <color name="tnsvt_dark">#0d0818</color>
+    <color name="tnsvt_dark_alt">#09050f</color>
+    <color name="tnsvt_white">#ffffff</color>
+</resources>
