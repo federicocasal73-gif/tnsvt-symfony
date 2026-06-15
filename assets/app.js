@@ -2015,7 +2015,7 @@ let sb = window.API;
       }
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
-      let adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
+      var adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
 
       async function adminMusicRefresh() {
         const empty = document.getElementById('adminPlaylistEmpty');
@@ -2863,21 +2863,21 @@ let sb = window.API;
       window.musicSeek = musicSeek;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;
-      window.adminMusicDelete = adminMusicDelete;
+      window.adminMusicClearAll = adminMusicClearAll;
       window.adminMusicSetExternal = adminMusicSetExternal;
 
       // ==================== PLAYER DE MÚSICA DE FONDO (PLAYLIST + VISUALIZER) ====================
-      let bgAudio = null;
-      let bgAudioSrc = null;
-      let musicPlaylist = [];
-      let musicActiveIndex = 0;
-      let musicLoop = 'all';
-      let musicAudioCtx = null;
-      let musicAnalyser = null;
-      let musicSourceNode = null;
-      let musicVizRAF = null;
-      let musicVizActive = false;
-      let musicUserIsAdvancing = false;
+      var bgAudio = null;
+      var bgAudioSrc = null;
+      var musicPlaylist = [];
+      var musicActiveIndex = 0;
+      var musicLoop = 'all';
+      var musicAudioCtx = null;
+      var musicAnalyser = null;
+      var musicSourceNode = null;
+      var musicVizRAF = null;
+      var musicVizActive = false;
+      var musicUserIsAdvancing = false;
 
       function musicGetAudio() {
         if (!bgAudio) bgAudio = document.getElementById('bgMusicAudio');
@@ -3232,9 +3232,9 @@ let sb = window.API;
       }
 
       // ==================== SISTEMA DE NOTIFICACIONES ====================
-      let notifList = JSON.parse(localStorage.getItem('tnsvt_notifs') || '[]');
-      let notifChannel = null;
-      let pushPermGranted = false;
+      var notifList = JSON.parse(localStorage.getItem('tnsvt_notifs') || '[]');
+      var notifChannel = null;
+      var pushPermGranted = false;
 
       // ---- Panel toggle ----
       function toggleNotifPanel() {
