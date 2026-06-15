@@ -2659,10 +2659,11 @@ let sb = window.API;
         try {
           const data = await API.get('/api/music');
           if (data && data.hasMusic) {
-            const newSrc = (data.source === 'external') ? data.url : ('/api/music/stream?t=' + Date.now());
+            const newSrc = '/api/music/stream?t=' + Date.now();
             if (bgAudioSrc !== newSrc) {
               a.src = newSrc;
               bgAudioSrc = newSrc;
+              a.load();
               a.volume = (parseInt(localStorage.getItem('tnsvt_music_vol')||'35', 10)) / 100;
               const v = document.getElementById('musicVolume');
               if (v) v.value = (a.volume * 100);
@@ -2672,6 +2673,7 @@ let sb = window.API;
           } else {
             a.pause();
             a.removeAttribute('src');
+            a.load();
             bgAudioSrc = null;
             musicUpdateTitle('Sin música');
             musicSetBtnState(false);
@@ -2738,6 +2740,17 @@ let sb = window.API;
         a.addEventListener('play',  () => { musicSetBtnState(true); try { localStorage.setItem('tnsvt_music_autoplay', '1'); } catch (_) {} });
         a.addEventListener('pause', () => musicSetBtnState(false));
         a.addEventListener('ended', () => musicSetBtnState(false));
+        a.addEventListener('error', (e) => {
+          console.error('Audio error:', a.error);
+          if (a.error) {
+            const codes = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
+            const codeName = codes[a.error.code] || 'UNKNOWN';
+            showToast('❌ Audio error (' + codeName + '): ' + (a.error.message || ''));
+          }
+          musicSetBtnState(false);
+        });
+        a.addEventListener('stalled', () => console.warn('Audio: stalled (buffering)'));
+        a.addEventListener('canplay', () => console.log('Audio: can play'));
         musicLoad().then(() => musicAutoplayOnFirstInteraction());
       }
 
