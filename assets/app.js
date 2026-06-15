@@ -1855,34 +1855,114 @@ let sb = window.API;
         }
       }
 
-      // ==================== ADMIN MÚSICA DE FONDO ====================
+      // ==================== ADMIN PLAYLIST DE MÚSICA ====================
+      let adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
+
       async function adminMusicRefresh() {
-        const info = document.getElementById('adminMusicInfo');
-        const preview = document.getElementById('adminMusicPreview');
-        const delBtn = document.getElementById('adminMusicDeleteBtn');
-        if (!info) return;
+        const empty = document.getElementById('adminPlaylistEmpty');
+        const list = document.getElementById('adminPlaylistList');
+        const counter = document.getElementById('adminPlaylistCount');
+        if (!list) return;
         try {
           const data = await API.get('/api/music');
-          if (data && data.hasMusic) {
-            info.innerHTML = `<strong>${data.originalName || data.filename}</strong> <span style="color:#645a78;font-size:0.75rem;">(${(data.size/1024/1024).toFixed(2)} MB · ${data.mime})</span>`;
-            preview.src = '/api/music/stream?t=' + Date.now();
-            preview.style.display = '';
-            delBtn.style.display = '';
-          } else {
-            info.innerHTML = '<span style="color:#645a78;">⚠️ No hay música configurada. Subí un archivo abajo.</span>';
-            preview.removeAttribute('src');
-            preview.style.display = 'none';
-            delBtn.style.display = 'none';
+          adminPlaylistData = {
+            tracks: (data && data.playlist) ? data.playlist : [],
+            activeIndex: (data && typeof data.activeIndex === 'number') ? data.activeIndex : 0,
+            loop: (data && data.loop) ? data.loop : 'all',
+          };
+          const tracks = adminPlaylistData.tracks;
+          if (counter) counter.textContent = tracks.length;
+          if (tracks.length === 0) {
+            if (empty) empty.style.display = 'block';
+            list.innerHTML = '';
+            return;
           }
+          if (empty) empty.style.display = 'none';
+          list.innerHTML = tracks.map((t, i) => {
+            const isActive = i === adminPlaylistData.activeIndex;
+            const icon = t.source === 'external' ? '🌐' : '📁';
+            const size = t.size ? ((t.size/1024/1024).toFixed(1) + ' MB') : '';
+            const meta = [size, t.mime].filter(Boolean).join(' · ');
+            return `
+              <div data-idx="${i}" draggable="true" style="display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:8px; transition:all 0.2s; cursor:grab; ${isActive ? 'background:rgba(212,175,55,0.12); border:1px solid rgba(212,175,55,0.4);' : 'background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.1);'}" onmouseover="if(${i}!==adminPlaylistData.activeIndex)this.style.background='rgba(138,60,255,0.1)'" onmouseout="if(${i}!==adminPlaylistData.activeIndex)this.style.background='rgba(0,0,0,0.3)'">
+                <span style="cursor:grab; color:#645a78; font-size:0.9rem; user-select:none;">≡</span>
+                <span style="font-size:1rem; flex-shrink:0;">${icon}</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:0.85rem; color:${isActive ? 'var(--gold-bright)' : '#e2dcf0'}; font-weight:${isActive ? '600' : '400'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(t.name || 'Track').replace(/</g, '&lt;')}</div>
+                  <div style="font-size:0.68rem; color:#645a78;">${meta || (t.source === 'external' ? 'Stream externo' : 'Local')}</div>
+                </div>
+                ${isActive ? '<span style="background:var(--gold-bright); color:#000; font-size:0.55rem; font-weight:700; padding:2px 6px; border-radius:6px; letter-spacing:0.5px;">▶ ACTIVO</span>' : `<button onclick="adminMusicSetActive('${t.id}')" style="background:transparent; border:1px solid rgba(212,175,55,0.3); color:var(--gold); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.68rem; font-family:inherit; letter-spacing:0.5px; transition:all 0.2s;" onmouseover="this.style.background='rgba(212,175,55,0.15)'" onmouseout="this.style.background='transparent'">▶ Activar</button>`}
+                <button onclick="adminMusicRemove('${t.id}', '${(t.name || 'este track').replace(/'/g, "\\'")}')" title="Eliminar" style="background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.3); color:#ff7066; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.85rem; font-family:inherit; line-height:1; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,59,48,0.25)'" onmouseout="this.style.background='rgba(255,59,48,0.1)'">🗑</button>
+              </div>`;
+          }).join('');
+          adminMusicSetupDragDrop();
         } catch (e) {
-          info.innerHTML = '<span style="color:#ff3b30;">❌ Error consultando música: ' + (e.message||'') + '</span>';
+          console.error('adminMusicRefresh error:', e);
         }
+      }
+
+      function adminMusicSetupDragDrop() {
+        const list = document.getElementById('adminPlaylistList');
+        if (!list) return;
+        let dragSrc = null;
+        list.querySelectorAll('[data-idx]').forEach(el => {
+          el.addEventListener('dragstart', (e) => {
+            dragSrc = parseInt(el.dataset.idx, 10);
+            e.dataTransfer.effectAllowed = 'move';
+            el.style.opacity = '0.4';
+          });
+          el.addEventListener('dragend', () => { el.style.opacity = ''; });
+          el.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+          el.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const dst = parseInt(el.dataset.idx, 10);
+            if (dragSrc === null || dragSrc === dst) return;
+            const ids = adminPlaylistData.tracks.map(t => t.id);
+            const moved = ids.splice(dragSrc, 1)[0];
+            ids.splice(dst, 0, moved);
+            try {
+              await API.post('/api/music/playlist/reorder', { order: ids });
+              showToast('↕️ Orden actualizado');
+              adminMusicRefresh();
+              musicLoad();
+            } catch (err) { showToast('❌ ' + (err.message || 'Error')); }
+          });
+        });
+      }
+
+      async function adminMusicSetActive(id) {
+        try {
+          await API.post('/api/music/playlist/active', { id });
+          showToast('▶ Track activado');
+          adminMusicRefresh();
+          musicLoad();
+        } catch (e) { showToast('❌ ' + (e.message || 'Error')); }
+      }
+
+      async function adminMusicRemove(id, name) {
+        if (!confirm('¿Quitar "' + name + '" de la playlist?')) return;
+        try {
+          await API.del('/api/music/playlist/' + encodeURIComponent(id));
+          showToast('🗑 Track eliminado');
+          adminMusicRefresh();
+          musicLoad();
+        } catch (e) { showToast('❌ ' + (e.message || 'Error')); }
+      }
+
+      async function adminMusicClearAll() {
+        if (!confirm('¿Vaciar TODA la playlist? Esto borra todos los tracks.')) return;
+        try {
+          await API.del('/api/music/playlist');
+          showToast('🗑 Playlist vaciada');
+          adminMusicRefresh();
+          musicLoad();
+        } catch (e) { showToast('❌ ' + (e.message || 'Error')); }
       }
 
       async function adminMusicUpload(input) {
         if (!input.files || !input.files[0]) return;
         const file = input.files[0];
-        if (file.size > 50 * 1024 * 1024) { showToast('❌ El archivo supera 50 MB'); input.value = ''; return; }
+        if (file.size > 200 * 1024 * 1024) { showToast('❌ El archivo supera 200 MB'); input.value = ''; return; }
         const progress = document.getElementById('adminMusicProgress');
         const bar = document.getElementById('adminMusicBar');
         const fname = document.getElementById('adminMusicFileName');
@@ -1895,7 +1975,7 @@ let sb = window.API;
         fd.append('file', file);
         try {
           const xhr = new XMLHttpRequest();
-          xhr.open('POST', '/api/music', true);
+          xhr.open('POST', '/api/music/playlist/add-upload', true);
           if (window.TNSVT_USER && window.TNSVT_USER.code) xhr.setRequestHeader('X-User-Code', window.TNSVT_USER.code);
           xhr.upload.onprogress = (ev) => {
             if (ev.lengthComputable) bar.style.width = ((ev.loaded / ev.total) * 100) + '%';
@@ -1906,8 +1986,8 @@ let sb = window.API;
             let resp = null; try { resp = JSON.parse(xhr.responseText); } catch (_) {}
             if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
               fb.style.color = '#34c759';
-              fb.textContent = '✅ Música subida: ' + resp.originalName;
-              showToast('🎵 Música actualizada');
+              fb.textContent = '✅ Track agregado: ' + (resp.track.name || file.name);
+              showToast('🎵 Track agregado a la playlist');
               adminMusicRefresh();
               musicLoad();
             } else {
@@ -1930,22 +2010,6 @@ let sb = window.API;
         }
       }
 
-      async function adminMusicDelete() {
-        if (!confirm('¿Quitar la música de fondo? Los traders verán el player vacío.')) return;
-        const fb = document.getElementById('adminMusicFeedback');
-        try {
-          await API.request('DELETE', '/api/music');
-          fb.style.color = '#34c759';
-          fb.textContent = '🗑 Música eliminada';
-          showToast('🗑 Música quitada');
-          adminMusicRefresh();
-          musicLoad();
-        } catch (e) {
-          fb.style.color = '#ff3b30';
-          fb.textContent = '❌ ' + (e.message||'');
-        }
-      }
-
       async function adminMusicSetExternal() {
         const urlEl = document.getElementById('adminMusicExternalUrl');
         const labelEl = document.getElementById('adminMusicExternalLabel');
@@ -1955,12 +2019,12 @@ let sb = window.API;
         if (!url) { fb.style.color = '#ff3b30'; fb.textContent = '❌ Pegá una URL'; return; }
         if (!/^https?:\/\//i.test(url)) { fb.style.color = '#ff3b30'; fb.textContent = '❌ La URL debe empezar con http:// o https://'; return; }
         fb.style.color = '#a499b8';
-        fb.textContent = '⏳ Aplicando…';
+        fb.textContent = '⏳ Agregando…';
         try {
-          await API.post('/api/music/external', { url, label });
+          const resp = await API.post('/api/music/playlist/add-external', { url, label });
           fb.style.color = '#34c759';
-          fb.textContent = '✅ Música externa configurada';
-          showToast('🎵 Música externa lista');
+          fb.textContent = '✅ Track agregado: ' + (resp.track.name || url);
+          showToast('🌐 Track externo agregado');
           urlEl.value = '';
           labelEl.value = '';
           adminMusicRefresh();
@@ -2624,69 +2688,187 @@ let sb = window.API;
       window.musicExpand = musicExpand;
       window.musicLoad = musicLoad;
       window.musicInit = musicInit;
+      window.musicPrev = musicPrev;
+      window.musicNext = musicNext;
+      window.musicSelectTrack = musicSelectTrack;
+      window.musicCycleLoop = musicCycleLoop;
+      window.musicToggleQueue = musicToggleQueue;
+      window.musicSeek = musicSeek;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;
       window.adminMusicDelete = adminMusicDelete;
       window.adminMusicSetExternal = adminMusicSetExternal;
 
-      // ==================== PLAYER DE MÚSICA DE FONDO ====================
+      // ==================== PLAYER DE MÚSICA DE FONDO (PLAYLIST + VISUALIZER) ====================
       let bgAudio = null;
       let bgAudioSrc = null;
+      let musicPlaylist = [];
+      let musicActiveIndex = 0;
+      let musicLoop = 'all';
+      let musicAudioCtx = null;
+      let musicAnalyser = null;
+      let musicSourceNode = null;
+      let musicVizRAF = null;
+      let musicVizActive = false;
+      let musicUserIsAdvancing = false;
+
       function musicGetAudio() {
         if (!bgAudio) bgAudio = document.getElementById('bgMusicAudio');
         return bgAudio;
       }
-      function musicGetTitle() { return document.getElementById('musicTitle'); }
-      function musicGetBtn() { return document.getElementById('musicToggleBtn'); }
-      function musicIsPlaying() {
-        const a = musicGetAudio(); return !!(a && !a.paused && !a.ended && a.currentTime > 0);
-      }
       function musicSetBtnState(playing) {
-        const btn = musicGetBtn();
+        const btn = document.getElementById('musicToggleBtn');
         if (!btn) return;
         btn.innerHTML = playing ? '⏸' : '▶';
         btn.title = playing ? 'Pausar' : 'Reproducir';
-        const player = document.getElementById('musicPlayer');
-        if (player) player.classList.toggle('music-paused', !playing);
       }
-      function musicUpdateTitle(label) {
-        const t = musicGetTitle();
-        if (t) t.innerHTML = label || 'Sin música';
+      function musicGetLoopIcon() {
+        if (musicLoop === 'all') return '🔁';
+        if (musicLoop === 'one') return '🔂';
+        return '➡️';
       }
-      async function musicLoad() {
+      function musicGetLoopTitle() {
+        if (musicLoop === 'all') return 'Loop: Toda la playlist (click para cambiar)';
+        if (musicLoop === 'one') return 'Loop: Solo este track (click para cambiar)';
+        return 'Loop: Apagado (click para cambiar)';
+      }
+      function musicUpdateLoopBtn() {
+        const b = document.getElementById('musicLoopBtn');
+        if (b) { b.innerHTML = musicGetLoopIcon(); b.title = musicGetLoopTitle(); }
+      }
+      function musicUpdateHeaderUI() {
+        const t = document.getElementById('musicTitle');
+        const c = document.getElementById('musicTrackCount');
+        const qb = document.getElementById('musicQueueBadge');
+        const track = musicPlaylist[musicActiveIndex] || null;
+        if (t) t.innerHTML = track ? ('🎵 ' + track.name + (track.source === 'external' ? ' 🌐' : '')) : 'Sin música';
+        if (c) c.innerHTML = (musicPlaylist.length > 0) ? ((musicActiveIndex + 1) + '/' + musicPlaylist.length) : '0/0';
+        if (qb) {
+          if (musicPlaylist.length > 1) {
+            qb.style.display = 'inline-block';
+            qb.textContent = musicPlaylist.length;
+          } else {
+            qb.style.display = 'none';
+          }
+        }
+        musicUpdateLoopBtn();
+      }
+      function musicRenderQueue() {
+        const list = document.getElementById('musicQueueList');
+        const empty = document.getElementById('musicQueueEmpty');
+        if (!list) return;
+        if (musicPlaylist.length === 0) {
+          list.innerHTML = '';
+          if (empty) empty.style.display = 'block';
+          return;
+        }
+        if (empty) empty.style.display = 'none';
+        list.innerHTML = musicPlaylist.map((t, i) => {
+          const isActive = i === musicActiveIndex;
+          const icon = t.source === 'external' ? '🌐' : '📁';
+          return `
+            <div data-qidx="${i}" style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; margin-bottom:4px; cursor:pointer; transition:all 0.2s; ${isActive ? 'background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.4);' : 'background:rgba(0,0,0,0.3); border:1px solid transparent;'}" onmouseover="if(this.dataset.qidx!='${musicActiveIndex}')this.style.background='rgba(138,60,255,0.1)'" onmouseout="if(this.dataset.qidx!='${musicActiveIndex}')this.style.background='rgba(0,0,0,0.3)'">
+              <span style="font-size:0.9rem; flex-shrink:0;">${icon}</span>
+              <div style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.78rem; color:${isActive ? 'var(--gold-bright)' : '#e2dcf0'}; font-weight:${isActive ? '600' : '400'};">${(t.name || 'Track').replace(/</g, '&lt;')}</div>
+              ${isActive ? '<span style="color:var(--gold-bright); font-size:0.7rem;">▶</span>' : ''}
+            </div>`;
+        }).join('');
+        list.querySelectorAll('[data-qidx]').forEach(el => {
+          el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.qidx, 10);
+            if (!isNaN(idx)) musicSelectTrack(idx);
+          });
+        });
+      }
+      function musicToggleQueue() {
+        const p = document.getElementById('musicQueuePanel');
+        if (!p) return;
+        if (p.style.display === 'none' || !p.style.display) {
+          musicRenderQueue();
+          p.style.display = 'block';
+        } else {
+          p.style.display = 'none';
+        }
+      }
+      function musicSetAudioSrc(trackId) {
+        const a = musicGetAudio();
+        if (!a) return;
+        const newSrc = trackId ? ('/api/music/stream?id=' + encodeURIComponent(trackId) + '&t=' + Date.now())
+                              : ('/api/music/stream?t=' + Date.now());
+        a.src = newSrc;
+        bgAudioSrc = newSrc;
+        a.load();
+      }
+      async function musicLoad(preservePlayback) {
         const a = musicGetAudio();
         if (!a) return;
         try {
           const data = await API.get('/api/music');
-          if (data && data.hasMusic) {
-            const newSrc = '/api/music/stream?t=' + Date.now();
+          musicPlaylist = (data && data.playlist) ? data.playlist : [];
+          musicActiveIndex = (data && typeof data.activeIndex === 'number') ? data.activeIndex : 0;
+          musicLoop = (data && data.loop) ? data.loop : 'all';
+          const track = musicPlaylist[musicActiveIndex] || null;
+          if (track) {
+            const newSrc = '/api/music/stream?id=' + encodeURIComponent(track.id) + '&t=' + Date.now();
             if (bgAudioSrc !== newSrc) {
+              const wasPlaying = !a.paused && !a.ended;
               a.src = newSrc;
               bgAudioSrc = newSrc;
               a.load();
               a.volume = (parseInt(localStorage.getItem('tnsvt_music_vol')||'35', 10)) / 100;
               const v = document.getElementById('musicVolume');
               if (v) v.value = (a.volume * 100);
+              if (preservePlayback && wasPlaying) {
+                try { await a.play(); } catch (_) {}
+              }
             }
-            const sourceTag = (data.source === 'external') ? ' 🌐' : '';
-            musicUpdateTitle('🎵 ' + (data.originalName || 'Música del Reino') + sourceTag);
+            musicUpdateHeaderUI();
+            musicRenderQueue();
           } else {
             a.pause();
             a.removeAttribute('src');
             a.load();
             bgAudioSrc = null;
-            musicUpdateTitle('Sin música');
+            musicUpdateHeaderUI();
+            musicRenderQueue();
             musicSetBtnState(false);
           }
         } catch (e) {
-          musicUpdateTitle('Sin música');
+          musicUpdateHeaderUI();
         }
+      }
+      async function musicSelectTrack(idx, autoplay) {
+        if (idx < 0 || idx >= musicPlaylist.length) return;
+        musicActiveIndex = idx;
+        musicUserIsAdvancing = true;
+        const a = musicGetAudio();
+        const track = musicPlaylist[idx];
+        a.src = '/api/music/stream?id=' + encodeURIComponent(track.id) + '&t=' + Date.now();
+        bgAudioSrc = a.src;
+        a.load();
+        musicUpdateHeaderUI();
+        musicRenderQueue();
+        if (autoplay !== false) {
+          try { await a.play(); } catch (e) { console.warn('autoplay falló', e); }
+        }
+        musicUserIsAdvancing = false;
+      }
+      async function musicNext() {
+        if (musicPlaylist.length === 0) return;
+        const next = (musicActiveIndex + 1) % musicPlaylist.length;
+        await musicSelectTrack(next);
+      }
+      async function musicPrev() {
+        if (musicPlaylist.length === 0) return;
+        const prev = (musicActiveIndex - 1 + musicPlaylist.length) % musicPlaylist.length;
+        await musicSelectTrack(prev);
       }
       async function musicToggle() {
         const a = musicGetAudio();
-        if (!a || !a.src) {
+        if (!a) return;
+        if (!a.src || musicPlaylist.length === 0) {
           await musicLoad();
-          if (!a.src) { showToast('🎵 El admin aún no subió música'); return; }
+          if (musicPlaylist.length === 0) { showToast('🎵 El admin aún no subió música'); return; }
         }
         if (a.paused) {
           try {
@@ -2703,6 +2885,7 @@ let sb = window.API;
       }
       function musicAutoplayOnFirstInteraction() {
         try { if (localStorage.getItem('tnsvt_music_autoplay') !== '1') return; } catch (_) { return; }
+        if (musicPlaylist.length === 0) return;
         const a = musicGetAudio();
         if (!a || !a.src) return;
         const tryPlay = () => {
@@ -2723,6 +2906,25 @@ let sb = window.API;
         if (a) a.volume = vol;
         try { localStorage.setItem('tnsvt_music_vol', String(v)); } catch (_) {}
       }
+      function musicSeek(event) {
+        const a = musicGetAudio();
+        const wrap = document.getElementById('musicProgressWrap');
+        if (!a || !a.duration || !wrap) return;
+        const rect = wrap.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        a.currentTime = ratio * a.duration;
+      }
+      function musicUpdateProgress() {
+        const a = musicGetAudio();
+        const bar = document.getElementById('musicProgressBar');
+        if (!a || !bar) return;
+        if (a.duration && isFinite(a.duration)) {
+          const pct = (a.currentTime / a.duration) * 100;
+          bar.style.width = pct + '%';
+        } else {
+          bar.style.width = '0%';
+        }
+      }
       function musicMinimize() {
         document.getElementById('musicPlayer').style.display = 'none';
         document.getElementById('musicPlayerMini').style.display = 'block';
@@ -2731,15 +2933,107 @@ let sb = window.API;
         document.getElementById('musicPlayer').style.display = 'flex';
         document.getElementById('musicPlayerMini').style.display = 'none';
       }
+      async function musicCycleLoop() {
+        const order = ['all', 'one', 'off'];
+        const next = order[(order.indexOf(musicLoop) + 1) % order.length];
+        musicLoop = next;
+        musicUpdateLoopBtn();
+        try {
+          await API.post('/api/music/playlist/loop', { loop: next });
+        } catch (e) { console.warn('No se pudo guardar el loop', e); }
+        try { localStorage.setItem('tnsvt_music_loop', next); } catch (_) {}
+        showToast('🔁 Loop: ' + (next === 'all' ? 'Toda la playlist' : next === 'one' ? 'Solo este track' : 'Apagado'));
+      }
+      // ============== VISUALIZER ==============
+      function musicInitAudioContext() {
+        if (musicAudioCtx) return;
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (!Ctx) return;
+          musicAudioCtx = new Ctx();
+          musicAnalyser = musicAudioCtx.createAnalyser();
+          musicAnalyser.fftSize = 64;
+          musicAnalyser.smoothingTimeConstant = 0.75;
+          const a = musicGetAudio();
+          if (a) {
+            try {
+              musicSourceNode = musicAudioCtx.createMediaElementSource(a);
+              musicSourceNode.connect(musicAnalyser);
+              musicAnalyser.connect(musicAudioCtx.destination);
+            } catch (e) { console.warn('No se pudo conectar el source al analyser:', e); }
+          }
+        } catch (e) { console.warn('AudioContext no disponible:', e); }
+      }
+      function musicDrawViz() {
+        if (!musicVizActive) return;
+        const cv = document.getElementById('musicVisualizer');
+        const cvMini = document.getElementById('musicMiniVisualizer');
+        const a = musicGetAudio();
+        const playing = a && !a.paused && !a.ended;
+        if (cv) musicDrawOnCanvas(cv, playing);
+        if (cvMini) musicDrawOnCanvas(cvMini, playing, true);
+        musicVizRAF = requestAnimationFrame(musicDrawViz);
+      }
+      function musicDrawOnCanvas(canvas, playing, mini) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        let bars = mini ? 12 : 28;
+        const gap = 1;
+        const barW = Math.max(1, (w - gap * (bars - 1)) / bars);
+        const dataLen = musicAnalyser ? musicAnalyser.frequencyBinCount : 0;
+        let dataArr = null;
+        if (musicAnalyser && playing) {
+          dataArr = new Uint8Array(dataLen);
+          musicAnalyser.getByteFrequencyData(dataArr);
+        }
+        for (let i = 0; i < bars; i++) {
+          let v = 0;
+          if (dataArr) {
+            const idx = Math.floor((i / bars) * dataLen);
+            v = (dataArr[idx] || 0) / 255;
+          } else {
+            v = playing ? 0.3 : 0.05;
+          }
+          if (!playing) v = 0.05 + Math.sin((Date.now() / 600 + i * 0.5)) * 0.02;
+          const barH = Math.max(2, v * h);
+          const x = i * (barW + gap);
+          const y = (h - barH) / 2;
+          const grd = ctx.createLinearGradient(0, y, 0, y + barH);
+          grd.addColorStop(0, '#d4af37');
+          grd.addColorStop(1, '#8a3cff');
+          ctx.fillStyle = grd;
+          ctx.fillRect(x, y, barW, barH);
+        }
+      }
+      function musicStartViz() {
+        if (musicVizActive) return;
+        musicInitAudioContext();
+        if (musicAudioCtx && musicAudioCtx.state === 'suspended') {
+          musicAudioCtx.resume().catch(() => {});
+        }
+        musicVizActive = true;
+        musicDrawViz();
+      }
+      function musicStopViz() {
+        musicVizActive = false;
+        if (musicVizRAF) cancelAnimationFrame(musicVizRAF);
+      }
       function musicInit() {
         const a = musicGetAudio();
         const savedVol = parseInt(localStorage.getItem('tnsvt_music_vol') || '35', 10);
         if (a) a.volume = savedVol / 100;
         const v = document.getElementById('musicVolume');
         if (v) v.value = savedVol;
-        a.addEventListener('play',  () => { musicSetBtnState(true); try { localStorage.setItem('tnsvt_music_autoplay', '1'); } catch (_) {} });
-        a.addEventListener('pause', () => musicSetBtnState(false));
-        a.addEventListener('ended', () => musicSetBtnState(false));
+        try {
+          const savedLoop = localStorage.getItem('tnsvt_music_loop');
+          if (savedLoop && ['all', 'one', 'off'].includes(savedLoop)) musicLoop = savedLoop;
+        } catch (_) {}
+        musicUpdateLoopBtn();
+        a.addEventListener('play',  () => { musicSetBtnState(true); try { localStorage.setItem('tnsvt_music_autoplay', '1'); } catch (_) {} musicStartViz(); });
+        a.addEventListener('pause', () => { musicSetBtnState(false); });
+        a.addEventListener('ended', () => { musicSetBtnState(false); musicOnTrackEnded(); });
         a.addEventListener('error', (e) => {
           console.error('Audio error:', a.error);
           if (a.error) {
@@ -2749,9 +3043,25 @@ let sb = window.API;
           }
           musicSetBtnState(false);
         });
-        a.addEventListener('stalled', () => console.warn('Audio: stalled (buffering)'));
-        a.addEventListener('canplay', () => console.log('Audio: can play'));
+        a.addEventListener('timeupdate', musicUpdateProgress);
+        a.addEventListener('loadedmetadata', musicUpdateProgress);
+        setInterval(musicUpdateProgress, 1000);
+        musicUpdateHeaderUI();
         musicLoad().then(() => musicAutoplayOnFirstInteraction());
+      }
+      function musicOnTrackEnded() {
+        if (musicUserIsAdvancing) return;
+        if (musicPlaylist.length === 0) return;
+        if (musicLoop === 'one') {
+          const a = musicGetAudio();
+          if (a) { a.currentTime = 0; a.play().catch(() => {}); }
+          return;
+        }
+        if (musicLoop === 'off' && musicActiveIndex === musicPlaylist.length - 1) {
+          return; // No avanza si está en el último
+        }
+        const next = (musicActiveIndex + 1) % musicPlaylist.length;
+        musicSelectTrack(next);
       }
 
       // ==================== SISTEMA DE NOTIFICACIONES ====================

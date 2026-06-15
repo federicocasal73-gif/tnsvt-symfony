@@ -26,4 +26,7 @@
 /public/audio/current.json
 /public/audio/external-cache.bin
 /public/audio/external-cache.meta.json
+/public/audio/cache-*.bin
+/public/audio/cache-*.bin.meta.json
+/public/audio/track-*.*
 ###< tnsvt/music ###

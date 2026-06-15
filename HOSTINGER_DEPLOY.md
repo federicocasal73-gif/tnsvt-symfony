@@ -69,7 +69,7 @@ chmod -R 777 var/
 
 ## 8. Probar
 - Andá a https://tudominio.com
-- Ingresá con `ADMIN01` / `admin:TNSVT`
+- Ingresá con `ADMIN01` / `TNSVT-2026-CristoRey!` (o la que hayas puesto con `--admin-password=…`)
 - Verificá que funcione todo
 
 ## Solución de problemas
