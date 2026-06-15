@@ -586,7 +586,7 @@
   .mc-navbtn:hover{color:var(--gold-bright);background:rgba(255,215,0,0.05);}
   .mc-navbtn.active{background:var(--gold);color:#000;font-weight:700;}
   @media(max-width:600px){ .mc-cycle-wrap{flex-direction:column;} .mc-cycle-tab{border-right:none;border-bottom:1px solid rgba(212,175,55,0.1);} .tj-form-grid{grid-template-columns:1fr;} .tj-stats{grid-template-columns:1fr 1fr;} }
-  #toast { position: fixed; bottom: 20px; right: 20px; background: #0d0818; border: 1px solid #8a3cff; padding: 10px 20px; border-radius: 8px; z-index: 200; font-size: 13px; animation: slideIn 0.3s ease-out; display: none; }
+  #toast { position: fixed; bottom: 20px; left: 20px; background: #0d0818; border: 1px solid #8a3cff; padding: 10px 20px; border-radius: 8px; z-index: 200; font-size: 13px; animation: slideIn 0.3s ease-out; display: none; }
   @keyframes slideIn { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   @keyframes pulseGlow { from { box-shadow: 0 0 10px rgba(255,215,0,0.2); } to { box-shadow: 0 0 25px rgba(255,215,0,0.6); } }
   @keyframes pulseCircle { from { box-shadow: 0 0 8px var(--gold-bright); } to { box-shadow: 0 0 22px #fff; } }
@@ -655,7 +655,7 @@
   .notif-empty { text-align: center; padding: 40px 20px; color: #645a78; font-size: 0.82rem; line-height: 1.8; }
   /* Push toast flotante */
   .push-toast {
-    position: fixed; bottom: 24px; right: 24px; z-index: 99999;
+    position: fixed; bottom: 24px; left: 24px; z-index: 100001;
     background: rgba(10,5,22,0.97); border: 1px solid rgba(138,60,255,0.4);
     border-radius: 14px; padding: 14px 40px 14px 16px;
     max-width: 300px; display: flex; gap: 12px; align-items: flex-start;
