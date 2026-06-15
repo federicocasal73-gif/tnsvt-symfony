@@ -2,7 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#d4af37">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TNSVT">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="TNSVT">
+<meta name="description" content="T.N.S.V.T - Reino del Cristo Íntegro. Plataforma de trading, academia, música y comunidad para ejecutores.">
+<link rel="manifest" href="{{ asset('manifest.json') }}">
+<link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
   {% block stylesheets %}
@@ -160,12 +169,12 @@
     <div class="gate-box">
       <h2>⛧ T.N.S.V.T ⛧</h2>
       <p class="sub">NEURO-SPIRITUAL VALUE THEORY</p>
-      <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" autofocus oninput="toggleAdminPassField()" onkeydown="if(event.key==='Enter'){event.preventDefault();maybeFocusPass();}" style="text-transform:uppercase;">
+      <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" aria-label="Código de acceso" autofocus oninput="toggleAdminPassField()" onkeydown="if(event.key==='Enter'){event.preventDefault();maybeFocusPass();}" style="text-transform:uppercase;">
       <div id="gatePassWrap" style="position:relative; display:none; margin-top:8px;">
-        <input type="password" id="gatePass" placeholder="CONTRASEÑA" autocomplete="current-password" style="padding-right:46px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
+        <input type="password" id="gatePass" placeholder="CONTRASEÑA" aria-label="Contraseña de administrador" autocomplete="current-password" style="padding-right:46px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
         <button type="button" id="gatePassToggle" onclick="togglePassVisibility()" aria-label="Mostrar u ocultar contraseña" title="Mostrar contraseña 👁" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); color:var(--gold-bright); cursor:pointer; font-size:1.2rem; padding:6px 10px; line-height:1; border-radius:6px; transition:all 0.2s; display:flex; align-items:center; justify-content:center; min-width:36px; min-height:36px;" onmouseover="this.style.background='rgba(212,175,55,0.25)';this.style.borderColor='var(--gold-bright)';" onmouseout="this.style.background='rgba(212,175,55,0.1)';this.style.borderColor='rgba(212,175,55,0.3)';">👁</button>
       </div>
-      <button class="login-btn" onclick="verifyGateKey()">ENTRAR AL GATEWAY</button>
+      <button class="login-btn" onclick="verifyGateKey()" aria-label="Entrar al gateway">ENTRAR AL GATEWAY</button>
       <p id="adminPassHint" style="display:none; font-size:0.75rem; color:var(--gold); margin-top:8px;">👑 Admin detectado — ingresá tu contraseña</p>
       <p id="loginError" style="display:none; font-size:0.82rem; color:#ff7066; margin-top:10px; padding:8px 12px; background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.3); border-radius:8px;"></p>
     </div>
@@ -222,11 +231,11 @@
       </div>
     </div>
     <!-- BANNER PERMISOS PUSH -->
-    <div class="push-perm-bar" id="pushPermBar">
+    <div class="push-perm-bar" id="pushPermBar" role="alert">
       <span>🔔 Activá notificaciones para recibir alertas de señales, comentarios y actividad del Reino, incluso con la app cerrada.</span>
       <div style="display:flex;gap:8px;align-items:center;">
-        <button class="push-allow-btn" onclick="requestPushPermission()">Activar</button>
-        <button class="push-dismiss-btn" onclick="dismissPushBar()">Ahora no</button>
+        <button class="push-allow-btn" onclick="requestPushPermission()" aria-label="Activar notificaciones push">Activar</button>
+        <button class="push-dismiss-btn" onclick="dismissPushBar()" aria-label="Cerrar banner de notificaciones">Ahora no</button>
       </div>
     </div>
 
@@ -2884,31 +2893,31 @@
 <!-- BARRA INFERIOR PERSISTENTE (tipo Spotify) - siempre visible después del login, en cualquier sección -->
 <div id="musicPlayerBar" aria-label="Reproductor de música">
   <div class="mpb-track">
-    <div class="mpb-cover" id="mpbCover">🎵</div>
+    <div class="mpb-cover" id="mpbCover" aria-hidden="true">🎵</div>
     <div class="mpb-info">
-      <div class="mpb-title" id="mpbTitle">Sin música</div>
+      <div class="mpb-title" id="mpbTitle" aria-live="polite">Sin música</div>
       <div class="mpb-sub" id="mpbSub">T.N.S.V.T</div>
     </div>
   </div>
   <div class="mpb-controls">
     <button class="mpb-btn" onclick="musicPrev()" title="Anterior" aria-label="Pista anterior">⏮</button>
-    <button class="mpb-btn-play" id="mpbPlayBtn" onclick="musicToggle()" title="Reproducir / Pausar" aria-label="Play / Pausa">▶</button>
+    <button class="mpb-btn-play" id="mpbPlayBtn" onclick="musicToggle()" title="Reproducir / Pausar" aria-label="Reproducir o pausar música">▶</button>
     <button class="mpb-btn" onclick="musicNext()" title="Siguiente" aria-label="Pista siguiente">⏭</button>
   </div>
   <div class="mpb-progress-wrap">
-    <span class="mpb-time" id="mpbTimeCur">0:00</span>
-    <div class="mpb-bar" id="mpbBar" onclick="musicSeekBar(event)" title="Click para saltar">
+    <span class="mpb-time" id="mpbTimeCur" aria-label="Tiempo actual">0:00</span>
+    <div class="mpb-bar" id="mpbBar" onclick="musicSeekBar(event)" title="Click para saltar" role="slider" aria-label="Barra de progreso" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div class="mpb-bar-fill" id="mpbBarFill"></div>
     </div>
-    <span class="mpb-time" id="mpbTimeDur">0:00</span>
+    <span class="mpb-time" id="mpbTimeDur" aria-label="Duración total">0:00</span>
   </div>
   <div class="mpb-extras">
     <canvas class="mpb-viz" id="mpbViz" width="56" height="26" aria-hidden="true"></canvas>
     <div class="mpb-vol" title="Volumen">
-      <span style="font-size:0.7rem;color:#645a78;">🔈</span>
-      <input type="range" min="0" max="100" value="35" id="mpbVol" oninput="musicSetVolume(this.value)" aria-label="Volumen">
+      <span style="font-size:0.7rem;color:#645a78;" aria-hidden="true">🔈</span>
+      <input type="range" min="0" max="100" value="35" id="mpbVol" oninput="musicSetVolume(this.value)" aria-label="Control de volumen">
     </div>
-    <button class="mpb-expand" onclick="musicShowFullPlayer()" title="Abrir reproductor completo con playlist">⤢ Reproductor</button>
+    <button class="mpb-expand" onclick="musicShowFullPlayer()" title="Abrir reproductor completo con playlist" aria-label="Expandir reproductor">⤢ Reproductor</button>
   </div>
 </div>
 

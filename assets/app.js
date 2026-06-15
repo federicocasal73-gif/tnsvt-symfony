@@ -3594,6 +3594,14 @@ let sb = window.API;
               console.warn('[FCM] SW o Notification no soportados');
               return false;
             }
+            // 0) Registrar sw.js PWA principal (offline + cache), si no existe
+            try {
+              const existing = await navigator.serviceWorker.getRegistration('/sw.js');
+              if (!existing) {
+                await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                console.log('[PWA] sw.js registrado');
+              }
+            } catch (e) { console.warn('[PWA] sw.js no se pudo registrar:', e); }
             // 1) Cargar SDK de Firebase (compat v10) si no está
             if (typeof firebase === 'undefined') {
               await loadScript('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');

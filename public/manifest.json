@@ -1,0 +1,53 @@
+{
+  "name": "T.N.S.V.T - Reino del Cristo Íntegro",
+  "short_name": "TNSVT",
+  "description": "Plataforma de trading, academia, música y comunidad para ejecutores del Reino.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0818",
+  "theme_color": "#d4af37",
+  "lang": "es-AR",
+  "categories": ["business", "education", "music", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chat de Ejecutores",
+      "short_name": "Chat",
+      "url": "/?tab=chat",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Academia",
+      "short_name": "Academia",
+      "url": "/?tab=academia",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Trading Journal",
+      "short_name": "Journal",
+      "url": "/?tab=journal",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
