@@ -3366,7 +3366,16 @@ let sb = window.API;
       // ---- Notificaciones del navegador (Web Push API) ----
       function checkPushPermission() {
         if (!('Notification' in window)) return;
-        if (Notification.permission === 'granted') { pushPermGranted = true; return; }
+        if (Notification.permission === 'granted') {
+          pushPermGranted = true;
+          // Auto-inicializar Firebase si ya tenemos permiso
+          if (window.TNSVT_USER && window.TNSVT_USER.code) {
+            initFirebasePush().then(ok => {
+              if (ok) console.log('[FCM] Auto-inicializado (permiso ya granted)');
+            });
+          }
+          return;
+        }
         if (Notification.permission === 'denied') return;
         const dismissed = localStorage.getItem('tnsvt_push_dismissed');
         if (!dismissed) {
@@ -3378,14 +3387,126 @@ let sb = window.API;
         if (!('Notification' in window)) { showToast('Tu navegador no soporta notificaciones push'); return; }
         Notification.requestPermission().then(result => {
           if (result === 'granted') {
-            pushPermGranted = true;
             document.getElementById('pushPermBar')?.classList.remove('show');
-            showToast('✅ Notificaciones activadas');
-            new Notification('T.N.S.V.T', { body: '✅ Recibirás alertas de señales y actividad.', icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⛧</text></svg>' });
+            initFirebasePush().then(ok => {
+              if (ok) {
+                pushPermGranted = true;
+                showToast('✅ Notificaciones activadas');
+                try {
+                  new Notification('T.N.S.V.T', {
+                    body: '🔔 Vas a recibir alertas de señales, comentarios y actividad del Reino.',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⛧</text></svg>'
+                  });
+                } catch (e) { /* algunos navegadores bloquean la primer notif */ }
+              } else {
+                showToast('⚠️ Permiso OK pero Firebase no se inicializó. Revisá la consola.');
+              }
+            });
           } else {
             showToast('Permisos denegados. Activá desde el navegador manualmente.');
             dismissPushBar();
           }
+        });
+      }
+
+      // Inicializa Firebase Web Push: carga el SDK, registra el SW, obtiene el FCM token
+      // y lo guarda en el backend. Re-entrante y tolerante a fallos.
+      var _fcmTokenRegistered = null;
+      async function initFirebasePush() {
+        if (_fcmTokenRegistered) return _fcmTokenRegistered;
+        _fcmTokenRegistered = (async () => {
+          try {
+            if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+              console.warn('[FCM] SW o Notification no soportados');
+              return false;
+            }
+            // 1) Cargar SDK de Firebase (compat v10) si no está
+            if (typeof firebase === 'undefined') {
+              await loadScript('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');
+              await loadScript('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');
+            }
+            // 2) Obtener config pública del backend
+            const config = await API.get('/api/firebase/config');
+            if (!config || !config.configured) {
+              console.warn('[FCM] Backend no configurado:', config && config.error);
+              return false;
+            }
+            // 3) Inicializar Firebase (solo una vez)
+            if (!firebase.apps.length) {
+              firebase.initializeApp({
+                apiKey: config.apiKey,
+                authDomain: config.authDomain,
+                projectId: config.projectId,
+                storageBucket: config.storageBucket,
+                messagingSenderId: config.messagingSenderId,
+                appId: config.appId,
+              });
+            }
+            const messaging = firebase.messaging();
+            // 4) Registrar el service worker
+            const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            console.log('[FCM] SW registrado, scope:', swReg.scope);
+            // 5) Obtener el FCM token (requiere permiso granted)
+            const tokenOptions = { serviceWorkerRegistration: swReg };
+            if (config.vapidKey) tokenOptions.vapidKey = config.vapidKey;
+            const fcmToken = await messaging.getToken(tokenOptions);
+            if (!fcmToken) {
+              console.warn('[FCM] getToken() devolvió vacío. ¿Permiso denegado?');
+              return false;
+            }
+            console.log('[FCM] Token obtenido:', fcmToken.substring(0, 20) + '...');
+            // 6) Guardar el token en el backend
+            if (window.TNSVT_USER && window.TNSVT_USER.code) {
+              await API.post('/api/devices/register', {
+                user_code: window.TNSVT_USER.code,
+                fcm_token: fcmToken,
+                platform: 'web',
+                device_model: navigator.userAgent.substring(0, 200),
+              });
+              console.log('[FCM] Token registrado en backend para', window.TNSVT_USER.code);
+            } else {
+              console.warn('[FCM] No hay usuario logueado, token NO guardado');
+              return false;
+            }
+            // 7) Escuchar mensajes en foreground (cuando el tab está activo)
+            messaging.onMessage((payload) => {
+              console.log('[FCM] Foreground message:', payload);
+              const title = (payload.notification && payload.notification.title) || 'T.N.S.V.T';
+              const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.text) || '';
+              showToast('🔔 ' + title + (body ? ': ' + body : ''));
+              fireBrowserNotif((payload.data && payload.data.type) || 'generic', body);
+            });
+            // 8) Manejar el caso de token refrescado
+            messaging.onTokenRefresh(async () => {
+              try {
+                const newToken = await messaging.getToken(tokenOptions);
+                if (newToken && window.TNSVT_USER && window.TNSVT_USER.code) {
+                  await API.post('/api/devices/register', {
+                    user_code: window.TNSVT_USER.code,
+                    fcm_token: newToken,
+                    platform: 'web',
+                    device_model: navigator.userAgent.substring(0, 200),
+                  });
+                }
+              } catch (e) { console.warn('[FCM] Token refresh error:', e); }
+            });
+            return true;
+          } catch (e) {
+            console.error('[FCM] initFirebasePush error:', e);
+            return false;
+          }
+        })();
+        return _fcmTokenRegistered;
+      }
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          if (document.querySelector('script[src="' + src + '"]')) return resolve();
+          const s = document.createElement('script');
+          s.src = src; s.async = false;
+          s.onload = resolve;
+          s.onerror = () => reject(new Error('No se pudo cargar ' + src));
+          document.head.appendChild(s);
         });
       }
 
@@ -3451,6 +3572,8 @@ let sb = window.API;
       window.requestPushPermission = requestPushPermission;
       window.dismissPushBar = dismissPushBar;
       window.checkPushPermission = checkPushPermission;
+      window.initFirebasePush = initFirebasePush;
+      window.loadScript = loadScript;
       function setupCalFilters() {
         const countries = document.querySelectorAll('.cal-country-btn');
         const impacts = document.querySelectorAll('.cal-impact-btn');
