@@ -3208,21 +3208,28 @@ let sb = window.API;
             viewport: vw + 'x' + vh,
             inViewport: rect.top < vh && rect.bottom > 0,
             bodyClasses: document.body.className,
-            parentEl: bar.parentElement && bar.parentElement.tagName
+            parentEl: bar.parentElement && bar.parentElement.tagName,
+            inlineDisplay: bar.style.display || '(none)'
           });
         } catch (e) { console.warn('[TNSVT music] debug failed', e); }
       }
       function musicShowBar() {
         const bar = document.getElementById('musicPlayerBar');
         document.body.classList.add('music-bar-active');
-        if (bar) bar.classList.add('visible');
-        // Loguear estado real despues de un tick (para que el browser aplique estilos)
+        if (bar) {
+          bar.classList.add('visible');
+          bar.style.display = 'flex'; /* inline = mas confiable que el class */
+        }
+        // Loguear estado real despues de un tick (asi el browser ya aplico estilos)
         setTimeout(musicBarDebugInfo, 50);
       }
       function musicHideBar() {
         const bar = document.getElementById('musicPlayerBar');
         document.body.classList.remove('music-bar-active');
-        if (bar) bar.classList.remove('visible');
+        if (bar) {
+          bar.classList.remove('visible');
+          bar.style.display = 'none';
+        }
       }
       function musicShowFullPlayer() {
         // Mostrar card expandido, ocultar la mini-ball
