@@ -108,6 +108,7 @@ let sb = window.API;
         }
         verifyGateKey();
       }
+      window.maybeFocusPass = maybeFocusPass;
 
       function togglePassVisibility() {
         const el = document.getElementById('gatePass');
@@ -3656,8 +3657,9 @@ let sb = window.API;
         };
         // Inicial: setear en 0
         updateBadge(0);
-        // Polling cada 30s
-        setInterval(async () => {
+        // Polling cada 30s (con guard por si TNSVT_USER se vacia con logout)
+        let pollTimer = setInterval(async () => {
+          if (!window.TNSVT_USER || !window.TNSVT_USER.code) return;
           try {
             const result = await sb.getNotifCount(window.TNSVT_USER.code);
             updateBadge((result && typeof result.count === 'number') ? result.count : 0);
@@ -3665,10 +3667,18 @@ let sb = window.API;
             console.warn('notif poll error:', e);
           }
         }, 30000);
+        // Si en algun momento se hace logout, parar el polling
+        const stopWatch = setInterval(() => {
+          if (!window.TNSVT_USER) {
+            clearInterval(pollTimer);
+            clearInterval(stopWatch);
+          }
+        }, 5000);
         // Tambien refrescar al abrir el panel
         const origToggle = window.toggleNotifPanel;
         window.toggleNotifPanel = async function() {
           if (typeof origToggle === 'function') origToggle.apply(this, arguments);
+          if (!window.TNSVT_USER || !window.TNSVT_USER.code) return;
           try {
             const result = await sb.getNotifCount(window.TNSVT_USER.code);
             updateBadge((result && typeof result.count === 'number') ? result.count : 0);
