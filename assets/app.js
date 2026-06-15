@@ -3192,6 +3192,15 @@ let sb = window.API;
           const cs = getComputedStyle(bar);
           const rect = bar.getBoundingClientRect();
           const vw = window.innerWidth, vh = window.innerHeight;
+          const parent = bar.parentElement;
+          const grand = parent && parent.parentElement;
+          const getInfo = (el) => el ? {
+            tag: el.tagName,
+            id: el.id || '(none)',
+            class: el.className || '(none)',
+            display: getComputedStyle(el).display,
+            position: getComputedStyle(el).position
+          } : null;
           console.log('[TNSVT music] bar state', {
             display: cs.display,
             position: cs.position,
@@ -3208,8 +3217,9 @@ let sb = window.API;
             viewport: vw + 'x' + vh,
             inViewport: rect.top < vh && rect.bottom > 0,
             bodyClasses: document.body.className,
-            parentEl: bar.parentElement && bar.parentElement.tagName,
-            inlineDisplay: bar.style.display || '(none)'
+            inlineDisplay: bar.style.display || '(none)',
+            parent: getInfo(parent),
+            grandparent: getInfo(grand)
           });
         } catch (e) { console.warn('[TNSVT music] debug failed', e); }
       }
