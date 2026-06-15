@@ -124,6 +124,29 @@
   <!-- MAIN CONTENT (oculto hasta login) -->
   <div id="main-content" style="display:none; width:100%;">
 
+    <!-- LOADING BAR GLOBAL (mientras se inicializan los paneles) -->
+    <div id="appLoadingBar" style="position:fixed; top:0; left:0; right:0; height:3px; background:transparent; z-index:200000; pointer-events:none;">
+      <div id="appLoadingBarFill" style="height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--gold-bright)); box-shadow:0 0 8px var(--gold-bright); transition:width 0.3s ease;"></div>
+    </div>
+    <div id="appLoadingToast" style="position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:200000; background:rgba(13,8,24,0.95); border:1px solid rgba(212,175,55,0.4); border-radius:20px; padding:6px 14px; font-size:0.75rem; color:var(--gold-bright); font-family:'Orbitron',sans-serif; letter-spacing:0.5px; box-shadow:0 4px 16px rgba(0,0,0,0.4); backdrop-filter:blur(8px); display:none; align-items:center; gap:8px;">
+      <span style="display:inline-block; width:10px; height:10px; border:2px solid var(--gold); border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span>
+      <span id="appLoadingText">Cargando reino…</span>
+    </div>
+    <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <!-- OVERLAY DE CARGA (cubre el contenido hasta que initAllPanels termine) -->
+    <div id="appLoadingOverlay" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(9,5,18,0.92); z-index:1500; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; backdrop-filter:blur(4px);">
+      <div style="width:60px; height:60px; border:4px solid rgba(212,175,55,0.2); border-top-color:var(--gold-bright); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:20px;"></div>
+      <div style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1.3rem; margin-bottom:8px;">Cargando el Reino</div>
+      <div id="appLoadingStatus" style="font-size:0.85rem; color:#a499b8; text-align:center; max-width:400px;">Inicializando paneles…</div>
+      <div style="margin-top:20px; min-width:300px; max-width:400px; width:80%; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">
+        <div id="appLoadingProgress" style="height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--gold-bright)); transition:width 0.3s ease;"></div>
+      </div>
+      <div id="appLoadingCounter" style="font-size:0.7rem; color:#645a78; margin-top:10px; font-family:'Orbitron',sans-serif;">0/0</div>
+    </div>
+
     <!-- HEADER -->
     <div class="app-header">
       <div class="logo-area"><h1>T.N.S.V.T</h1><p>Reino del Cristo Íntegro</p></div>

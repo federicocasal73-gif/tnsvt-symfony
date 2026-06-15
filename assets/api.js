@@ -1,11 +1,24 @@
 const API = {
+  // Tracker global de requests en curso (usado por el loader de la app)
+  loadingCount: 0,
+  loadingListeners: new Set(),
+  onLoadingChange(cb) { this.loadingListeners.add(cb); return () => this.loadingListeners.delete(cb); },
+  _emitLoading() { this.loadingListeners.forEach(cb => { try { cb(this.loadingCount); } catch (_) {} }); },
+
   async request(method, path, body = null) {
     const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(path, opts);
-    const data = await res.json();
-    if (!res.ok && data.error) throw new Error(data.error);
-    return data;
+    API.loadingCount++;
+    API._emitLoading();
+    try {
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok && data.error) throw new Error(data.error);
+      return data;
+    } finally {
+      API.loadingCount--;
+      API._emitLoading();
+    }
   },
 
   get(path) { return this.request('GET', path); },

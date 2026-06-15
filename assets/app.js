@@ -118,6 +118,7 @@ let sb = window.API;
           document.getElementById('profileCodename').innerText = data.user.name || "Alma Electa";
           showToast("✨ Acceso concedido, " + (data.user.name || "Trader") + " ✨");
           updateNodeStates();
+          loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
         } catch (e) {
           showToast("❌ Error de conexión — intentá de nuevo.");
@@ -301,9 +302,14 @@ let sb = window.API;
           if (cachedUser) {
             activeUserSession = JSON.parse(cachedUser);
             document.getElementById('profileCodename').innerText = activeUserSession.codename || "Alma Electa";
-            window.TNSVT_USER = { code: activeUserSession.token, name: activeUserSession.codename || 'Trader' };
+            window.TNSVT_USER = {
+              code: activeUserSession.token,
+              name: activeUserSession.codename || 'Trader',
+              isAdmin: !!activeUserSession.isAdmin
+            };
           }
           updateNodeStates();
+          loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
         }
       }
@@ -313,6 +319,87 @@ let sb = window.API;
         t.innerText = msg;
         t.style.display = 'block';
         setTimeout(() => t.style.display = 'none', 3000);
+      }
+
+      // ==================== LOADER GLOBAL DE INICIALIZACIÓN ====================
+      let appInitCompleted = false;
+      let appInitStartedAt = 0;
+      function loaderShow() {
+        const overlay = document.getElementById('appLoadingOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        const toast = document.getElementById('appLoadingToast');
+        if (toast) toast.style.display = 'flex';
+        if (!appInitStartedAt) appInitStartedAt = Date.now();
+      }
+      function loaderHide() {
+        const overlay = document.getElementById('appLoadingOverlay');
+        if (overlay) {
+          overlay.style.transition = 'opacity 0.4s';
+          overlay.style.opacity = '0';
+          setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = ''; }, 400);
+        }
+        const toast = document.getElementById('appLoadingToast');
+        if (toast) {
+          toast.style.transition = 'opacity 0.4s';
+          toast.style.opacity = '0';
+          setTimeout(() => { toast.style.display = 'none'; toast.style.opacity = ''; }, 400);
+        }
+        appInitCompleted = true;
+      }
+      function loaderUpdateStatus(text) {
+        const el = document.getElementById('appLoadingStatus');
+        if (el) el.innerText = text || 'Cargando…';
+      }
+      function loaderUpdateProgress(done, total) {
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        const bar = document.getElementById('appLoadingBarFill');
+        const pbar = document.getElementById('appLoadingProgress');
+        if (bar) bar.style.width = pct + '%';
+        if (pbar) pbar.style.width = pct + '%';
+        const counter = document.getElementById('appLoadingCounter');
+        if (counter) counter.innerText = done + '/' + total + ' (' + pct + '%)';
+      }
+      function loaderInitWatch() {
+        if (typeof API === 'undefined' || !API.onLoadingChange) {
+          setTimeout(loaderInitWatch, 50);
+          return;
+        }
+        const u = window.TNSVT_USER;
+        const expectedBase = 5; // tasks, calendar, feed, academia, music
+        const expectedJournal = (u && u.code) ? 1 : 0;
+        const expectedAdmin = (u && u.isAdmin) ? 1 : 0;
+        const expectedTotal = expectedBase + expectedJournal + expectedAdmin;
+        let done = 0;
+        const stepLabels = ['Tareas', 'Calendario', 'Feed', 'Academia', 'Música'];
+        if (expectedJournal) stepLabels.push('Diario');
+        if (expectedAdmin) stepLabels.push('Admin');
+        let currentStep = 0;
+        let pendingInitial = expectedTotal;
+        let anyStarted = false;
+        const unsub = API.onLoadingChange((pending) => {
+          if (pending > 0) {
+            if (!anyStarted) {
+              anyStarted = true;
+              loaderShow();
+            }
+            pendingInitial = pending + done;
+          } else if (anyStarted) {
+            if (currentStep < stepLabels.length) {
+              currentStep++;
+            }
+            done = Math.min(done + 1, expectedTotal);
+            loaderUpdateStatus(stepLabels[currentStep - 1] || 'Cargando datos…');
+            loaderUpdateProgress(done, expectedTotal);
+            if (done >= expectedTotal) {
+              setTimeout(() => {
+                if (API.loadingCount === 0) loaderHide();
+              }, 250);
+              unsub();
+            }
+          }
+        });
+        // Hard timeout: si después de 12s no terminó, ocultar igual
+        setTimeout(() => { if (!appInitCompleted) loaderHide(); }, 12000);
       }
 
       window.onload = () => {
