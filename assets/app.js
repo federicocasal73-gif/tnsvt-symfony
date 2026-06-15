@@ -2026,6 +2026,14 @@ let sb = window.API;
             activeIndex: (data && typeof data.activeIndex === 'number') ? data.activeIndex : 0,
             loop: (data && data.loop) ? data.loop : 'all',
           };
+          // Sincronizar el player principal con la playlist del server
+          if (typeof musicPlaylist !== 'undefined') {
+            musicPlaylist = adminPlaylistData.tracks;
+            musicActiveIndex = adminPlaylistData.activeIndex;
+            musicLoop = adminPlaylistData.loop;
+            musicUpdateHeaderUI();
+            musicRenderQueue();
+          }
           const tracks = adminPlaylistData.tracks;
           if (counter) counter.textContent = tracks.length;
           if (tracks.length === 0) {
@@ -3399,15 +3407,37 @@ let sb = window.API;
       // Notificaciones — polling cada 30s
       function initNotifRealtime() {
         if (!window.TNSVT_USER) return;
+        const updateBadge = (count) => {
+          const badge = document.getElementById('notifBadge');
+          if (!badge) return;
+          if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count;
+            badge.classList.add('show');
+          } else {
+            badge.textContent = '';
+            badge.classList.remove('show');
+          }
+        };
+        // Inicial: setear en 0
+        updateBadge(0);
+        // Polling cada 30s
         setInterval(async () => {
           try {
             const result = await sb.getNotifCount(window.TNSVT_USER.code);
-            if (result.count > 0) {
-              const badge = document.getElementById('notifBadge');
-              if (badge) { badge.textContent = result.count > 9 ? '9+' : result.count; badge.classList.add('show'); }
-            }
-          } catch(e) {}
+            updateBadge((result && typeof result.count === 'number') ? result.count : 0);
+          } catch(e) {
+            console.warn('notif poll error:', e);
+          }
         }, 30000);
+        // Tambien refrescar al abrir el panel
+        const origToggle = window.toggleNotifPanel;
+        window.toggleNotifPanel = async function() {
+          if (typeof origToggle === 'function') origToggle.apply(this, arguments);
+          try {
+            const result = await sb.getNotifCount(window.TNSVT_USER.code);
+            updateBadge((result && typeof result.count === 'number') ? result.count : 0);
+          } catch(e) {}
+        };
       }
 
       window.toggleNotifPanel = toggleNotifPanel;
