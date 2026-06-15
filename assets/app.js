@@ -202,9 +202,11 @@ let sb = window.API;
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('gateKey').value = '';
-        document.getElementById('gatePass').value = '';
-        document.getElementById('gatePass').style.display = 'none';
-        document.getElementById('adminPassHint').style.display = 'none';
+        const passEl = document.getElementById('gatePass');
+        if (passEl) { passEl.value = ''; passEl.style.display = ''; passEl.type = 'password'; }
+        document.getElementById('gatePassWrap').style.display = 'none';
+        const hint = document.getElementById('adminPassHint');
+        if (hint) hint.style.display = 'none';
         document.getElementById('adminSidebarBtn').style.display = 'none';
         document.getElementById('hub-view').style.display = 'flex';
         document.getElementById('module-panel').style.display = 'none';
