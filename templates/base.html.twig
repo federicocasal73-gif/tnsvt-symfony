@@ -116,8 +116,8 @@
       <p class="sub">NEURO-SPIRITUAL VALUE THEORY</p>
       <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" autofocus oninput="toggleAdminPassField()" onkeydown="if(event.key==='Enter'){event.preventDefault();maybeFocusPass();}" style="text-transform:uppercase;">
       <div id="gatePassWrap" style="position:relative; display:none; margin-top:8px;">
-        <input type="password" id="gatePass" placeholder="CONTRASEÑA" style="padding-right:38px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
-        <button type="button" id="gatePassToggle" onclick="togglePassVisibility()" title="Mostrar/ocultar contraseña" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#645a78; cursor:pointer; font-size:1rem; padding:4px 8px; line-height:1;">👁</button>
+        <input type="password" id="gatePass" placeholder="CONTRASEÑA" autocomplete="current-password" style="padding-right:46px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
+        <button type="button" id="gatePassToggle" onclick="togglePassVisibility()" aria-label="Mostrar u ocultar contraseña" title="Mostrar contraseña 👁" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); color:var(--gold-bright); cursor:pointer; font-size:1.2rem; padding:6px 10px; line-height:1; border-radius:6px; transition:all 0.2s; display:flex; align-items:center; justify-content:center; min-width:36px; min-height:36px;" onmouseover="this.style.background='rgba(212,175,55,0.25)';this.style.borderColor='var(--gold-bright)';" onmouseout="this.style.background='rgba(212,175,55,0.1)';this.style.borderColor='rgba(212,175,55,0.3)';">👁</button>
       </div>
       <button class="login-btn" onclick="verifyGateKey()">ENTRAR AL GATEWAY</button>
       <p id="adminPassHint" style="display:none; font-size:0.75rem; color:var(--gold); margin-top:8px;">👑 Admin detectado — ingresá tu contraseña</p>

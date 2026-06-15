@@ -113,16 +113,19 @@ let sb = window.API;
         const el = document.getElementById('gatePass');
         const btn = document.getElementById('gatePassToggle');
         if (!el || !btn) return;
-        if (el.type === 'password') {
-          el.type = 'text';
-          btn.textContent = '🙈';
-          btn.title = 'Ocultar contraseña';
-        } else {
-          el.type = 'password';
-          btn.textContent = '👁';
-          btn.title = 'Mostrar contraseña';
-        }
+        const isPassword = el.type === 'password';
+        el.type = isPassword ? 'text' : 'password';
+        btn.textContent = isPassword ? '🙈' : '👁';
+        btn.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        btn.title = isPassword ? 'Ocultar contraseña 🙈' : 'Mostrar contraseña 👁';
+        btn.style.background = isPassword ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)';
+        btn.style.borderColor = isPassword ? 'var(--gold-bright)' : 'rgba(212,175,55,0.3)';
+        // Mantener el cursor donde estaba
+        const cursorPos = el.selectionStart;
+        el.focus();
+        try { el.setSelectionRange(cursorPos, cursorPos); } catch (_) {}
       }
+      window.togglePassVisibility = togglePassVisibility;
 
       function showLoginError(msg) {
         const el = document.getElementById('loginError');
