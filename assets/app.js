@@ -84,28 +84,80 @@ let sb = window.API;
       // ==================== FUNCIONES DE LOGIN Y NAVEGACIÓN ====================
       function toggleAdminPassField() {
         const code = document.getElementById('gateKey').value.trim().toUpperCase();
-        const passField = document.getElementById('gatePass');
+        const passWrap = document.getElementById('gatePassWrap');
         const hint = document.getElementById('adminPassHint');
-        if (code === 'ADMIN01') {
-          passField.style.display = 'block';
+        const isAdminCode = /^ADMIN/i.test(code) && code.length >= 4;
+        if (isAdminCode) {
+          passWrap.style.display = 'block';
           hint.style.display = 'block';
         } else {
-          passField.style.display = 'none';
+          passWrap.style.display = 'none';
           hint.style.display = 'none';
         }
+        hideLoginError();
+      }
+
+      function maybeFocusPass() {
+        const code = document.getElementById('gateKey').value.trim().toUpperCase();
+        if (/^ADMIN/i.test(code) && code.length >= 4) {
+          const passEl = document.getElementById('gatePass');
+          if (passEl && passEl.style.display !== 'none') {
+            passEl.focus();
+            return;
+          }
+        }
+        verifyGateKey();
+      }
+
+      function togglePassVisibility() {
+        const el = document.getElementById('gatePass');
+        const btn = document.getElementById('gatePassToggle');
+        if (!el || !btn) return;
+        if (el.type === 'password') {
+          el.type = 'text';
+          btn.textContent = '🙈';
+          btn.title = 'Ocultar contraseña';
+        } else {
+          el.type = 'password';
+          btn.textContent = '👁';
+          btn.title = 'Mostrar contraseña';
+        }
+      }
+
+      function showLoginError(msg) {
+        const el = document.getElementById('loginError');
+        if (!el) return;
+        el.innerText = msg;
+        el.style.display = 'block';
+      }
+      function hideLoginError() {
+        const el = document.getElementById('loginError');
+        if (el) el.style.display = 'none';
       }
 
       async function verifyGateKey() {
         const code = document.getElementById('gateKey').value.trim().toUpperCase();
         const password = document.getElementById('gatePass')?.value || '';
-        if (!code) { showToast("⚠️ Ingresá tu código de acceso."); return; }
-        if (!sb) { showToast("❌ API no disponible."); return; }
-        showToast("🔄 Verificando código...");
+        hideLoginError();
+        if (!code) { showLoginError("⚠️ Ingresá tu código de acceso."); return; }
+        if (!sb) { showLoginError("❌ API no disponible."); return; }
+        const loginBtn = document.querySelector('.login-btn');
+        if (loginBtn) { loginBtn.disabled = true; loginBtn.innerText = '⏳ Verificando…'; }
         try {
           const data = await sb.login(code, password);
           if (!data.success || !data.user) {
             const err = data.error || 'Código inválido';
-            showToast("❌ " + err);
+            let friendly = '❌ ' + err;
+            if (/password|contrase/i.test(err)) {
+              friendly = '❌ Contraseña incorrecta. La pass nueva del admin es: TNSVT-2026-CristoRey!';
+            } else if (/invalido|desactivado/i.test(err)) {
+              friendly = '❌ Código inválido o desactivado. Revisá que esté bien escrito.';
+            } else if (/requerida/i.test(err)) {
+              friendly = '⚠️ Este código es de admin — necesitás contraseña.';
+            }
+            showLoginError(friendly);
+            const passEl = document.getElementById('gatePass');
+            if (passEl) { passEl.value = ''; passEl.focus(); }
             return;
           }
           const isAdmin = data.user.isAdmin || false;
@@ -121,7 +173,9 @@ let sb = window.API;
           loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
         } catch (e) {
-          showToast("❌ Error de conexión — intentá de nuevo.");
+          showLoginError("❌ Error de conexión: " + (e.message || 'intentá de nuevo'));
+        } finally {
+          if (loginBtn) { loginBtn.disabled = false; loginBtn.innerText = 'ENTRAR AL GATEWAY'; }
         }
       }
 
