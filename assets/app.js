@@ -2915,6 +2915,8 @@ let sb = window.API;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;
       window.adminMusicClearAll = adminMusicClearAll;
+      window.adminMusicSetActive = adminMusicSetActive;
+      window.adminMusicRemove = adminMusicRemove;
       window.adminMusicSetExternal = adminMusicSetExternal;
 
       // ==================== PLAYER DE MÚSICA DE FONDO (PLAYLIST + VISUALIZER) ====================
