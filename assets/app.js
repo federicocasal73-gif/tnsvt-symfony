@@ -3186,13 +3186,24 @@ let sb = window.API;
       // ====== BARRA PERSISTENTE (Spotify-style) ======
       function musicShowBar() {
         const bar = document.getElementById('musicPlayerBar');
-        if (bar) bar.classList.add('visible');
         document.body.classList.add('music-bar-active');
+        if (bar) bar.classList.add('visible');
+        try {
+          const cs = bar ? getComputedStyle(bar) : null;
+          console.log('[TNSVT music] musicShowBar OK', {
+            barExists: !!bar,
+            bodyHasClass: document.body.classList.contains('music-bar-active'),
+            display: cs ? cs.display : 'n/a',
+            height: cs ? cs.height : 'n/a',
+            zIndex: cs ? cs.zIndex : 'n/a',
+            bottom: cs ? cs.bottom : 'n/a'
+          });
+        } catch(e) { /* noop */ }
       }
       function musicHideBar() {
         const bar = document.getElementById('musicPlayerBar');
-        if (bar) bar.classList.remove('visible');
         document.body.classList.remove('music-bar-active');
+        if (bar) bar.classList.remove('visible');
       }
       function musicShowFullPlayer() {
         // Mostrar card expandido, ocultar la mini-ball

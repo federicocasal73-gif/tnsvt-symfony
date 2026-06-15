@@ -103,16 +103,17 @@
   .mf-reset-btn:hover { background:rgba(138,60,255,0.1); }
 
   /* ===== MÚSICA: BARRA PERSISTENTE (TIPO SPOTIFY) ===== */
+  /* Por defecto OCULTA; se muestra con body.music-bar-active */
   #musicPlayerBar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 99998;
-    height: 64px; background: rgba(9,5,18,0.96);
-    border-top: 1px solid rgba(212,175,55,0.3);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147483000;
+    height: 64px; background: rgba(9,5,18,0.97);
+    border-top: 2px solid rgba(212,175,55,0.5);
     backdrop-filter: blur(14px);
     display: none; align-items: center; padding: 0 16px; gap: 14px;
     font-family: inherit; transition: transform 0.35s ease, opacity 0.25s;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.7), 0 -1px 0 rgba(212,175,55,0.3) inset;
   }
-  #musicPlayerBar.visible { display: flex; }
+  body.music-bar-active #musicPlayerBar { display: flex !important; }
   #musicPlayerBar.slide-out { transform: translateY(100%); opacity: 0; }
   .mpb-track { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 0 230px; max-width: 260px; }
   .mpb-cover { width: 42px; height: 42px; border-radius: 6px; background: linear-gradient(135deg,var(--violet),var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 2px 8px rgba(212,175,55,0.3); }
