@@ -2906,6 +2906,7 @@ let sb = window.API;
       window.musicShowFullPlayer = musicShowFullPlayer;
       window.musicHideFullPlayer = musicHideFullPlayer;
       window.musicSeekBar = musicSeekBar;
+      window.musicBarDebugInfo = musicBarDebugInfo;
       window.musicSeek = musicSeek;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;
@@ -3184,21 +3185,39 @@ let sb = window.API;
         document.getElementById('musicPlayerMini').style.display = 'none';
       }
       // ====== BARRA PERSISTENTE (Spotify-style) ======
+      function musicBarDebugInfo() {
+        try {
+          const bar = document.getElementById('musicPlayerBar');
+          if (!bar) { console.warn('[TNSVT music] BAR NOT IN DOM'); return; }
+          const cs = getComputedStyle(bar);
+          const rect = bar.getBoundingClientRect();
+          const vw = window.innerWidth, vh = window.innerHeight;
+          console.log('[TNSVT music] bar state', {
+            display: cs.display,
+            position: cs.position,
+            zIndex: cs.zIndex,
+            bottom: cs.bottom,
+            top: cs.top,
+            left: cs.left,
+            right: cs.right,
+            height: cs.height,
+            width: cs.width,
+            rectTop: Math.round(rect.top),
+            rectBottom: Math.round(rect.bottom),
+            rectHeight: Math.round(rect.height),
+            viewport: vw + 'x' + vh,
+            inViewport: rect.top < vh && rect.bottom > 0,
+            bodyClasses: document.body.className,
+            parentEl: bar.parentElement && bar.parentElement.tagName
+          });
+        } catch (e) { console.warn('[TNSVT music] debug failed', e); }
+      }
       function musicShowBar() {
         const bar = document.getElementById('musicPlayerBar');
         document.body.classList.add('music-bar-active');
         if (bar) bar.classList.add('visible');
-        try {
-          const cs = bar ? getComputedStyle(bar) : null;
-          console.log('[TNSVT music] musicShowBar OK', {
-            barExists: !!bar,
-            bodyHasClass: document.body.classList.contains('music-bar-active'),
-            display: cs ? cs.display : 'n/a',
-            height: cs ? cs.height : 'n/a',
-            zIndex: cs ? cs.zIndex : 'n/a',
-            bottom: cs ? cs.bottom : 'n/a'
-          });
-        } catch(e) { /* noop */ }
+        // Loguear estado real despues de un tick (para que el browser aplique estilos)
+        setTimeout(musicBarDebugInfo, 50);
       }
       function musicHideBar() {
         const bar = document.getElementById('musicPlayerBar');
