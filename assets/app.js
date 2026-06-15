@@ -1889,10 +1889,12 @@ let sb = window.API;
             const activeBadge = u.active
               ? '<span style="color:#34c759;">🟢 Activo</span>'
               : '<span style="color:#ff3b30;">🔴 Inactivo</span>';
+            const safeName = (u.name || '').replace(/'/g, "\\'");
             const actions = u.isAdmin
               ? '<span style="color:#645a78; font-size:0.75rem;">—</span>'
-              : `<button class="admin-btn-edit" onclick="adminShowEditForm(${u.id},'${u.code}','${u.name.replace(/'/g,"\\'")}')">✏️</button>
-                 <button class="admin-btn-danger" onclick="adminToggleActive(${u.id})">${u.active ? '🔒' : '🔓'}</button>`;
+              : `<button class="admin-btn-edit" onclick="adminShowEditForm(${u.id},'${u.code}','${safeName}')">✏️</button>
+                 <button class="admin-btn-danger" onclick="adminToggleActive(${u.id})" title="${u.active ? 'Bloquear' : 'Activar'}">${u.active ? '🔒' : '🔓'}</button>
+                 <button class="admin-btn-danger" onclick="adminDeleteUser(${u.id},'${u.code}','${safeName}')" title="Eliminar usuario">🗑️</button>`;
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid rgba(255,255,255,0.04)';
             tr.innerHTML = `
@@ -1968,6 +1970,36 @@ let sb = window.API;
           showToast('🔄 Estado actualizado');
         } catch(e) {
           showToast('❌ Error: ' + e.message);
+        }
+      }
+
+      async function adminDeleteUser(id, code, name) {
+        const safeName = name || code;
+        const ok = window.confirm(
+          '⚠️ ¿Eliminar DEFINITIVAMENTE al alumno "' + code + ' - ' + safeName + '"?\n\n' +
+          'Esta acción:\n' +
+          '  • Borra el usuario de la base de datos\n' +
+          '  • Borra sus notificaciones, devices (push tokens), likes y mensajes\n' +
+          '  • Lo remueve de todos los chats grupales\n' +
+          '  • NO se puede deshacer\n\n' +
+          '¿Confirmás la eliminación?'
+        );
+        if (!ok) return;
+        // Segunda confirmación con tipeo del código (anti-click-accidental)
+        const typed = window.prompt('Para confirmar, escribí el código del usuario: ' + code);
+        if (typed !== code) {
+          showToast('❌ Código no coincide. Cancelado.');
+          return;
+        }
+        const fb = document.getElementById('adminFormFeedback') || document.getElementById('adminTaskFormFeedback');
+        try {
+          const resp = await API.del('/api/admin/users/' + id);
+          showToast('🗑️ Usuario "' + code + '" eliminado');
+          if (fb) { fb.style.color = '#34c759'; fb.innerText = '✅ Eliminado: ' + safeName; }
+          adminRefreshList();
+        } catch (e) {
+          showToast('❌ ' + (e.message || 'Error al eliminar'));
+          if (fb) { fb.style.color = '#ff3b30'; fb.innerText = '❌ ' + (e.message || 'Error'); }
         }
       }
 
@@ -2827,6 +2859,7 @@ let sb = window.API;
       window.adminCancelForm = adminCancelForm;
       window.adminSaveUser = adminSaveUser;
       window.adminToggleActive = adminToggleActive;
+      window.adminDeleteUser = adminDeleteUser;
       window.adminCreateBatch = adminCreateBatch;
       window.adminShowSubtab = adminShowSubtab;
       window.adminRefreshTasks = adminRefreshTasks;
