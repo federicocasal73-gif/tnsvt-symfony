@@ -29,7 +29,7 @@ class MusicController extends AbstractController
         'audio/aac' => 'aac',
     ];
 
-    private const MAX_BYTES = 50 * 1024 * 1024;
+    private const MAX_BYTES = 200 * 1024 * 1024;
 
     public function __construct(
         private UserRepository $userRepository,
@@ -49,8 +49,11 @@ class MusicController extends AbstractController
             return null;
         }
         $data = json_decode((string) file_get_contents($metaPath), true);
-        if (!is_array($data) || empty($data['filename'])) {
+        if (!is_array($data) || empty($data['source'])) {
             return null;
+        }
+        if ($data['source'] === 'external') {
+            return $data;
         }
         $path = $dir . '/' . $data['filename'];
         if (!is_file($path)) {
@@ -71,12 +74,52 @@ class MusicController extends AbstractController
         return $this->json(['hasMusic' => true] + $current);
     }
 
+    #[Route('/external', name: 'api_admin_music_set_external', methods: ['POST'])]
+    public function setExternal(Request $request): JsonResponse
+    {
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) {
+            return $denied;
+        }
+        $data = json_decode($request->getContent(), true) ?? [];
+        $url = trim((string) ($data['url'] ?? ''));
+        $label = trim((string) ($data['label'] ?? ''));
+        if (!$url) {
+            return $this->json(['error' => 'La URL es requerida'], Response::HTTP_BAD_REQUEST);
+        }
+        if (!preg_match('#^https?://#i', $url)) {
+            return $this->json(['error' => 'La URL debe empezar con http:// o https://'], Response::HTTP_BAD_REQUEST);
+        }
+        $dir = $this->audioDir();
+        foreach (glob($dir . '/bg-music.*') as $old) { @unlink($old); }
+        $meta = [
+            'source' => 'external',
+            'url' => $url,
+            'originalName' => $label ?: 'Stream externo',
+            'uploadedAt' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'uploadedBy' => $this->tokenStorage->getToken()?->getUserIdentifier() ?? 'admin',
+        ];
+        file_put_contents($dir . '/current.json', json_encode($meta, JSON_PRETTY_PRINT));
+        return $this->json([
+            'success' => true,
+            'hasMusic' => true,
+            'source' => 'external',
+            'url' => $url,
+            'originalName' => $meta['originalName'],
+        ]);
+    }
+
     #[Route('/stream', name: 'api_music_stream', methods: ['GET'])]
     public function streamFile(): Response
     {
         $current = $this->currentFile();
         if (!$current) {
             return new JsonResponse(['error' => 'No hay música configurada'], Response::HTTP_NOT_FOUND);
+        }
+        if (($current['source'] ?? '') === 'external') {
+            return new JsonResponse([
+                'error' => 'La música actual es un stream externo. Usá la URL directa.',
+                'url' => $current['url'] ?? null,
+            ], Response::HTTP_BAD_REQUEST);
         }
         $path = $this->audioDir() . '/' . $current['filename'];
         $response = new BinaryFileResponse($path);
@@ -107,7 +150,7 @@ class MusicController extends AbstractController
             return $this->json(['error' => 'Archivo inválido'], Response::HTTP_BAD_REQUEST);
         }
         if ($file->getSize() > self::MAX_BYTES) {
-            return $this->json(['error' => 'Máximo 50 MB'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'Máximo 200 MB. Para archivos más grandes usá la opción "URL externa".'], Response::HTTP_BAD_REQUEST);
         }
         $mime = (string) $file->getMimeType();
         if (!isset(self::ALLOWED_MIME[$mime])) {

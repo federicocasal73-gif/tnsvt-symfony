@@ -1946,6 +1946,31 @@ let sb = window.API;
         }
       }
 
+      async function adminMusicSetExternal() {
+        const urlEl = document.getElementById('adminMusicExternalUrl');
+        const labelEl = document.getElementById('adminMusicExternalLabel');
+        const fb = document.getElementById('adminMusicFeedback');
+        const url = (urlEl?.value || '').trim();
+        const label = (labelEl?.value || '').trim();
+        if (!url) { fb.style.color = '#ff3b30'; fb.textContent = '❌ Pegá una URL'; return; }
+        if (!/^https?:\/\//i.test(url)) { fb.style.color = '#ff3b30'; fb.textContent = '❌ La URL debe empezar con http:// o https://'; return; }
+        fb.style.color = '#a499b8';
+        fb.textContent = '⏳ Aplicando…';
+        try {
+          await API.post('/api/music/external', { url, label });
+          fb.style.color = '#34c759';
+          fb.textContent = '✅ Música externa configurada';
+          showToast('🎵 Música externa lista');
+          urlEl.value = '';
+          labelEl.value = '';
+          adminMusicRefresh();
+          musicLoad();
+        } catch (e) {
+          fb.style.color = '#ff3b30';
+          fb.textContent = '❌ ' + (e.message || 'Error');
+        }
+      }
+
       async function adminRefreshTasks() {
         const tbody = document.getElementById('adminTasksTableBody');
         if (!tbody) return;
@@ -2602,6 +2627,7 @@ let sb = window.API;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;
       window.adminMusicDelete = adminMusicDelete;
+      window.adminMusicSetExternal = adminMusicSetExternal;
 
       // ==================== PLAYER DE MÚSICA DE FONDO ====================
       let bgAudio = null;
@@ -2633,15 +2659,16 @@ let sb = window.API;
         try {
           const data = await API.get('/api/music');
           if (data && data.hasMusic) {
-            const newSrc = '/api/music/stream?t=' + Date.now();
-            if (bgAudioSrc !== data.url) {
+            const newSrc = (data.source === 'external') ? data.url : ('/api/music/stream?t=' + Date.now());
+            if (bgAudioSrc !== newSrc) {
               a.src = newSrc;
-              bgAudioSrc = data.url;
+              bgAudioSrc = newSrc;
               a.volume = (parseInt(localStorage.getItem('tnsvt_music_vol')||'35', 10)) / 100;
               const v = document.getElementById('musicVolume');
               if (v) v.value = (a.volume * 100);
             }
-            musicUpdateTitle('🎵 ' + (data.originalName || 'Música del Reino'));
+            const sourceTag = (data.source === 'external') ? ' 🌐' : '';
+            musicUpdateTitle('🎵 ' + (data.originalName || 'Música del Reino') + sourceTag);
           } else {
             a.pause();
             a.removeAttribute('src');
@@ -2663,6 +2690,7 @@ let sb = window.API;
           try {
             await a.play();
             musicSetBtnState(true);
+            try { localStorage.setItem('tnsvt_music_autoplay', '1'); } catch (_) {}
           } catch (e) {
             showToast('❌ No se pudo reproducir: ' + (e.message||''));
           }
@@ -2670,6 +2698,22 @@ let sb = window.API;
           a.pause();
           musicSetBtnState(false);
         }
+      }
+      function musicAutoplayOnFirstInteraction() {
+        try { if (localStorage.getItem('tnsvt_music_autoplay') !== '1') return; } catch (_) { return; }
+        const a = musicGetAudio();
+        if (!a || !a.src) return;
+        const tryPlay = () => {
+          a.play().then(() => {
+            musicSetBtnState(true);
+            document.removeEventListener('click', tryPlay);
+            document.removeEventListener('keydown', tryPlay);
+            document.removeEventListener('touchstart', tryPlay);
+          }).catch(() => {});
+        };
+        document.addEventListener('click', tryPlay, { once: true });
+        document.addEventListener('keydown', tryPlay, { once: true });
+        document.addEventListener('touchstart', tryPlay, { once: true });
       }
       function musicSetVolume(v) {
         const a = musicGetAudio();
@@ -2691,10 +2735,10 @@ let sb = window.API;
         if (a) a.volume = savedVol / 100;
         const v = document.getElementById('musicVolume');
         if (v) v.value = savedVol;
-        a.addEventListener('play',  () => musicSetBtnState(true));
+        a.addEventListener('play',  () => { musicSetBtnState(true); try { localStorage.setItem('tnsvt_music_autoplay', '1'); } catch (_) {} });
         a.addEventListener('pause', () => musicSetBtnState(false));
         a.addEventListener('ended', () => musicSetBtnState(false));
-        musicLoad();
+        musicLoad().then(() => musicAutoplayOnFirstInteraction());
       }
 
       // ==================== SISTEMA DE NOTIFICACIONES ====================

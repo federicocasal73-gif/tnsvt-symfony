@@ -2736,9 +2736,21 @@
       <label id="adminMusicDropZone" style="display:block; border:2px dashed rgba(212,175,55,0.35); border-radius:12px; padding:30px; text-align:center; cursor:pointer; transition:all 0.2s; background:rgba(0,0,0,0.25);" onmouseover="this.style.borderColor='var(--gold-bright)';this.style.background='rgba(212,175,55,0.06)'" onmouseout="this.style.borderColor='rgba(212,175,55,0.35)';this.style.background='rgba(0,0,0,0.25)'">
         <div style="font-size:2rem; margin-bottom:8px;">⬆️</div>
         <div style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:4px;">Subí tu archivo de música</div>
-        <div style="font-size:0.78rem; color:#a499b8;">Click acá o arrastrá un .mp3 / .wav / .ogg / .m4a</div>
+        <div style="font-size:0.78rem; color:#a499b8;">Click acá o arrastrá un .mp3 / .wav / .ogg / .m4a — máx 200 MB</div>
         <input type="file" id="adminMusicFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/audio/x-m4a,audio/aac" style="display:none;" onchange="adminMusicUpload(this)">
       </label>
+
+      <div style="display:flex; align-items:center; gap:10px; margin:14px 0 8px; color:#645a78; font-size:0.78rem;">
+        <div style="flex:1; height:1px; background:rgba(212,175,55,0.15);"></div>
+        <span style="font-family:'Orbitron',sans-serif; letter-spacing:2px;">O USÁ UNA URL EXTERNA</span>
+        <div style="flex:1; height:1px; background:rgba(212,175,55,0.15);"></div>
+      </div>
+      <p style="font-size:0.75rem; color:#a499b8; margin-bottom:8px;">Para archivos pesados o música en la nube: pegá un link directo a un .mp3/.m4a/.ogg, o un link público de Dropbox, Google Drive (descarga directa) o cualquier hosting.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="adminMusicExternalUrl" placeholder="https://ejemplo.com/mi-musica.mp3" style="flex:1; min-width:220px; padding:10px 14px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.25); border-radius:8px; color:#fff; font-family:inherit; font-size:0.85rem; outline:none;">
+        <input type="text" id="adminMusicExternalLabel" placeholder="Nombre (opcional)" style="flex:0 1 200px; padding:10px 14px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.25); border-radius:8px; color:#fff; font-family:inherit; font-size:0.85rem; outline:none;">
+        <button class="post-btn" onclick="adminMusicSetExternal()" style="white-space:nowrap;">🌐 Usar URL</button>
+      </div>
 
       <div id="adminMusicProgress" style="display:none; margin-top:12px; padding:12px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:8px;">
         <div style="font-size:0.8rem; color:#a499b8; margin-bottom:6px;">Subiendo <span id="adminMusicFileName"></span>...</div>
