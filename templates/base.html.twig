@@ -244,10 +244,11 @@
                   </div>
                   <div style="display:flex;gap:6px;">
                     <button style="padding:6px 12px;background:transparent;border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#645a78;cursor:pointer;font-size:0.75rem;" onclick="toggleSignalForm()">📊 + Señal</button>
-                    <label style="cursor:pointer;padding:8px 14px;background:rgba(138,60,255,0.1);border:1px solid rgba(138,60,255,0.3);border-radius:8px;color:#a499b8;font-size:0.75rem;display:flex;align-items:center;gap:5px;transition:all 0.2s;" title="Adjuntar foto">
-                  📷 Foto
-                  <input type="file" accept="image/*" style="display:none;" onchange="attachPostPhoto(this)">
-                </label>
+                    <label id="postPhotoLabel" style="cursor:pointer;padding:8px 14px;background:rgba(138,60,255,0.12);border:1px solid rgba(138,60,255,0.35);border-radius:8px;color:#c4a0ff;font-size:0.75rem;display:flex;align-items:center;gap:6px;transition:all 0.2s;font-weight:600;" title="Adjuntar foto al post (funciona para General, Señal, Resultado, Proyección y Pregunta)" onmouseover="this.style.background='rgba(138,60,255,0.22)';this.style.borderColor='rgba(138,60,255,0.6)'" onmouseout="this.style.background='rgba(138,60,255,0.12)';this.style.borderColor='rgba(138,60,255,0.35)'">
+                      <span style="font-size:1rem;">📷</span> Foto
+                      <span id="postPhotoBadge" style="display:none;background:var(--gold-bright);color:#000;font-size:0.55rem;padding:1px 5px;border-radius:8px;font-weight:700;letter-spacing:0.5px;">LISTA</span>
+                      <input type="file" accept="image/*" style="display:none;" onchange="attachPostPhoto(this)">
+                    </label>
                 <button class="post-btn" style="float:none;padding:8px 20px;" onclick="createNewPost()">Publicar</button>
                   </div>
                 </div>
@@ -266,6 +267,17 @@
                     <input class="sig-inp" id="sig-sl" placeholder="Stop Loss">
                     <input class="sig-inp" id="sig-tp1" placeholder="TP1">
                     <input class="sig-inp" id="sig-tp2" placeholder="TP2 (opc)">
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                    <label id="sigPhotoLabel" style="cursor:pointer;padding:6px 12px;background:rgba(138,60,255,0.1);border:1px dashed rgba(138,60,255,0.4);border-radius:6px;color:#a499b8;font-size:0.72rem;display:flex;align-items:center;gap:5px;transition:all 0.2s;" title="Adjuntar screenshot/chart a esta señal" onmouseover="this.style.background='rgba(138,60,255,0.2)';this.style.borderColor='rgba(138,60,255,0.6)';this.style.color='#c4a0ff'" onmouseout="this.style.background='rgba(138,60,255,0.1)';this.style.borderColor='rgba(138,60,255,0.4)';this.style.color='#a499b8'">
+                      <span>📷</span> Captura de la señal
+                      <span id="sigPhotoBadge" style="display:none;background:var(--gold-bright);color:#000;font-size:0.55rem;padding:1px 5px;border-radius:8px;font-weight:700;">✓</span>
+                      <input type="file" accept="image/*" style="display:none;" onchange="attachSignalPhoto(this)">
+                    </label>
+                    <div id="sigPhotoPreview" style="display:none;position:relative;">
+                      <img id="sigPhotoImg" src="" alt="preview" style="max-height:70px;border-radius:6px;border:1px solid rgba(212,175,55,0.2);">
+                      <button type="button" onclick="removeSignalPhoto()" style="position:absolute;top:-6px;right:-6px;background:rgba(255,59,48,0.85);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:0.7rem;line-height:1;">✕</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2609,6 +2621,7 @@
   <div style="display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid rgba(212,175,55,0.15);">
     <button class="admin-subtab-btn active" id="adminSubtabUsers" onclick="adminShowSubtab('users')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid var(--gold); color:var(--gold-bright); font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">👥 Alumnos</button>
     <button class="admin-subtab-btn" id="adminSubtabTasks" onclick="adminShowSubtab('tasks')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">📋 Tareas Operativas</button>
+    <button class="admin-subtab-btn" id="adminSubtabMusic" onclick="adminShowSubtab('music')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🎵 Música</button>
   </div>
 
   <!-- SUB-PESTAÑA: ALUMNOS -->
@@ -2696,15 +2709,79 @@
             <th style="padding:10px 8px; text-align:right; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px;">ACCIONES</th>
           </tr>
         </thead>
-        <tbody id="adminTasksTableBody">
+      <tbody id="adminTasksTableBody">
           <tr><td colspan="5" style="padding:30px; text-align:center; color:#645a78;">Cargando...</td></tr>
         </tbody>
-      </table>
     </div>
+  </div>
+
+  <!-- SUB-PESTAÑA: MÚSICA DE FONDO -->
+  <div id="adminSubtabContentMusic" style="display:none;">
+    <div style="background:rgba(13,8,24,0.6); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:20px; margin-bottom:20px;">
+      <h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:8px;">🎵 Música de fondo del Reino</h3>
+      <p style="font-size:0.82rem; color:#a499b8; margin-bottom:16px;">
+        Subí un archivo de audio (mp3, wav, ogg, m4a, aac — máx 50&nbsp;MB) que sonará de fondo para <strong>toda la comunidad</strong> cuando activen el reproductor flotante.
+        El archivo se guarda en el servidor y todos los traders escuchan lo mismo.
+      </p>
+
+      <div id="adminMusicCurrent" style="background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:10px; padding:14px; margin-bottom:16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          <div style="font-size:0.7rem; color:var(--gold); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Pista actual</div>
+          <div id="adminMusicInfo" style="font-size:0.9rem; color:#fff;">Cargando...</div>
+        </div>
+        <audio id="adminMusicPreview" controls style="height:36px; max-width:260px;"></audio>
+        <button class="back-btn" id="adminMusicDeleteBtn" onclick="adminMusicDelete()" style="background:rgba(255,59,48,0.12); border-color:rgba(255,59,48,0.4); color:#ff7066;">🗑 Quitar música</button>
+      </div>
+
+      <label id="adminMusicDropZone" style="display:block; border:2px dashed rgba(212,175,55,0.35); border-radius:12px; padding:30px; text-align:center; cursor:pointer; transition:all 0.2s; background:rgba(0,0,0,0.25);" onmouseover="this.style.borderColor='var(--gold-bright)';this.style.background='rgba(212,175,55,0.06)'" onmouseout="this.style.borderColor='rgba(212,175,55,0.35)';this.style.background='rgba(0,0,0,0.25)'">
+        <div style="font-size:2rem; margin-bottom:8px;">⬆️</div>
+        <div style="font-family:'Cinzel',serif; color:var(--gold-bright); margin-bottom:4px;">Subí tu archivo de música</div>
+        <div style="font-size:0.78rem; color:#a499b8;">Click acá o arrastrá un .mp3 / .wav / .ogg / .m4a</div>
+        <input type="file" id="adminMusicFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/audio/x-m4a,audio/aac" style="display:none;" onchange="adminMusicUpload(this)">
+      </label>
+
+      <div id="adminMusicProgress" style="display:none; margin-top:12px; padding:12px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:8px;">
+        <div style="font-size:0.8rem; color:#a499b8; margin-bottom:6px;">Subiendo <span id="adminMusicFileName"></span>...</div>
+        <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
+          <div id="adminMusicBar" style="height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--gold-bright)); transition:width 0.2s;"></div>
+        </div>
+      </div>
+
+      <p id="adminMusicFeedback" style="font-size:0.82rem; margin-top:12px; min-height:1.2em;"></p>
+    </div>
+  </div>
+</div>
   </div>
 </div>
 
 <!-- ==================== FIN DEL HTML DEL PANEL ==================== -->
+
+<!-- ==================== PLAYER DE MÚSICA DE FONDO ==================== -->
+<audio id="bgMusicAudio" preload="none" loop style="display:none;"></audio>
+<div id="musicPlayer" style="position:fixed; bottom:20px; right:20px; z-index:9998; background:rgba(13,8,24,0.95); border:1px solid rgba(212,175,55,0.3); border-radius:14px; padding:10px 12px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 32px rgba(0,0,0,0.6); backdrop-filter:blur(8px); min-width:260px; max-width:340px; font-family:inherit; transition:all 0.3s;">
+  <button id="musicToggleBtn" onclick="musicToggle()" title="Reproducir / Pausar" style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--violet),var(--gold)); border:none; color:#fff; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 0 12px rgba(212,175,55,0.4);">▶</button>
+  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
+    <div id="musicTitle" style="font-size:0.72rem; color:var(--gold-bright); font-family:'Orbitron',sans-serif; letter-spacing:0.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Sin música</div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="font-size:0.65rem; color:#645a78;">🔈</span>
+      <input id="musicVolume" type="range" min="0" max="100" value="35" oninput="musicSetVolume(this.value)" style="flex:1; height:4px; cursor:pointer; accent-color:var(--gold-bright);">
+      <span style="font-size:0.65rem; color:#645a78;">🔊</span>
+    </div>
+  </div>
+  <button onclick="musicMinimize()" title="Minimizar" style="background:transparent; border:none; color:#645a78; cursor:pointer; font-size:1rem; padding:0 4px; line-height:1;">─</button>
+</div>
+<div id="musicPlayerMini" style="display:none; position:fixed; bottom:20px; right:20px; z-index:9998; background:rgba(13,8,24,0.95); border:1px solid rgba(212,175,55,0.3); border-radius:50%; width:46px; height:46px; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.5);" onclick="musicExpand()" title="Mostrar reproductor">
+  <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:1.2rem;">🎵</div>
+</div>
+<style>
+  .music-bars { display:inline-flex; gap:2px; align-items:flex-end; height:14px; }
+  .music-bars span { display:block; width:2px; background:var(--gold-bright); border-radius:1px; animation: musicBar 1.2s ease-in-out infinite; }
+  .music-bars span:nth-child(2) { animation-delay: 0.2s; }
+  .music-bars span:nth-child(3) { animation-delay: 0.4s; }
+  .music-bars span:nth-child(4) { animation-delay: 0.1s; }
+  @keyframes musicBar { 0%, 100% { height:3px; } 50% { height:14px; } }
+  .music-paused .music-bars span { animation-play-state: paused; }
+</style>
           </div> <!-- cierra trading-main -->
         </div> <!-- cierra trading-layout -->
       </div> <!-- cierra inner-page -->

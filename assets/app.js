@@ -1125,6 +1125,7 @@ let sb = window.API;
 
       // ── Foto adjunta al post ──
       let postPhotoData = null;
+      let signalPhotoData = null;
       let commentPhotoData = {};
 
       function attachPostPhoto(input) {
@@ -1134,7 +1135,9 @@ let sb = window.API;
           postPhotoData = e.target.result;
           const prev = document.getElementById('postPhotoPreview');
           const img = document.getElementById('postPhotoImg');
+          const badge = document.getElementById('postPhotoBadge');
           if (prev && img) { img.src = postPhotoData; prev.style.display = 'block'; }
+          if (badge) badge.style.display = 'inline-block';
         };
         reader.readAsDataURL(input.files[0]);
       }
@@ -1142,7 +1145,31 @@ let sb = window.API;
       function removePostPhoto() {
         postPhotoData = null;
         const prev = document.getElementById('postPhotoPreview');
+        const badge = document.getElementById('postPhotoBadge');
         if (prev) prev.style.display = 'none';
+        if (badge) badge.style.display = 'none';
+      }
+
+      function attachSignalPhoto(input) {
+        if (!input.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          signalPhotoData = e.target.result;
+          const prev = document.getElementById('sigPhotoPreview');
+          const img = document.getElementById('sigPhotoImg');
+          const badge = document.getElementById('sigPhotoBadge');
+          if (prev && img) { img.src = signalPhotoData; prev.style.display = 'block'; }
+          if (badge) badge.style.display = 'inline-block';
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+
+      function removeSignalPhoto() {
+        signalPhotoData = null;
+        const prev = document.getElementById('sigPhotoPreview');
+        const badge = document.getElementById('sigPhotoBadge');
+        if (prev) prev.style.display = 'none';
+        if (badge) badge.style.display = 'none';
       }
 
       function attachCommentPhoto(input, postId) {
@@ -1178,7 +1205,7 @@ let sb = window.API;
           cat: postCatSelected,
           text: text,
           signal: null,
-          photo: postPhotoData || null
+          photo: postPhotoData || signalPhotoData || null
         };
 
         const sf = document.getElementById('signalForm');
@@ -1195,11 +1222,13 @@ let sb = window.API;
               status: 'Abierta'
             });
             post.cat = 'señales';
+            if (signalPhotoData) post.photo = signalPhotoData;
           }
           sf.classList.remove('vis');
           ['sig-asset','sig-entry','sig-sl','sig-tp1','sig-tp2'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
           });
+          removeSignalPhoto();
         }
 
         try {
@@ -1311,13 +1340,23 @@ let sb = window.API;
           container.innerHTML = '<div style="text-align:center;color:#645a78;padding:40px;">⚠️ Sin conexión</div>';
           return;
         }
-        container.innerHTML = '<div style="text-align:center;color:#645a78;padding:30px;font-size:0.8rem;">⏳ Cargando feed...</div>';
+        const scrollY = window.scrollY;
+        const feedTop = container.offsetTop;
+        const isFirstLoad = !container.dataset.loaded;
+        if (isFirstLoad) {
+          container.innerHTML = '<div style="text-align:center;color:#645a78;padding:30px;font-size:0.8rem;">⏳ Cargando feed...</div>';
+        } else {
+          container.style.opacity = '0.55';
+          container.style.transition = 'opacity 0.2s';
+        }
         try {
           const posts = await sb.getFeed(feedCatFilter);
           if (!posts || !posts.length) {
             container.innerHTML = '<div style="text-align:center;color:#645a78;padding:40px;">No hay posts aún. ¡Sé el primero!</div>';
             return;
           }
+          container.style.opacity = '';
+          container.dataset.loaded = '1';
           container.innerHTML = posts.map(p => {
             const d = new Date(p.created_at);
             const timeAgo = Math.floor((Date.now() - d.getTime()) / 3600000);
@@ -1397,6 +1436,10 @@ let sb = window.API;
         } catch(e) {
           console.error('Error cargando feed:', e);
           container.innerHTML = `<div style="text-align:center;color:#ff3b30;padding:30px;font-size:0.82rem;">❌ Error cargando el feed.<br><button onclick="renderFeed()" style="margin-top:10px;padding:6px 16px;background:rgba(138,60,255,0.2);border:1px solid var(--violet);border-radius:6px;color:#fff;cursor:pointer;">Reintentar</button></div>`;
+        } finally {
+          if (!isFirstLoad && scrollY > feedTop) {
+            requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: 'instant' }));
+          }
         }
       }
 
@@ -1548,6 +1591,7 @@ let sb = window.API;
           document.getElementById('admin-login-view').style.display = 'none';
           document.getElementById('admin-main-view').style.display = 'block';
           loadAdminCourseList();
+          if (typeof adminMusicRefresh === 'function') adminMusicRefresh();
         }
       }
 
@@ -1791,23 +1835,114 @@ let sb = window.API;
       function adminShowSubtab(tab) {
         const usersBtn = document.getElementById('adminSubtabUsers');
         const tasksBtn = document.getElementById('adminSubtabTasks');
+        const musicBtn = document.getElementById('adminSubtabMusic');
         const usersContent = document.getElementById('adminSubtabContentUsers');
         const tasksContent = document.getElementById('adminSubtabContentTasks');
+        const musicContent = document.getElementById('adminSubtabContentMusic');
+        const resetBtn = (btn) => { if (!btn) return; btn.style.color = '#645a78'; btn.style.borderBottomColor = 'transparent'; };
+        const activateBtn = (btn) => { if (!btn) return; btn.style.color = 'var(--gold-bright)'; btn.style.borderBottomColor = 'var(--gold)'; };
         if (tab === 'tasks') {
-          usersBtn.style.color = '#645a78';
-          usersBtn.style.borderBottomColor = 'transparent';
-          tasksBtn.style.color = 'var(--gold-bright)';
-          tasksBtn.style.borderBottomColor = 'var(--gold)';
-          usersContent.style.display = 'none';
-          tasksContent.style.display = 'block';
+          resetBtn(usersBtn); activateBtn(tasksBtn); resetBtn(musicBtn);
+          usersContent.style.display = 'none'; tasksContent.style.display = 'block'; musicContent.style.display = 'none';
           adminRefreshTasks();
+        } else if (tab === 'music') {
+          resetBtn(usersBtn); resetBtn(tasksBtn); activateBtn(musicBtn);
+          usersContent.style.display = 'none'; tasksContent.style.display = 'none'; musicContent.style.display = 'block';
+          adminMusicRefresh();
         } else {
-          tasksBtn.style.color = '#645a78';
-          tasksBtn.style.borderBottomColor = 'transparent';
-          usersBtn.style.color = 'var(--gold-bright)';
-          usersBtn.style.borderBottomColor = 'var(--gold)';
-          tasksContent.style.display = 'none';
-          usersContent.style.display = 'block';
+          activateBtn(usersBtn); resetBtn(tasksBtn); resetBtn(musicBtn);
+          tasksContent.style.display = 'none'; musicContent.style.display = 'none'; usersContent.style.display = 'block';
+        }
+      }
+
+      // ==================== ADMIN MÚSICA DE FONDO ====================
+      async function adminMusicRefresh() {
+        const info = document.getElementById('adminMusicInfo');
+        const preview = document.getElementById('adminMusicPreview');
+        const delBtn = document.getElementById('adminMusicDeleteBtn');
+        if (!info) return;
+        try {
+          const data = await API.get('/api/music');
+          if (data && data.hasMusic) {
+            info.innerHTML = `<strong>${data.originalName || data.filename}</strong> <span style="color:#645a78;font-size:0.75rem;">(${(data.size/1024/1024).toFixed(2)} MB · ${data.mime})</span>`;
+            preview.src = '/api/music/stream?t=' + Date.now();
+            preview.style.display = '';
+            delBtn.style.display = '';
+          } else {
+            info.innerHTML = '<span style="color:#645a78;">⚠️ No hay música configurada. Subí un archivo abajo.</span>';
+            preview.removeAttribute('src');
+            preview.style.display = 'none';
+            delBtn.style.display = 'none';
+          }
+        } catch (e) {
+          info.innerHTML = '<span style="color:#ff3b30;">❌ Error consultando música: ' + (e.message||'') + '</span>';
+        }
+      }
+
+      async function adminMusicUpload(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        if (file.size > 50 * 1024 * 1024) { showToast('❌ El archivo supera 50 MB'); input.value = ''; return; }
+        const progress = document.getElementById('adminMusicProgress');
+        const bar = document.getElementById('adminMusicBar');
+        const fname = document.getElementById('adminMusicFileName');
+        const fb = document.getElementById('adminMusicFeedback');
+        fname.textContent = file.name;
+        progress.style.display = 'block';
+        bar.style.width = '0%';
+        fb.textContent = '';
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/music', true);
+          if (window.TNSVT_USER && window.TNSVT_USER.code) xhr.setRequestHeader('X-User-Code', window.TNSVT_USER.code);
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) bar.style.width = ((ev.loaded / ev.total) * 100) + '%';
+          };
+          xhr.onload = () => {
+            progress.style.display = 'none';
+            input.value = '';
+            let resp = null; try { resp = JSON.parse(xhr.responseText); } catch (_) {}
+            if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+              fb.style.color = '#34c759';
+              fb.textContent = '✅ Música subida: ' + resp.originalName;
+              showToast('🎵 Música actualizada');
+              adminMusicRefresh();
+              musicLoad();
+            } else {
+              fb.style.color = '#ff3b30';
+              fb.textContent = '❌ ' + (resp && resp.error ? resp.error : 'Error al subir');
+            }
+          };
+          xhr.onerror = () => {
+            progress.style.display = 'none';
+            input.value = '';
+            fb.style.color = '#ff3b30';
+            fb.textContent = '❌ Error de red';
+          };
+          xhr.send(fd);
+        } catch (e) {
+          progress.style.display = 'none';
+          input.value = '';
+          fb.style.color = '#ff3b30';
+          fb.textContent = '❌ ' + (e.message||'');
+        }
+      }
+
+      async function adminMusicDelete() {
+        if (!confirm('¿Quitar la música de fondo? Los traders verán el player vacío.')) return;
+        const fb = document.getElementById('adminMusicFeedback');
+        try {
+          await API.request('DELETE', '/api/music');
+          fb.style.color = '#34c759';
+          fb.textContent = '🗑 Música eliminada';
+          showToast('🗑 Música quitada');
+          adminMusicRefresh();
+          musicLoad();
+        } catch (e) {
+          fb.style.color = '#ff3b30';
+          fb.textContent = '❌ ' + (e.message||'');
         }
       }
 
@@ -2343,6 +2478,7 @@ let sb = window.API;
         updateBadge();
         setTimeout(() => { if (document.getElementById('mc-rate-slider')) mcCalcInterest(); }, 100);
         updateInnerLocks();
+        musicInit();
         const u = window.TNSVT_USER;
         if (u && u.isAdmin) {
           document.getElementById('adminSidebarBtn').style.display = 'block';
@@ -2412,6 +2548,9 @@ let sb = window.API;
       window.deletePost = deletePost;
       window.attachPostPhoto = attachPostPhoto;
       window.removePostPhoto = removePostPhoto;
+      window.attachSignalPhoto = attachSignalPhoto;
+      window.removeSignalPhoto = removeSignalPhoto;
+      window.removePostPhoto = removePostPhoto;
       window.attachCommentPhoto = attachCommentPhoto;
       window.removeCommentPhoto = removeCommentPhoto;
       window.renderFeed = renderFeed;
@@ -2454,6 +2593,109 @@ let sb = window.API;
       window.removeChatPhoto = removeChatPhoto;
       window.openChatLightbox = openChatLightbox;
       window.initAllPanels = initAllPanels;
+      window.musicToggle = musicToggle;
+      window.musicSetVolume = musicSetVolume;
+      window.musicMinimize = musicMinimize;
+      window.musicExpand = musicExpand;
+      window.musicLoad = musicLoad;
+      window.musicInit = musicInit;
+      window.adminMusicRefresh = adminMusicRefresh;
+      window.adminMusicUpload = adminMusicUpload;
+      window.adminMusicDelete = adminMusicDelete;
+
+      // ==================== PLAYER DE MÚSICA DE FONDO ====================
+      let bgAudio = null;
+      let bgAudioSrc = null;
+      function musicGetAudio() {
+        if (!bgAudio) bgAudio = document.getElementById('bgMusicAudio');
+        return bgAudio;
+      }
+      function musicGetTitle() { return document.getElementById('musicTitle'); }
+      function musicGetBtn() { return document.getElementById('musicToggleBtn'); }
+      function musicIsPlaying() {
+        const a = musicGetAudio(); return !!(a && !a.paused && !a.ended && a.currentTime > 0);
+      }
+      function musicSetBtnState(playing) {
+        const btn = musicGetBtn();
+        if (!btn) return;
+        btn.innerHTML = playing ? '⏸' : '▶';
+        btn.title = playing ? 'Pausar' : 'Reproducir';
+        const player = document.getElementById('musicPlayer');
+        if (player) player.classList.toggle('music-paused', !playing);
+      }
+      function musicUpdateTitle(label) {
+        const t = musicGetTitle();
+        if (t) t.innerHTML = label || 'Sin música';
+      }
+      async function musicLoad() {
+        const a = musicGetAudio();
+        if (!a) return;
+        try {
+          const data = await API.get('/api/music');
+          if (data && data.hasMusic) {
+            const newSrc = '/api/music/stream?t=' + Date.now();
+            if (bgAudioSrc !== data.url) {
+              a.src = newSrc;
+              bgAudioSrc = data.url;
+              a.volume = (parseInt(localStorage.getItem('tnsvt_music_vol')||'35', 10)) / 100;
+              const v = document.getElementById('musicVolume');
+              if (v) v.value = (a.volume * 100);
+            }
+            musicUpdateTitle('🎵 ' + (data.originalName || 'Música del Reino'));
+          } else {
+            a.pause();
+            a.removeAttribute('src');
+            bgAudioSrc = null;
+            musicUpdateTitle('Sin música');
+            musicSetBtnState(false);
+          }
+        } catch (e) {
+          musicUpdateTitle('Sin música');
+        }
+      }
+      async function musicToggle() {
+        const a = musicGetAudio();
+        if (!a || !a.src) {
+          await musicLoad();
+          if (!a.src) { showToast('🎵 El admin aún no subió música'); return; }
+        }
+        if (a.paused) {
+          try {
+            await a.play();
+            musicSetBtnState(true);
+          } catch (e) {
+            showToast('❌ No se pudo reproducir: ' + (e.message||''));
+          }
+        } else {
+          a.pause();
+          musicSetBtnState(false);
+        }
+      }
+      function musicSetVolume(v) {
+        const a = musicGetAudio();
+        const vol = parseInt(v, 10) / 100;
+        if (a) a.volume = vol;
+        try { localStorage.setItem('tnsvt_music_vol', String(v)); } catch (_) {}
+      }
+      function musicMinimize() {
+        document.getElementById('musicPlayer').style.display = 'none';
+        document.getElementById('musicPlayerMini').style.display = 'block';
+      }
+      function musicExpand() {
+        document.getElementById('musicPlayer').style.display = 'flex';
+        document.getElementById('musicPlayerMini').style.display = 'none';
+      }
+      function musicInit() {
+        const a = musicGetAudio();
+        const savedVol = parseInt(localStorage.getItem('tnsvt_music_vol') || '35', 10);
+        if (a) a.volume = savedVol / 100;
+        const v = document.getElementById('musicVolume');
+        if (v) v.value = savedVol;
+        a.addEventListener('play',  () => musicSetBtnState(true));
+        a.addEventListener('pause', () => musicSetBtnState(false));
+        a.addEventListener('ended', () => musicSetBtnState(false));
+        musicLoad();
+      }
 
       // ==================== SISTEMA DE NOTIFICACIONES ====================
       let notifList = JSON.parse(localStorage.getItem('tnsvt_notifs') || '[]');

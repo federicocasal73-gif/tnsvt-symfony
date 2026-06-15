@@ -19,3 +19,9 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+
+###> tnsvt/music ###
+# No commitear el archivo de música subido por el admin ni su metadata
+/public/audio/bg-music.*
+/public/audio/current.json
+###< tnsvt/music ###
