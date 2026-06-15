@@ -2056,6 +2056,7 @@ let sb = window.API;
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
       var adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
+      window.adminPlaylistData = adminPlaylistData; // necesario para los onmouseover inline del HTML
 
       async function adminMusicRefresh() {
         const empty = document.getElementById('adminPlaylistEmpty');
@@ -2069,6 +2070,7 @@ let sb = window.API;
             activeIndex: (data && typeof data.activeIndex === 'number') ? data.activeIndex : 0,
             loop: (data && data.loop) ? data.loop : 'all',
           };
+          window.adminPlaylistData = adminPlaylistData; // mantener el global actualizado
           // Sincronizar el player principal con la playlist del server
           if (typeof musicPlaylist !== 'undefined') {
             musicPlaylist = adminPlaylistData.tracks;
@@ -3242,18 +3244,26 @@ let sb = window.API;
         }
       }
       function musicShowFullPlayer() {
-        // Mostrar card expandido, ocultar la mini-ball
+        // Mostrar card expandido, ocultar la mini-ball y la barra inferior
+        // (Spotify-style: solo una vista visible a la vez)
         const p = document.getElementById('musicPlayer');
         const m = document.getElementById('musicPlayerMini');
+        const b = document.getElementById('musicPlayerBar');
         if (p) p.style.display = 'flex';
         if (m) m.style.display = 'none';
+        if (b) b.style.display = 'none';
+        document.body.classList.remove('music-bar-active');
       }
       function musicHideFullPlayer() {
-        // Cerrar card expandido y volver a la barra
+        // Cerrar card expandido y volver a la barra inferior
         const p = document.getElementById('musicPlayer');
         const m = document.getElementById('musicPlayerMini');
+        const b = document.getElementById('musicPlayerBar');
         if (p) p.style.display = 'none';
         if (m) m.style.display = 'none';
+        // Restaurar la barra
+        if (b && window.TNSVT_USER) b.style.display = 'flex';
+        if (window.TNSVT_USER) document.body.classList.add('music-bar-active');
         // También cerrar la cola si estaba abierta
         const q = document.getElementById('musicQueuePanel');
         if (q) q.style.display = 'none';
