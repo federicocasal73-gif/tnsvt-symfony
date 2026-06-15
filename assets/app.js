@@ -168,10 +168,16 @@ let sb = window.API;
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
           document.getElementById('profileCodename').innerText = data.user.name || "Alma Electa";
+          const roleEl = document.getElementById('profileRole');
+          if (roleEl) roleEl.innerText = isAdmin ? '👑 Administrador' : '🎓 Conexión Divina';
+          roleEl.style.color = isAdmin ? 'var(--gold)' : '';
           showToast("✨ Acceso concedido, " + (data.user.name || "Trader") + " ✨");
           updateNodeStates();
           loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
+          // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
+          const adminBtn = document.getElementById('adminSidebarBtn');
+          if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
         } catch (e) {
           showLoginError("❌ Error de conexión: " + (e.message || 'intentá de nuevo'));
         } finally {
@@ -356,6 +362,15 @@ let sb = window.API;
           if (cachedUser) {
             activeUserSession = JSON.parse(cachedUser);
             document.getElementById('profileCodename').innerText = activeUserSession.codename || "Alma Electa";
+            const roleEl = document.getElementById('profileRole');
+            if (roleEl) {
+              const isAdmin = !!activeUserSession.isAdmin;
+              roleEl.innerText = isAdmin ? '👑 Administrador' : '🎓 Conexión Divina';
+              roleEl.style.color = isAdmin ? 'var(--gold)' : '';
+            }
+            // Mostrar el botón ⚙️ Admin inmediatamente al restaurar sesión
+            const adminBtn = document.getElementById('adminSidebarBtn');
+            if (adminBtn) adminBtn.style.display = (!!activeUserSession.isAdmin) ? 'block' : 'none';
             window.TNSVT_USER = {
               code: activeUserSession.token,
               name: activeUserSession.codename || 'Trader',
