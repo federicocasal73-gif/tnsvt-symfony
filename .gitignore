@@ -37,6 +37,12 @@
 *.tar.gz
 *.bak
 
+# Keystore de firma del APK (NO commitear, es privado!)
+/android/app/tnsvt-release.keystore
+/android/app/keystore.properties
+/android/*.jks
+/android/*.keystore
+
 ###> capacitor ###
 # Android build output y cache (no commitear)
 /android/.gradle/
