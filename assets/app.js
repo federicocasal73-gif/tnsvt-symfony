@@ -2794,7 +2794,7 @@ let sb = window.API;
       // Version actual de la app, hardcodeada en el bundle. El backend
       // devuelve la version "actual" en /api/app/version. Si la del server
       // es mayor, mostramos el modal de update.
-      const APP_LOCAL_VERSION_CODE = 1;
+      const APP_LOCAL_VERSION_CODE = 2;
 
       async function appCheckForUpdates() {
         try {
