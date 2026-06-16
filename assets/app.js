@@ -2779,10 +2779,77 @@ let sb = window.API;
         setTimeout(() => { if (document.getElementById('mc-rate-slider')) mcCalcInterest(); }, 100);
         updateInnerLocks();
         musicInit();
+        // Check for app updates
+        appCheckForUpdates();
         const u = window.TNSVT_USER;
         if (u && u.isAdmin) {
           document.getElementById('adminSidebarBtn').style.display = 'block';
           adminRefreshList();
+        }
+      }
+
+      // ============================================
+      // App version check + update modal
+      // ============================================
+      // Version actual de la app, hardcodeada en el bundle. El backend
+      // devuelve la version "actual" en /api/app/version. Si la del server
+      // es mayor, mostramos el modal de update.
+      const APP_LOCAL_VERSION_CODE = 1;
+
+      async function appCheckForUpdates() {
+        try {
+          const resp = await fetch('/api/app/version', { cache: 'no-store' });
+          if (!resp.ok) return;
+          const data = await resp.json();
+          if (!data || typeof data.versionCode !== 'number') return;
+          if (data.versionCode <= APP_LOCAL_VERSION_CODE) return; // estamos al dia
+          // Verificar si el user ya descarto esta version
+          const dismissedKey = 'tnsvt_update_dismissed_v' + data.versionCode;
+          if (localStorage.getItem(dismissedKey) === '1' && !data.updateRequired) return;
+          // Mostrar el modal
+          showUpdateModal(data);
+        } catch (e) { console.warn('[appCheckForUpdates] error:', e); }
+      }
+
+      function showUpdateModal(info) {
+        const existing = document.getElementById('appUpdateModal');
+        if (existing) existing.remove();
+        const modal = document.createElement('div');
+        modal.id = 'appUpdateModal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'appUpdateTitle');
+        modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(8px);';
+        const isRequired = !!info.updateRequired;
+        const releaseNotes = (info.releaseNotes || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const downloadUrl = info.downloadUrl || '';
+        modal.innerHTML = `
+          <div style="background:rgba(13,8,24,0.98); border:2px solid #d4af37; border-radius:18px; padding:28px 24px; max-width:440px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,0.8); font-family:inherit; color:#fff;">
+            <div style="text-align:center; margin-bottom:18px;">
+              <div style="font-size:2.4rem; margin-bottom:8px;">${isRequired ? '⚠️' : '🆕'}</div>
+              <h2 id="appUpdateTitle" style="font-family:Cinzel,serif; color:#d4af37; font-size:1.4rem; margin:0 0 4px;">Nueva version disponible</h2>
+              <div style="font-family:Orbitron,sans-serif; font-size:0.72rem; color:#a499b8; letter-spacing:1.5px; margin-bottom:6px;">v${escapeHtml(info.version || '')}</div>
+              ${isRequired ? '<div style="color:#ff7066; font-size:0.82rem;">Esta actualizacion es obligatoria.</div>' : ''}
+            </div>
+            ${releaseNotes ? `<div style="background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.15); border-radius:10px; padding:14px; margin-bottom:20px; font-size:0.85rem; line-height:1.5; color:#e2dcf0; max-height:160px; overflow-y:auto; white-space:pre-wrap;">${releaseNotes}</div>` : ''}
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              ${downloadUrl ? `<a href="${escapeHtml(downloadUrl)}" target="_blank" rel="noopener" id="appUpdateDownload" style="flex:1; min-width:140px; padding:12px 16px; background:linear-gradient(135deg,#8a3cff,#d4af37); color:#fff; text-align:center; text-decoration:none; border-radius:10px; font-weight:700; font-family:Orbitron,sans-serif; font-size:0.78rem; letter-spacing:1px; cursor:pointer; border:none;">DESCARGAR APK</a>` : ''}
+              ${!isRequired ? `<button id="appUpdateLater" style="flex:1; min-width:140px; padding:12px 16px; background:rgba(255,255,255,0.05); color:#a499b8; border:1px solid rgba(212,175,55,0.2); border-radius:10px; font-weight:600; font-size:0.78rem; font-family:inherit; cursor:pointer;">MAS TARDE</button>` : ''}
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        const laterBtn = document.getElementById('appUpdateLater');
+        if (laterBtn) {
+          laterBtn.onclick = () => {
+            const dismissedKey = 'tnsvt_update_dismissed_v' + info.versionCode;
+            try { localStorage.setItem(dismissedKey, '1'); } catch(_) {}
+            modal.remove();
+          };
+        }
+        // Si es required, no se cierra con click fuera
+        if (!isRequired) {
+          modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
         }
       }
 
@@ -2911,6 +2978,7 @@ let sb = window.API;
       window.musicHideFullPlayer = musicHideFullPlayer;
       window.musicSeekBar = musicSeekBar;
       window.musicBarDebugInfo = musicBarDebugInfo;
+      window.appCheckForUpdates = appCheckForUpdates;
       window.musicSeek = musicSeek;
       window.adminMusicRefresh = adminMusicRefresh;
       window.adminMusicUpload = adminMusicUpload;

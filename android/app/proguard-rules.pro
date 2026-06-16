@@ -5,17 +5,25 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ==== Capacitor: preservar clases necesarias ====
+-keep class com.getcapacitor.** { *; }
+-keep class com.getcapacitor.plugin.** { *; }
+-dontwarn com.getcapacitor.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ==== JS bridge: preservar metodos anotados con @JavascriptInterface ====
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ==== WebView y Cordova ====
+-keep class android.webkit.WebView { *; }
+-keep class org.apache.cordova.** { *; }
+-dontwarn org.apache.cordova.**
+
+# ==== SplashScreen / AppCompat ====
+-keep class androidx.core.splashscreen.SplashScreen { *; }
+-keep class androidx.appcompat.app.AppCompatActivity { *; }
+
+# ==== Mantener line numbers para debugging ====
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
