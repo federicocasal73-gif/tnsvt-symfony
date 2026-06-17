@@ -8,7 +8,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
@@ -234,8 +233,11 @@ class GameController extends AbstractController
     }
 
     /**
-     * Renderiza la página del juego (HTML standalone)
+     * Renderiza la página del juego (HTML standalone) - REMOVIDO
+     * El juego ahora es una app Android separada (com.tnsvt.game) en game-app/
+     * Los endpoints /api/game/* siguen funcionando para futura sincronización de XP
      */
+    /*
     #[Route('/game', name: 'game_index', methods: ['GET'])]
     public function gamePage(): Response
     {
@@ -248,6 +250,7 @@ class GameController extends AbstractController
         $response->headers->set('Content-Type', 'text/html; charset=utf-8');
         return $response;
     }
+    */
 
     // === HELPERS ===
 
