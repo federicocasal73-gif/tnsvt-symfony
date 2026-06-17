@@ -4,9 +4,8 @@
 	"webDir": "public",
 	"server": {
 		"androidScheme": "https",
-		"url": "http://192.168.1.2:8000",
-		"cleartext": true,
-		"errorPath": "error.html"
+		"url": "http://100.122.8.48:8000",
+		"cleartext": true
 	},
 	"android": {
 		"allowMixedContent": true,
@@ -15,7 +14,7 @@
 	},
 	"plugins": {
 		"SplashScreen": {
-			"launchShowDuration": 1500,
+			"launchShowDuration": 5000,
 			"launchAutoHide": true,
 			"backgroundColor": "#0d0818",
 			"androidSplashResourceName": "splash",

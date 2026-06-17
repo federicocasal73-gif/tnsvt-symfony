@@ -5,16 +5,48 @@ const API = {
   onLoadingChange(cb) { this.loadingListeners.add(cb); return () => this.loadingListeners.delete(cb); },
   _emitLoading() { this.loadingListeners.forEach(cb => { try { cb(this.loadingCount); } catch (_) {} }); },
 
+  // Base URL absoluta del backend.
+  // - En navegador (Chrome/Edge): location es http://IP:8000, los fetch
+  //   relativos funcionan porque la web misma se sirve desde ahi.
+  // - En Capacitor (WebView): el WebView carga desde https://localhost
+  //   (assets locales), y los fetch('/api/...') no van a ningun lado. Hay
+  //   que apuntarlos a la URL absoluta del server.
+  baseURL: (function() {
+    try {
+      const loc = window.location;
+      // Si el origin es el scheme interno de Capacitor (https://localhost),
+      // forzamos la URL del server.
+      if (loc.hostname === 'localhost' && loc.protocol === 'https:') {
+        return 'http://100.122.8.48:8000';
+      }
+    } catch (_) {}
+    return '';
+  })(),
+
+  _resolve(path) {
+    if (!path) return path;
+    if (/^https?:\/\//i.test(path)) return path; // ya es absoluta
+    if (!API.baseURL) return path; // relative (navegador sirviendo desde el server)
+    if (!path.startsWith('/')) path = '/' + path;
+    return API.baseURL + path;
+  },
+
   async request(method, path, body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
+    const url = API._resolve(path);
+    console.log('[API] ' + method + ' ' + url, body ? JSON.stringify(body) : '');
+    const opts = { method, credentials: 'include', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
     API.loadingCount++;
     API._emitLoading();
     try {
-      const res = await fetch(path, opts);
+      const res = await fetch(url, opts);
+      console.log('[API] ' + method + ' ' + url + ' -> ' + res.status);
       const data = await res.json();
       if (!res.ok && data.error) throw new Error(data.error);
       return data;
+    } catch (e) {
+      console.log('[API] ERROR ' + method + ' ' + url + ': ' + e.message);
+      throw e;
     } finally {
       API.loadingCount--;
       API._emitLoading();

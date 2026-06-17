@@ -35,6 +35,7 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
         $response = $event->getResponse();
         $request = $event->getRequest();
         $isHttps = $request->isSecure();
+        $isDev = ($_SERVER['APP_ENV'] ?? getenv('APP_ENV')) === 'dev';
 
         // CSP: permite Firebase Cloud Messaging, Capacitor scheme, y self
         // - default-src 'self': solo recursos del mismo origen por default
@@ -63,6 +64,7 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
             . " font-src 'self' data: https://fonts.gstatic.com;"
             . " connect-src 'self' https://fcm.googleapis.com https://fcmregistrations.googleapis.com https://*.firebaseio.com https://*.googleapis.com wss: ws: http: https: data: blob:;"
             . " media-src 'self' https: http: blob: data:;"
+            . " frame-ancestors 'self';"
             . " frame-src 'self' https://*.firebaseapp.com https://*.googleapis.com;"
             . " worker-src 'self' blob:;"
             . " manifest-src 'self';"
@@ -74,8 +76,14 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
         // Anti MIME-sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
-        // Anti clickjacking
-        $response->headers->set('X-Frame-Options', 'DENY');
+        // Anti clickjacking:
+        // - En dev: NO se envia X-Frame-Options porque rompe el WebView de
+        //   Capacitor (rechaza cargar la pagina en su iframe interno).
+        //   frame-ancestors 'self' en CSP es el reemplazo moderno.
+        // - En prod: X-Frame-Options: DENY para anti-clickjacking estricto.
+        if (!$isDev) {
+            $response->headers->set('X-Frame-Options', 'DENY');
+        }
 
         // Referrer
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');

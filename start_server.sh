@@ -10,6 +10,21 @@ cd "$(dirname "$0")"
 
 mkdir -p var/log
 
+# Liberar puerto 8000 si quedo colgado un php -S previo
+if pgrep -f 'php -S 0.0.0.0:8000' >/dev/null 2>&1; then
+  echo "[pre] Matando php -S previo en :8000..."
+  pkill -f 'php -S 0.0.0.0:8000' 2>/dev/null || true
+  sleep 1
+fi
+if command -v fuser >/dev/null 2>&1; then
+  fuser -k 8000/tcp 2>/dev/null || true
+fi
+sleep 1
+ss -tlnp 2>/dev/null | grep -q ':8000' && {
+  echo "[ERR] Puerto 8000 sigue ocupado. Liberelo manualmente y reintente." >&2
+  exit 1
+} || true
+
 echo "============================================"
 echo "  T.N.S.V.T - INICIANDO SERVIDOR (Linux)"
 echo "============================================"
