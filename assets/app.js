@@ -2043,22 +2043,42 @@ let sb = window.API;
         const usersBtn = document.getElementById('adminSubtabUsers');
         const tasksBtn = document.getElementById('adminSubtabTasks');
         const musicBtn = document.getElementById('adminSubtabMusic');
+        const walletBtn = document.getElementById('adminSubtabWallet');
+        const torneosBtn = document.getElementById('adminSubtabTorneos');
         const usersContent = document.getElementById('adminSubtabContentUsers');
         const tasksContent = document.getElementById('adminSubtabContentTasks');
         const musicContent = document.getElementById('adminSubtabContentMusic');
+        const walletContent = document.getElementById('adminSubtabContentWallet');
+        const torneosContent = document.getElementById('adminSubtabContentTorneos');
         const resetBtn = (btn) => { if (!btn) return; btn.style.color = '#645a78'; btn.style.borderBottomColor = 'transparent'; };
         const activateBtn = (btn) => { if (!btn) return; btn.style.color = 'var(--gold-bright)'; btn.style.borderBottomColor = 'var(--gold)'; };
+        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn];
+        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent];
+        const resetAll = () => allBtns.forEach(resetBtn);
         if (tab === 'tasks') {
-          resetBtn(usersBtn); activateBtn(tasksBtn); resetBtn(musicBtn);
-          usersContent.style.display = 'none'; tasksContent.style.display = 'block'; musicContent.style.display = 'none';
+          resetAll(); activateBtn(tasksBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (tasksContent) tasksContent.style.display = 'block';
           adminRefreshTasks();
         } else if (tab === 'music') {
-          resetBtn(usersBtn); resetBtn(tasksBtn); activateBtn(musicBtn);
-          usersContent.style.display = 'none'; tasksContent.style.display = 'none'; musicContent.style.display = 'block';
+          resetAll(); activateBtn(musicBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (musicContent) musicContent.style.display = 'block';
           adminMusicRefresh();
+        } else if (tab === 'wallet') {
+          resetAll(); activateBtn(walletBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (walletContent) walletContent.style.display = 'block';
+          if (typeof adminWalletRefresh === 'function') adminWalletRefresh();
+        } else if (tab === 'torneos') {
+          resetAll(); activateBtn(torneosBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (torneosContent) torneosContent.style.display = 'block';
+          if (typeof adminTorneosRefresh === 'function') adminTorneosRefresh();
         } else {
-          activateBtn(usersBtn); resetBtn(tasksBtn); resetBtn(musicBtn);
-          tasksContent.style.display = 'none'; musicContent.style.display = 'none'; usersContent.style.display = 'block';
+          resetAll(); activateBtn(usersBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (usersContent) usersContent.style.display = 'block';
         }
       }
 
