@@ -229,8 +229,11 @@ body{position:relative}
 
 /* TABS */
 .tabs{display:flex;border-bottom:1px solid var(--border);margin:0 16px}
-.tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px}
+.tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px;white-space:nowrap}
 .tab.active{color:var(--violet3);border-bottom-color:var(--violet)}
+#s-perfil .tabs{overflow-x:auto;scrollbar-width:none}
+#s-perfil .tabs::-webkit-scrollbar{display:none}
+#s-perfil .tab{flex:0 0 auto;min-width:80px;padding:12px 12px}
 
 /* STAT GRID */
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px}
