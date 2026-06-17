@@ -228,13 +228,12 @@ body{position:relative}
 @keyframes danger-pulse{0%,100%{box-shadow:0 0 0 rgba(248,113,113,0)}50%{box-shadow:0 0 12px rgba(248,113,113,.4)}}
 
 /* TABS */
-.tabs{display:flex;border-bottom:1px solid var(--border);margin:0 16px}
-.tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px;white-space:nowrap}
-.tab.active{color:var(--violet3);border-bottom-color:var(--violet)}
-#s-perfil .tabs{overflow-x:auto;scrollbar-width:none;min-height:50px}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin:0 16px;background:rgba(13,8,24,.4)}
+.tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px;white-space:nowrap;min-width:70px;position:relative}
+.tab.active{color:var(--violet3);border-bottom-color:var(--violet);font-weight:700}
+#s-perfil .tabs{overflow-x:auto;scrollbar-width:none}
 #s-perfil .tabs::-webkit-scrollbar{display:none}
-#s-perfil .tab{flex:0 0 auto;min-width:85px;padding:14px 14px;background:transparent;color:var(--text2);font-size:13px}
-#s-perfil .tab.active{color:var(--violet3)}
+#s-perfil .tab{flex:0 0 auto}
 
 /* STAT GRID */
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px}
@@ -1326,11 +1325,11 @@ body{position:relative}
     <div class="stat-box"><div class="stat-val">12</div><div class="stat-lbl">Racha max</div></div>
   </div>
   <div class="tabs">
-    <div class="tab active" onclick="perfilTab('logros',this)">Logros</div>
-    <div class="tab" onclick="perfilTab('historial',this)">Historial</div>
-    <div class="tab" onclick="perfilTab('tienda',this)">Tienda</div>
-    <div class="tab" onclick="perfilTab('planes',this)">Pro</div>
-    <div class="tab" onclick="perfilTab('sync',this)">⚡ Sync TNSVT</div>
+    <div class="tab active" id="tab-logros" onclick="perfilTab('logros',this)" ontouchstart="">Logros</div>
+    <div class="tab" id="tab-historial" onclick="perfilTab('historial',this)" ontouchstart="">Historial</div>
+    <div class="tab" id="tab-tienda" onclick="perfilTab('tienda',this)" ontouchstart="">Tienda</div>
+    <div class="tab" id="tab-planes" onclick="perfilTab('planes',this)" ontouchstart="">Pro</div>
+    <div class="tab" id="tab-sync" onclick="perfilTab('sync',this)" ontouchstart="">⚡ Sync TNSVT</div>
   </div>
   <div id="perfil-logros" class="perfil-tab-content"></div>
   <div id="perfil-historial" class="perfil-tab-content" style="display:none"></div>
@@ -4522,6 +4521,7 @@ function initPerfil(){
 }
 
 function perfilTab(tab, btn){
+  if(window.showToast) showToast('📑 Tab: '+tab);
   document.querySelectorAll('#s-perfil .tab').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
   ['logros','historial','tienda','planes','sync'].forEach(t=>{
