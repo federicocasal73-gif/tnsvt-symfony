@@ -28,7 +28,7 @@ class DownloadController extends AbstractController
         $size = $exists ? filesize($apkPath) : 0;
         $sizeMb = round($size / 1024 / 1024, 2);
         $sha256 = $exists ? hash_file('sha256', $apkPath) : '';
-        $version = $exists ? '1.0.2' : 'N/A';
+        $version = $exists ? '1.0.3' : 'N/A';
         $downloadUrl = '/api/app/download-game';
         $versionInfoUrl = '/api/app/game-version';
 
@@ -222,12 +222,12 @@ HTML;
     <a class="btn" href="{$downloadUrl}" download>⬇ Instalar T.N.S.V.T Market</a>
     <a class="btn secondary" href="{$versionInfoUrl}">📡 Ver JSON de versión</a>
     <div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:12px;padding:12px;margin-bottom:14px;text-align:left">
-      <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--green);margin-bottom:6px;letter-spacing:1px">🆕 NOVEDADES v1.0.2</div>
+      <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--green);margin-bottom:6px;letter-spacing:1px">🆕 NOVEDADES v1.0.3</div>
       <div style="font-size:12px;color:var(--text2);line-height:1.5">
-        <b>Torneos con premios USD reales</b> — Inscribite con tu wallet TNSVT, pagá entry fee, compet&iacute; y gan&aacute; el pozo (60/30/10).<br>
-        <b>Wallet integrada</b> — Acredit&aacute; saldo con MP/Binance, retir&aacute; cuando quieras.<br>
-        <b>Mis Torneos</b> — Segu&iacute; tu PnL en vivo y tu posici&oacute;n en el ranking.<br>
-        <b>Auto-update</b> — La app te avisa cuando hay una versi&oacute;n nueva y abre la landing para instalar.
+        <b>VIP $9.99 USD</b> — Desbloque&aacute; Modo Fractal completo (BOS, LG, Zonas, Setup), Torneos con premios y Modo Hist&oacute;rico.<br>
+        <b>Nav inferior fija</b> — El men&uacute; Inicio/Modos/Jugar/Liga/Perfil queda anclado al fondo.<br>
+        <b>Precios live</b> — Cripto en tiempo real en el ticker superior.<br>
+        <b>Auto-update</b> — La app te avisa cuando hay versi&oacute;n nueva.
       </div>
     </div>
     <div class="help">
@@ -240,7 +240,7 @@ HTML;
       <strong>💰 Torneos con \$USD:</strong> Dentro de la app, and&aacute; a <b>Perfil → Sync TNSVT</b> y carg&aacute; tu c&oacute;digo. Pedile al admin que te acredite saldo en la wallet. Despu&eacute;s en <b>Torneos</b> toc&aacute; "Unirse" en cualquier torneo activo.<br><br>
       <strong>⚡ Sync con TNSVT:</strong> Tu XP sube a tu cuenta TNSVT autom&aacute;ticamente. Tu wallet se debita al unirte y se acredita si gan&aacute;s.
     </div>
-    <div class="footer">T.N.S.V.T · Cristo Íntegro · v1.0.2</div>
+    <div class="footer">T.N.S.V.T · Cristo Íntegro · v1.0.3</div>
   </div>
 </body>
 </html>

@@ -97,8 +97,10 @@ body{display:flex;flex-direction:column}
 #nav{
   height:60px;background:var(--bg2);border-top:1px solid var(--border);
   display:flex;align-items:stretch;flex-shrink:0;
-  position:relative;z-index:100;
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  box-shadow:0 -4px 20px rgba(0,0,0,.4);
 }
+#app{padding-bottom:60px}
 .nav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3px;cursor:pointer;transition:all .2s;
@@ -351,15 +353,21 @@ body{display:flex;flex-direction:column}
 /* FEATURED MODE */
 .feat-mode{
   background:linear-gradient(135deg,var(--panel2),var(--panel));
-  border:1px solid rgba(147,83,255,.4);border-radius:var(--r);
-  padding:20px 16px;margin:0 16px;cursor:pointer;
+  border:1.5px solid rgba(147,83,255,.5);border-radius:var(--r);
+  padding:22px 18px;margin:0 16px 12px;cursor:pointer;
   position:relative;overflow:hidden;
-  box-shadow:0 4px 32px rgba(147,83,255,.15);
+  box-shadow:0 4px 32px rgba(147,83,255,.2);
+  min-height:130px;
 }
 .feat-mode::before{
   content:'';position:absolute;top:-30px;right:-30px;
-  width:120px;height:120px;border-radius:50%;
-  background:radial-gradient(circle,rgba(147,83,255,.3),transparent 70%);
+  width:140px;height:140px;border-radius:50%;
+  background:radial-gradient(circle,rgba(147,83,255,.4),transparent 70%);
+  pointer-events:none;
+}
+.feat-mode::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--violet3),transparent);
   pointer-events:none;
 }
 
@@ -881,7 +889,7 @@ body{display:flex;flex-direction:column}
       </div>
       <div class="mode-arrow">›</div>
     </div>
-    <div class="mode-card" onclick="goScreen('s-fractal')" style="border-color:rgba(255,215,0,.3);background:linear-gradient(135deg,rgba(255,215,0,.05),transparent)">
+    <div class="mode-card" onclick="vipGoScreen('s-fractal', 'Modo Fractal')" style="border-color:rgba(255,215,0,.3);background:linear-gradient(135deg,rgba(255,215,0,.05),transparent)">
       <div class="mode-icon">🔱</div>
       <div class="mode-info">
         <div class="mode-name" style="color:#ffd700">Modo Fractal</div>
@@ -889,9 +897,10 @@ body{display:flex;flex-direction:column}
         <div class="mode-meta">
           <span class="mode-tag" style="background:rgba(255,215,0,.15);color:#ffd700">METODOLOGÍA</span>
           <span class="mode-tag" style="background:rgba(74,222,128,.1);color:var(--green)">NUEVO</span>
+          <span class="mode-tag" style="background:linear-gradient(135deg,rgba(240,192,96,.25),rgba(212,160,48,.25));color:var(--gold);border:1px solid var(--gold)">👑 VIP</span>
         </div>
       </div>
-      <div style="font-size:18px">👑</div>
+      <div style="font-size:18px">🔒</div>
     </div>
     <div class="mode-card" onclick="goScreen('s-glosario')" style="border-color:rgba(96,165,250,.25);background:linear-gradient(135deg,rgba(96,165,250,.05),transparent)">
       <div class="mode-icon">📖</div>
@@ -1340,7 +1349,7 @@ body{display:flex;flex-direction:column}
     <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
       <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--text3);letter-spacing:1.5px;margin-bottom:2px">ELIGE UN MÓDULO</div>
 
-      <div class="mode-card" onclick="startFractalMode('bos')" style="border-color:rgba(147,83,255,.4);background:linear-gradient(135deg,rgba(147,83,255,.08),transparent)">
+      <div class="mode-card" onclick="vipFractalMode('bos')" style="border-color:rgba(147,83,255,.4);background:linear-gradient(135deg,rgba(147,83,255,.08),transparent)">
         <div class="mode-icon">🔱</div>
         <div class="mode-info">
           <div class="mode-name" style="color:var(--violet3)">BOS — Break of Structure</div>
@@ -1353,7 +1362,7 @@ body{display:flex;flex-direction:column}
         <div class="mode-arrow">›</div>
       </div>
 
-      <div class="mode-card" onclick="startFractalMode('lg')" style="border-color:rgba(240,192,96,.3);background:linear-gradient(135deg,rgba(240,192,96,.06),transparent)">
+      <div class="mode-card" onclick="vipFractalMode('lg')" style="border-color:rgba(240,192,96,.3);background:linear-gradient(135deg,rgba(240,192,96,.06),transparent)">
         <div class="mode-icon">🎯</div>
         <div class="mode-info">
           <div class="mode-name" style="color:var(--gold)">LG — Last Gap</div>
@@ -1366,7 +1375,7 @@ body{display:flex;flex-direction:column}
         <div class="mode-arrow">›</div>
       </div>
 
-      <div class="mode-card" onclick="startFractalMode('zonas')" style="border-color:rgba(96,165,250,.3);background:linear-gradient(135deg,rgba(96,165,250,.06),transparent)">
+      <div class="mode-card" onclick="vipFractalMode('zonas')" style="border-color:rgba(96,165,250,.3);background:linear-gradient(135deg,rgba(96,165,250,.06),transparent)">
         <div class="mode-icon">🗺️</div>
         <div class="mode-info">
           <div class="mode-name" style="color:var(--blue)">Zonas de Oferta y Demanda</div>
@@ -1379,7 +1388,7 @@ body{display:flex;flex-direction:column}
         <div class="mode-arrow">›</div>
       </div>
 
-      <div class="mode-card" onclick="startFractalMode('setup')" style="border:2px solid rgba(255,215,0,.4);background:linear-gradient(135deg,rgba(255,215,0,.08),transparent);box-shadow:0 4px 24px rgba(255,215,0,.1)">
+      <div class="mode-card" onclick="vipFractalMode('setup')" style="border:2px solid rgba(255,215,0,.4);background:linear-gradient(135deg,rgba(255,215,0,.08),transparent);box-shadow:0 4px 24px rgba(255,215,0,.1)">
         <div class="mode-icon">⚡</div>
         <div class="mode-info">
           <div class="mode-name" style="color:#ffd700">Setup 2-Step Completo</div>
@@ -1944,6 +1953,8 @@ const STATE = {
   prevPrices: {},
   prevPrices: {},
   pricesLive: false,
+  isVip: false,
+  vipUntil: 0,
   classic: { asset:'BTC', tf:'5M', score:0, streak:0, total:0, correct:0 },
   survival: { lives:3, score:0, round:1, streak:0, data:null },
   daily: { played: false, result: null },
@@ -1956,6 +1967,8 @@ const STATE = {
   shopOwned: new Set(['a1']),
   missionsCompleted: new Set(),
 };
+// Carga estado VIP desde localStorage (debe ir DESPUES de STATE)
+loadVipState();
 
 const ASSETS = {
   BTC:   { sym:'BTC',    name:'Bitcoin',      emoji:'₿',  vol:0.025, base:65000  },
@@ -2207,6 +2220,18 @@ function goScreen(id){
   if(id==='s-fractal'){ document.getElementById('fractal-lobby').style.display='block'; document.getElementById('fractal-game').style.display='none'; }
   if(id==='s-glosario') initGlosario();
   if(id==='s-torneos') { document.getElementById('torneo-lobby').style.display='';document.getElementById('torneo-game').style.display='none'; if(typeof loadActiveTorneos==='function') loadActiveTorneos(); }
+}
+
+// VIP-gated wrapper. Use for screens that require VIP.
+function vipGoScreen(id, featureName){
+  if(isVipActive()){ goScreen(id); return; }
+  showVipPaywall(featureName, () => goScreen(id));
+}
+
+// VIP-gated wrapper for fractal sub-modes (BOS, LG, ZONAS, SETUP)
+function vipFractalMode(mode){
+  if(isVipActive()){ startFractalMode(mode); return; }
+  showVipPaywall('Modo Fractal · ' + mode.toUpperCase(), () => startFractalMode(mode));
 }
 
 // ============================================================
@@ -3963,7 +3988,7 @@ function shopItemClick(type, id, name){
     STATE.shopOwned.add(id);
     SFX.unlock(); HAPTICS.unlock(); confetti();
     equipItem(type, id);
-    showToast(`✦ "${name}" desbloqueado · $0.99 USD`);
+    showToast(`✦ "${name}" desbloqueado · $9.99 USD`);
     renderTienda(tiendaActiveCat);
     return;
   }
@@ -4386,8 +4411,104 @@ function fxCorrect(streak=0){
 function buyItem(id, name){
   STATE.shopOwned.add(id);
   confetti(); SFX.unlock(); HAPTICS.unlock();
-  showToast(`✦ "${name}" desbloqueado — $0.99 USD`);
+  showToast(`✦ "${name}" desbloqueado — $9.99 USD`);
   renderTienda(tiendaActiveCat);
+}
+
+// ============================================================
+// VIP SYSTEM
+// ============================================================
+const VIP_PRICE_USD = 9.99;
+const VIP_STORAGE_KEY = 'tnsvt_vip_status';
+
+function loadVipState(){
+  try {
+    const raw = localStorage.getItem(VIP_STORAGE_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    STATE.isVip = !!d.isVip;
+    STATE.vipUntil = parseInt(d.vipUntil) || 0;
+  } catch(e){}
+}
+
+function saveVipState(){
+  try {
+    localStorage.setItem(VIP_STORAGE_KEY, JSON.stringify({isVip: STATE.isVip, vipUntil: STATE.vipUntil}));
+  } catch(e){}
+}
+
+function isVipActive(){
+  if(!STATE.isVip) return false;
+  if(STATE.vipUntil && Date.now() > STATE.vipUntil) {
+    STATE.isVip = false;
+    saveVipState();
+    return false;
+  }
+  return true;
+}
+
+function vipRequiredGate(featureName, onUnlock){
+  if(isVipActive()){ onUnlock && onUnlock(); return; }
+  showVipPaywall(featureName, onUnlock);
+}
+
+function showVipPaywall(featureName, onUnlock){
+  // Quitar paywall existente
+  const old = document.getElementById('vipPaywall');
+  if(old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'vipPaywall';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(6,4,15,.92); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .25s';
+  const benefits = [
+    'Modo Fractal completo (BOS, LG, Zonas, Setup 2-Step)',
+    'Torneos con premios en USD reales',
+    'Modo Histórico (eventos del mercado)',
+    'Logros exclusivos VIP',
+    'Soporte prioritario del equipo T.N.S.V.T',
+  ].map(b => '<li style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:13px;color:var(--text2);line-height:1.5"><span style="color:var(--gold);font-weight:700;flex-shrink:0">✓</span><span>' + b + '</span></li>').join('');
+
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(135deg,var(--panel2),var(--panel));border:1.5px solid var(--gold);border-radius:20px;padding:24px 22px;max-width:380px;width:100%;position:relative;box-shadow:0 20px 60px rgba(240,192,96,.3);max-height:90vh;overflow-y:auto">
+      <button id="vipPaywallClose" style="position:absolute;top:12px;right:12px;width:32px;height:32px;background:transparent;border:0;color:var(--text3);font-size:24px;cursor:pointer;line-height:1">&times;</button>
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:60px;margin-bottom:8px;filter:drop-shadow(0 0 12px rgba(240,192,96,.6))">👑</div>
+        <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:4px">T.N.S.V.T VIP</div>
+        <div style="font-size:12px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">Acceso premium</div>
+      </div>
+      <div style="background:rgba(13,8,24,.6);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;text-align:center">Desbloqueá</div>
+        <ul style="list-style:none;padding:0;margin:0">${benefits}</ul>
+      </div>
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Pago único</div>
+        <div style="font-family:'Cinzel',serif;font-size:36px;font-weight:700;color:var(--gold);line-height:1">$${VIP_PRICE_USD.toFixed(2)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Acceso de por vida</div>
+      </div>
+      <button id="vipPaywallBuy" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--bg);border:0;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.5px">👑 Desbloquear VIP</button>
+      <button id="vipPaywallRestore" style="width:100%;padding:8px;background:transparent;color:var(--text3);border:0;font-size:11px;cursor:pointer;margin-top:6px;text-decoration:underline">Ya soy VIP · Restaurar compra</button>
+      <div style="text-align:center;font-size:10px;color:var(--text3);margin-top:10px;line-height:1.5">Esta función requiere <b>${escapeHtml(featureName||'contenido VIP')}</b>.<br>Sin suscripción mensual. Acceso permanente.</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('vipPaywallClose').onclick = () => overlay.remove();
+  document.getElementById('vipPaywallBuy').onclick = () => {
+    SFX.unlock(); HAPTICS.unlock(); confetti();
+    STATE.isVip = true;
+    STATE.vipUntil = 0; // 0 = lifetime
+    saveVipState();
+    if(window.showToast) showToast('👑 VIP desbloqueado · Acceso de por vida');
+    overlay.remove();
+    if(onUnlock) onUnlock();
+  };
+  document.getElementById('vipPaywallRestore').onclick = () => {
+    STATE.isVip = true;
+    STATE.vipUntil = 0;
+    saveVipState();
+    if(window.showToast) showToast('👑 VIP restaurado');
+    overlay.remove();
+    if(onUnlock) onUnlock();
+  };
 }
 
 
@@ -4579,22 +4700,25 @@ function renderPHistorial(){
 function renderPlanes(){
   const el=document.getElementById('perfil-planes');
   if(!el) return;
+  const vip = isVipActive();
   el.innerHTML=`<div style="padding:16px;display:flex;flex-direction:column;gap:12px">
     <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:18px">
       <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;margin-bottom:4px">Free</div>
       <div style="font-size:14px;color:var(--gold);font-weight:700;margin-bottom:12px">$0 / siempre</div>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:7px">
-        ${['Classic Mode ilimitado','Daily Challenge diario','Arena 1vs1','Survival Mode básico','Torneos semanales','Portfolio virtual $50k','Glosario completo'].map(f=>`<li style="display:flex;gap:8px;font-size:13px;color:var(--text2)"><span style="color:var(--green)">✓</span>${f}</li>`).join('')}
+        ${['Classic Mode ilimitado','Daily Challenge diario','Arena 1vs1','Survival Mode básico','Portfolio virtual $50k','Glosario completo','Misiones y Logros'].map(f=>`<li style="display:flex;gap:8px;font-size:13px;color:var(--text2)"><span style="color:var(--green)">✓</span>${f}</li>`).join('')}
       </ul>
     </div>
-    <div style="background:var(--panel2);border:2px solid var(--violet);border-radius:var(--r);padding:18px;position:relative">
-      <div style="position:absolute;top:-1px;right:16px;background:var(--violet);color:#fff;font-size:9px;letter-spacing:1.5px;padding:3px 10px;border-radius:0 0 8px 8px;font-weight:700">RECOMENDADO</div>
-      <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px;margin-top:8px">Pro</div>
-      <div style="font-size:14px;color:var(--gold);font-weight:700;margin-bottom:12px">$0.99 / mes</div>
+    <div style="background:var(--panel2);border:2px solid ${vip?'var(--green)':'var(--gold)'};border-radius:var(--r);padding:18px;position:relative">
+      <div style="position:absolute;top:-1px;right:16px;background:${vip?'var(--green)':'var(--gold)'};color:${vip?'#fff':'var(--bg)'};font-size:9px;letter-spacing:1.5px;padding:3px 10px;border-radius:0 0 8px 8px;font-weight:700">${vip?'✓ ACTIVO':'RECOMENDADO'}</div>
+      <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px;margin-top:8px">👑 VIP</div>
+      <div style="font-size:14px;color:var(--gold);font-weight:700;margin-bottom:12px">$${VIP_PRICE_USD.toFixed(2)} / pago único · de por vida</div>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:14px">
-        ${['Todo lo de Free','Survival: regeneración de vidas','Sin publicidad','Badge Pro exclusivo','Alertas de precio en Portfolio','Notas en cada posición','Comparar vs #1 del ranking global','Acceso anticipado a nuevos modos','Descuento del 20% en la Tienda'].map(f=>`<li style="display:flex;gap:8px;font-size:13px;color:var(--text2)"><span style="color:var(--gold)">✦</span>${f}</li>`).join('')}
+        ${['Todo lo de Free','Modo Fractal completo (BOS, LG, Zonas, Setup 2-Step)','Torneos con premios USD reales','Modo Histórico (eventos del mercado)','Badge VIP exclusivo','Soporte prioritario'].map(f=>`<li style="display:flex;gap:8px;font-size:13px;color:var(--text2)"><span style="color:var(--gold)">✦</span>${f}</li>`).join('')}
       </ul>
-      <button class="btn btn-gold btn-lg" style="width:100%" onclick="showToast('✦ Procesando — $0.99/mes')">Activar Pro</button>
+      ${vip
+        ? `<button class="btn btn-lg" style="width:100%;background:rgba(74,222,128,.15);color:var(--green);border:1px solid var(--green);cursor:default">✓ VIP Activo</button>`
+        : `<button class="btn btn-gold btn-lg" style="width:100%" onclick="showVipPaywall('Acceso VIP completo', ()=>{renderPlanes();})">👑 Desbloquear VIP $${VIP_PRICE_USD.toFixed(2)}</button>`}
     </div>
   </div>`;
 }
@@ -4613,10 +4737,10 @@ const ALL_MODES = [
   {name:'Survival',       desc:'3 vidas · dificultad creciente · rondas infinitas', emoji:'❤️', action:()=>startSurvival(),       tag:'INTENSO',    tagColor:'var(--red)'},
   {name:'Daily Challenge',desc:'Un chart igual para todos · un solo intento',       emoji:'📅', action:()=>goScreen('s-daily'),   tag:'DIARIO',     tagColor:'var(--gold)'},
   {name:'Arena 1vs1',     desc:'Desafiá a otro trader en tiempo real',              emoji:'⚔️', action:()=>goScreen('s-arena'),   tag:'COMPETITIVO',tagColor:'var(--violet3)'},
-  {name:'Modo Histórico', desc:'Eventos reales del mercado · aprendé del pasado',   emoji:'📚', action:()=>goScreen('s-historico'),tag:'EDUCATIVO', tagColor:'var(--blue)'},
-  {name:'Torneo Semanal', desc:'10 rondas · ranking global · premios en XP',        emoji:'🏆', action:()=>goScreen('s-torneos'), tag:'SEMANAL',    tagColor:'var(--gold)'},
+  {name:'Modo Histórico', desc:'Eventos reales del mercado · aprendé del pasado',   emoji:'📚', action:()=>vipGoScreen('s-historico','Modo Histórico'),tag:'EDUCATIVO', tagColor:'var(--blue)', vip:true},
+  {name:'Torneo Semanal', desc:'10 rondas · ranking global · premios en USD',        emoji:'🏆', action:()=>vipGoScreen('s-torneos','Torneos con premios'), tag:'SEMANAL',    tagColor:'var(--gold)', vip:true},
   {name:'Portfolio',      desc:'$50,000 virtuales · opera con precios reales',      emoji:'💼', action:()=>goScreen('s-portfolio'),tag:'SIMULADOR', tagColor:'var(--green)'},
-  {name:'Modo Fractal',   desc:'BOS · LG · Zonas · Setup 2-Step — T.N.S.V.T',     emoji:'🔱', action:()=>goScreen('s-fractal'), tag:'T.N.S.V.T',  tagColor:'#ffd700'},
+  {name:'Modo Fractal',   desc:'BOS · LG · Zonas · Setup 2-Step — T.N.S.V.T',     emoji:'🔱', action:()=>vipGoScreen('s-fractal','Modo Fractal completo'), tag:'T.N.S.V.T',  tagColor:'#ffd700', vip:true},
   {name:'Glosario',       desc:'OB · POI · BOS · LG · EQH · TR · 30+ conceptos',  emoji:'📖', action:()=>goScreen('s-glosario'),tag:'EDUCACIÓN',  tagColor:'var(--blue)'},
   {name:'Misiones',       desc:'Retos diarios y semanales · XP extra',             emoji:'🎯', action:()=>goScreen('s-misiones'),tag:'XP',         tagColor:'var(--violet3)'},
 ];
@@ -4624,16 +4748,23 @@ const ALL_MODES = [
 function initModos(){
   const list = document.getElementById('modos-list');
   if(!list) return;
-  list.innerHTML = ALL_MODES.map(m=>`
-    <div class="mode-card" onclick="(${m.action})()">
+  const vip = isVipActive();
+  list.innerHTML = ALL_MODES.map(m=>{
+    const isLocked = m.vip && !vip;
+    return `
+    <div class="mode-card" onclick="(${m.action})()" style="${isLocked?'opacity:.65;':''}">
       <div class="mode-icon">${m.emoji}</div>
       <div class="mode-info">
-        <div class="mode-name">${m.name}</div>
+        <div class="mode-name">${m.name}${isLocked?' <span style="font-size:10px;color:var(--gold);margin-left:6px">🔒 VIP</span>':''}</div>
         <div class="mode-desc">${m.desc}</div>
-        <div class="mode-meta"><span class="mode-tag" style="background:rgba(255,255,255,.06);color:${m.tagColor}">${m.tag}</span></div>
+        <div class="mode-meta">
+          <span class="mode-tag" style="background:rgba(255,255,255,.06);color:${m.tagColor}">${m.tag}</span>
+          ${isLocked?'<span class="mode-tag" style="background:linear-gradient(135deg,rgba(240,192,96,.25),rgba(212,160,48,.25));color:var(--gold);border:1px solid var(--gold)">👑 $9.99</span>':''}
+        </div>
       </div>
-      <div class="mode-arrow">›</div>
-    </div>`).join('');
+      <div class="mode-arrow" style="${isLocked?'color:var(--gold);':''}">${isLocked?'👑':'›'}</div>
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
@@ -6535,8 +6666,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
 // GAME UPDATE CHECK
 // Llama a /api/app/game-version y muestra banner si hay nueva version
 // ============================================================
-const GAME_LOCAL_VERSION = '1.0.2';
-const GAME_LOCAL_VERSION_CODE = 3;
+const GAME_LOCAL_VERSION = '1.0.3';
+const GAME_LOCAL_VERSION_CODE = 4;
 const GAME_UPDATE_CHECK_KEY = 'tnsvt_game_update_dismissed';
 let _gameUpdateShown = false;
 
