@@ -1620,6 +1620,20 @@ body{display:flex;flex-direction:column}
       </div>
     </div>
 
+    <!-- 24H CHART (real CoinGecko data) -->
+    <div style="background:var(--panel2);border:1px solid var(--border);border-radius:var(--r2);padding:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)">📈 24 horas</div>
+        <div id="port-price-source" style="font-size:9px">— Cargando…</div>
+      </div>
+      <canvas id="port-24h-chart" style="width:100%;height:120px;display:block;touch-action:pan-x"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace">
+        <span>24h ago</span>
+        <span id="port-24h-range">— / —</span>
+        <span>now</span>
+      </div>
+    </div>
+
     <!-- TAMAÑO -->
     <div>
       <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:7px">Tamaño de posición</div>
@@ -1867,12 +1881,13 @@ body{display:flex;flex-direction:column}
     <div class="ob-title">7 Modos de Juego</div>
     <div class="ob-desc">Cada modo entrena una habilidad diferente del trader.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;max-width:320px;width:100%">
-      ${[
-        ['📊','Classic','El base'],['❤️','Survival','3 vidas'],
-        ['📅','Daily','Un intento'],['⚔️','Arena','1vs1'],
-        ['📚','Histórico','Eventos reales'],['🏆','Torneo','Semanal'],
-        ['💼','Portfolio','Dinero virtual']
-      ].map(([e,n,d])=>`<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">${e}</div><div style="font-size:12px;font-weight:600;margin-top:4px">${n}</div><div style="font-size:10px;color:var(--text3)">${d}</div></div>`).join('')}
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">📊</div><div style="font-size:12px;font-weight:600;margin-top:4px">Classic</div><div style="font-size:10px;color:var(--text3)">El base</div></div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">❤️</div><div style="font-size:12px;font-weight:600;margin-top:4px">Survival</div><div style="font-size:10px;color:var(--text3)">3 vidas</div></div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">📅</div><div style="font-size:12px;font-weight:600;margin-top:4px">Daily</div><div style="font-size:10px;color:var(--text3)">Un intento</div></div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">⚔️</div><div style="font-size:12px;font-weight:600;margin-top:4px">Arena</div><div style="font-size:10px;color:var(--text3)">1vs1</div></div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">📚</div><div style="font-size:12px;font-weight:600;margin-top:4px">Histórico</div><div style="font-size:10px;color:var(--text3)">Eventos reales</div></div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px">🏆</div><div style="font-size:12px;font-weight:600;margin-top:4px">Torneo</div><div style="font-size:10px;color:var(--text3)">Semanal</div></div>
+      <div style="background:linear-gradient(135deg,rgba(74,222,128,.08),transparent);border:1px solid rgba(74,222,128,.3);border-radius:10px;padding:10px;text-align:center;grid-column:1/3"><div style="font-size:22px">💼</div><div style="font-size:12px;font-weight:600;margin-top:4px;color:var(--green)">Portfolio</div><div style="font-size:10px;color:var(--text3)">$50k virtuales · precios reales</div></div>
     </div>
     <div class="ob-dots">
       <div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot active"></div><div class="ob-dot"></div>
@@ -1974,25 +1989,92 @@ const SIM_BASES   = {GOLD:2385, SP500:5300, NAS100:18800, DXY:104.5, EURUSD:1.08
 const SIM_CHANGES = {GOLD:-0.13, SP500:+0.22, NAS100:+0.35, DXY:+0.08, EURUSD:-0.06};
 
 async function fetchPrices(){
-  // ── CoinGecko: cripto en tiempo real ──
+  // ── CoinGecko: cripto en tiempo real con 24h data ──
   try{
     const ids='bitcoin,ethereum,solana,binancecoin,ripple';
-    const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,{signal:AbortSignal.timeout(7000)});
+    const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_last_updated_at=true`,{signal:AbortSignal.timeout(7000)});
     if(!r.ok) throw new Error('CG error');
     const d=await r.json();
     STATE.prevPrices={...STATE.prices};
-    if(d.bitcoin)     STATE.prices.BTC=d.bitcoin.usd;
-    if(d.ethereum)    STATE.prices.ETH=d.ethereum.usd;
-    if(d.solana)      STATE.prices.SOL=d.solana.usd;
-    if(d.binancecoin) STATE.prices.BNB=d.binancecoin.usd;
-    if(d.ripple)      STATE.prices.XRP=d.ripple.usd;
+    STATE.marketData = STATE.marketData || {};
+    const map = {bitcoin:'BTC', ethereum:'ETH', solana:'SOL', binancecoin:'BNB', ripple:'XRP'};
+    Object.entries(map).forEach(([cgId, sym])=>{
+      if(d[cgId]){
+        STATE.prices[sym] = d[cgId].usd;
+        STATE.marketData[sym] = {
+          price:      d[cgId].usd,
+          change24h:  d[cgId].usd_24h_change || 0,
+          vol24h:     d[cgId].usd_24h_vol || 0,
+          updatedAt:  d[cgId].last_updated_at ? d[cgId].last_updated_at * 1000 : Date.now(),
+        };
+      }
+    });
     STATE.pricesLive=true;
+    STATE.lastPricesFetch = Date.now();
     if(simInterval){clearInterval(simInterval);simInterval=null;}
     updateTickerCrypto(d);
   }catch(e){ startSimPrices(); }
   // Macro siempre simulado
   initMacroPrices();
   updateTickerMacro();
+}
+
+// ── 24h high/low reales por activo (CoinGecko) ──
+async function fetch24hCandles(sym){
+  // Devuelve {high24h, low24h, open24h, changePct, history: [{t,o,h,l,c}], source}
+  const CG = {BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin', XRP:'ripple'};
+  const id = CG[sym];
+  if(id){
+    try{
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=1`,{signal:AbortSignal.timeout(8000)});
+      if(!r.ok) throw new Error('CG 24h error');
+      const d = await r.json();
+      // d.prices = [[ts, price], ...]
+      // d.market_caps = [[ts, cap], ...] (opcional)
+      const prices = d.prices || [];
+      if(prices.length === 0) throw new Error('No data');
+      const open24h = prices[0][1];
+      const cur = prices[prices.length-1][1];
+      let hi = -Infinity, lo = Infinity;
+      prices.forEach(([_,p]) => { if(p>hi) hi=p; if(p<lo) lo=p; });
+      // Resample to ~96 candles (15 min)
+      const bucket = Math.max(1, Math.floor(prices.length / 96));
+      const candles = [];
+      for(let i=0; i<prices.length; i+=bucket){
+        const slice = prices.slice(i, i+bucket);
+        if(slice.length === 0) continue;
+        const o = slice[0][1];
+        const c = slice[slice.length-1][1];
+        let h = -Infinity, l = Infinity;
+        slice.forEach(([_,p]) => { if(p>h) h=p; if(p<l) l=p; });
+        candles.push({o, h, l, c, t: slice[0][0]});
+      }
+      return {
+        high24h: hi, low24h: lo, open24h, cur,
+        changePct: open24h > 0 ? ((cur-open24h)/open24h)*100 : 0,
+        candles, source: 'coingecko', fetchedAt: Date.now(),
+      };
+    } catch(e){ /* fallback */ }
+  }
+  // Fallback: simular 24h desde el precio actual
+  const cur = STATE.prices[sym] || ASSETS[sym]?.base || 0;
+  const vol = ASSETS[sym]?.vol || 0.02;
+  const open24h = cur * (1 - (Math.random()-.4)*vol*2);
+  let hi = cur, lo = cur;
+  for(let i=0;i<96;i++){
+    const p = open24h + (cur-open24h)*(i/96) + (Math.random()-.5)*cur*vol*0.3;
+    if(p>hi) hi=p; if(p<lo) lo=p;
+  }
+  const candles = [];
+  for(let i=0;i<48;i++){
+    const t = Date.now() - (48-i)*30*60*1000;
+    const o = open24h + (cur-open24h)*(i/48);
+    const c = o + (Math.random()-.5)*cur*vol*0.3;
+    const h = Math.max(o,c) + Math.random()*cur*vol*0.15;
+    const l = Math.min(o,c) - Math.random()*cur*vol*0.15;
+    candles.push({o,h,l,c,t});
+  }
+  return { high24h: hi, low24h: lo, open24h, cur, changePct: ((cur-open24h)/open24h)*100, candles, source: 'simulated', fetchedAt: Date.now() };
 }
 
 function initMacroPrices(){
@@ -2130,9 +2212,21 @@ function goScreen(id){
 // TOAST
 // ============================================================
 function showToast(msg, dur=2500){
+  // Limitar a máximo 3 toasts visibles simultáneos (evitar apilamiento)
+  const container = document.getElementById('toast-container');
+  if(!container) return;
+  while(container.children.length >= 3){
+    container.firstChild.remove();
+  }
+  // Si el último toast es idéntico, no duplicar
+  const last = container.lastElementChild;
+  if(last && last.textContent === msg && Date.now() - (last.dataset.t||0) < 1500){
+    return;
+  }
   const t = document.createElement('div');
   t.className='toast';t.textContent=msg;
-  document.getElementById('toast-container').appendChild(t);
+  t.dataset.t = Date.now();
+  container.appendChild(t);
   setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},dur);
 }
 
@@ -3311,7 +3405,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef1', name:'Confetti Storm', price:'$0.99',
-    desc:'Lluvia épica de colores al ganar',
+    desc:'Cada vez que acertás cae una lluvia de colores celebratoria. Ideal para sentir el "¡vamos!" en cada acierto.',
     preview: () => `
       <div style="position:relative;height:80px;background:#0a0518;border-radius:10px;overflow:hidden">
         ${Array.from({length:20},(_,i)=>{
@@ -3324,7 +3418,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef2', name:'Lightning Strike', price:'$0.99',
-    desc:'Rayo dorado al entrar en racha ×3',
+    desc:'Al acertar, un rayo dorado cae sobre tu pantalla. Estilo arcade retro para los que aman el drama.',
     preview: () => `
       <div style="position:relative;height:80px;background:#0a0800;border-radius:10px;overflow:hidden">
         <div style="position:absolute;left:30%;top:0;width:3px;height:100%;background:linear-gradient(#f0c060,transparent);animation:bolt-drop 0.6s ease-in infinite;clip-path:polygon(40% 0,60% 0,70% 40%,90% 40%,10% 100%,30% 55%,0 55%)"></div>
@@ -3334,7 +3428,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef3', name:'Nova Explosion', price:'$0.99',
-    desc:'Explosión de partículas al ganar en Arena',
+    desc:'Al acertar, una supernova de partículas explota desde el centro. Cálido y agresivo.',
     preview: () => `
       <div style="position:relative;height:80px;background:#0d0008;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
         ${Array.from({length:16},(_,i)=>{
@@ -3348,7 +3442,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef4', name:'Star Rain', price:'$0.99',
-    desc:'Lluvia de estrellas doradas al subir de rango',
+    desc:'Al acertar, estrellas doradas caen del cielo. Estilo mágico y místico, ideal para racha larga.',
     preview: () => `
       <div style="position:relative;height:80px;background:#04020f;border-radius:10px;overflow:hidden">
         ${Array.from({length:14},(_,i)=>{
@@ -3362,7 +3456,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef5', name:'Matrix Rain', price:'$0.99',
-    desc:'Código cayendo al acertar en modo difícil',
+    desc:'Al acertar, código verde estilo Matrix cae en cascada. Para los que se sienten Neo del trading.',
     preview: () => `
       <div style="position:relative;height:80px;background:#000800;border-radius:10px;overflow:hidden;font-family:'JetBrains Mono',monospace">
         ${Array.from({length:12},(_,i)=>{
@@ -3375,7 +3469,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef6', name:'Aurora', price:'$0.99',
-    desc:'Ola de luz boreal al completar un torneo',
+    desc:'Al acertar, una ola de luz boreal verde-violeta cruza la pantalla. Relajante y elegante.',
     preview: () => `
       <div style="position:relative;height:80px;background:#010818;border-radius:10px;overflow:hidden">
         <div style="position:absolute;top:0;left:-20%;width:140%;height:100%;background:linear-gradient(90deg,transparent,rgba(74,222,128,.3),rgba(147,83,255,.4),rgba(96,165,250,.3),transparent);animation:aurora-wave 2s ease-in-out infinite;border-radius:50%"></div>
@@ -3385,7 +3479,7 @@ const EFFECTS_SHOP = [
   },
   {
     id:'ef7', name:'Shockwave', price:'$0.99',
-    desc:'Onda expansiva de energía violeta al hacer racha ×5',
+    desc:'Al acertar, ondas expansivas violeta-gold explotan desde el centro. Potente y enérgico.',
     preview: () => `
       <div style="position:relative;height:80px;background:#050010;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
         <div style="position:absolute;width:20px;height:20px;border-radius:50%;border:2px solid #9353ff;animation:shockwave 1s ease-out infinite;opacity:0"></div>
@@ -3616,9 +3710,18 @@ function renderThemesGrid(){
 // ── EFFECTS GRID ──────────────────────────────────────────────
 function renderEffectsGrid(){
   return `<div style="display:flex;flex-direction:column;gap:10px">
+    <!-- HEADER INFO -->
+    <div style="background:linear-gradient(135deg,rgba(147,83,255,.08),rgba(240,192,96,.05));border:1px solid rgba(147,83,255,.2);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:18px">✨</span>
+      <div style="flex:1;font-size:11px;color:var(--text2);line-height:1.5">
+        <strong style="color:var(--violet3)">Efectos visuales</strong> · Se disparan automáticamente al <strong style="color:var(--green)">acertar</strong> en cualquier modo.<br>
+        Cambialos desde acá. Solo 1 activo a la vez. No afectan el XP ni el scoring.
+      </div>
+    </div>
     ${EFFECTS_SHOP.map((ef,i)=>{
       const owned = ef.free || STATE.shopOwned.has(ef.id);
       const active = EQUIPPED.effect===ef.id;
+      const triggerPill = ef.id==='ef0' ? '' : '<span style="display:inline-block;padding:2px 6px;background:rgba(74,222,128,.15);color:var(--green);border-radius:6px;font-size:9px;font-weight:600;margin-left:6px;letter-spacing:.5px">⚡ AL ACERTAR</span>';
       return `<div onclick="shopItemClick('effect','${ef.id}','${ef.name}')"
         style="background:var(--panel);border:1.5px solid ${active?'rgba(74,222,128,.5)':owned?'rgba(147,83,255,.25)':'var(--border)'};
         border-radius:14px;overflow:hidden;cursor:pointer;
@@ -3627,16 +3730,16 @@ function renderEffectsGrid(){
         ${ef.preview()}
         <!-- INFO ROW -->
         <div style="padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-weight:700;font-size:13px;color:${active?'var(--green)':'var(--text)'};margin-bottom:2px">${ef.name}</div>
-            <div style="font-size:11px;color:var(--text3)">${ef.desc}</div>
+          <div style="flex:1;min-width:0;margin-right:10px">
+            <div style="font-weight:700;font-size:13px;color:${active?'var(--green)':'var(--text)'};margin-bottom:3px">${ef.name}${triggerPill}</div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.4">${ef.desc}</div>
           </div>
           <button style="padding:8px 14px;border-radius:8px;border:none;cursor:pointer;
             font-weight:700;font-size:11px;font-family:'Cinzel',serif;letter-spacing:.5px;
             background:${active?'rgba(74,222,128,.15)':owned?'rgba(147,83,255,.12)':'linear-gradient(135deg,#9353ff,#7030df)'};
             color:${active?'var(--green)':owned?'var(--violet3)':'#fff'};
             border:${active?'1px solid rgba(74,222,128,.3)':owned?'1px solid rgba(147,83,255,.3)':'none'};
-            transition:all .2s;white-space:nowrap;flex-shrink:0;margin-left:10px">
+            transition:all .2s;white-space:nowrap;flex-shrink:0">
             ${active?'✓ Activo':owned?'Equipar':'$0.99'}
           </button>
         </div>
@@ -3653,14 +3756,19 @@ function shopItemClick(type, id, name){
     // Comprar
     STATE.shopOwned.add(id);
     SFX.unlock(); HAPTICS.unlock(); confetti();
-    showToast(`✦ "${name}" desbloqueado — $0.99 USD`);
     equipItem(type, id);
+    showToast(`✦ "${name}" desbloqueado · $0.99 USD`);
     renderTienda(tiendaActiveCat);
     return;
   }
   // Ya tiene, equipar
   equipItem(type, id);
-  showToast(`✓ "${name}" equipado`);
+  if(type === 'effect'){
+    // Mensaje unificado para efectos (incluye preview)
+    showToast(`✨ "${name}" activo — se dispara al acertar`);
+  } else {
+    showToast(`✓ "${name}" equipado`);
+  }
   renderTienda(tiendaActiveCat);
 }
 
@@ -3668,14 +3776,6 @@ function isOwned(type, id){
   const maps = {frame:FRAMES, avatar:AVATARS, theme:THEMES, effect:EFFECTS_SHOP};
   const item = (maps[type]||[]).find(x=>x.id===id);
   return item?.free || STATE.shopOwned.has(id);
-}
-
-function equipItem(type, id){
-  if(type==='frame')  { EQUIPPED.frame=id;  applyFrame(id); }
-  if(type==='avatar') { EQUIPPED.avatar=id; applyAvatar(id); }
-  if(type==='theme')  { EQUIPPED.theme=id;  applyTheme(id); }
-  if(type==='effect') { EQUIPPED.effect=id; }
-  SFX.xp();
 }
 
 // ── APPLY FRAME ──────────────────────────────────────────────
@@ -3805,7 +3905,7 @@ function lightenHex(hex, amount){
 function adjustBrightness(hex,f){return lighten(hex,f);}
 
 // ============================================================
-// APPLY EFFECT — sistema de efectos activos
+// APPLY EFFECT — preview el efecto al equipar (sin toast extra)
 // ============================================================
 function applyEffect(id){
   EQUIPPED.effect = id;
@@ -3813,7 +3913,6 @@ function applyEffect(id){
   if(!ef||id==='ef0') return;
   // Preview the effect immediately
   triggerActiveEffect();
-  showToast(`✨ Efecto "${ef.name}" equipado — se activa al acertar`);
 }
 
 function triggerActiveEffect(){
@@ -4077,16 +4176,7 @@ function fxCorrect(streak=0){
   if(EQUIPPED.effect && EQUIPPED.effect!=='ef0') triggerActiveEffect();
 }
 
-// Also update equipItem to call applyEffect
-function equipItem(type, id){
-  if(type==='frame')  { EQUIPPED.frame=id;   applyFrame(id);  }
-  if(type==='avatar') { EQUIPPED.avatar=id;  applyAvatar(id); }
-  if(type==='theme')  { EQUIPPED.theme=id;   applyTheme(id);  }
-  if(type==='effect') { EQUIPPED.effect=id;  applyEffect(id); }
-  SFX.xp();
-}
-
-// Legacy compatibility
+// equipItem ya está definido arriba (unificado, sin duplicar)
 function buyItem(id, name){
   STATE.shopOwned.add(id);
   confetti(); SFX.unlock(); HAPTICS.unlock();
@@ -5092,8 +5182,15 @@ function initPortfolio(){
   portUpdateLivePrice();
   portCalcPreview();
   document.getElementById('port-trailing').onchange = portTrailingToggle;
+  setupPort24hDrag();
   if(!portTickInterval){
     portTickInterval = setInterval(portTick, 1500);
+  }
+  // Redraw chart cada 30s para mantener el último punto actualizado
+  if(!window._portChartRedrawInt){
+    window._portChartRedrawInt = setInterval(()=>{
+      if(STATE.screen==='s-portfolio') drawPort24hChart();
+    }, 30000);
   }
 }
 
@@ -5102,11 +5199,15 @@ function portTick(){
   ['BTC','ETH','SOL','BNB','XRP','GOLD','SP500'].forEach(sym=>{
     const a = PORT_ASSETS[sym];
     if(!a) return;
+    // No sobrescribir precios de crypto si tenemos fetch reciente (live)
+    if(STATE.pricesLive && ['BTC','ETH','SOL','BNB','XRP'].includes(sym) && STATE.lastPricesFetch && (Date.now()-STATE.lastPricesFetch) < 35000){
+      return;
+    }
     const base = STATE.prices[sym] || ASSETS[sym]?.base || 1;
     const drift = (Math.random()-.48) * a.vol * 0.35;
     const newP  = base * (1+drift);
     STATE.prices[sym] = newP;
-    // Track 24h high/low (session approximate)
+    // Track 24h high/low (session approximate) — solo si no tenemos datos reales
     if(!portPriceHigh[sym]) portPriceHigh[sym] = newP;
     if(!portPriceLow[sym])  portPriceLow[sym]  = newP;
     portPriceHigh[sym] = Math.max(portPriceHigh[sym], newP);
@@ -5205,8 +5306,168 @@ function portAutoClose(id, reason){
   else             { SFX.loseLife(); HAPTICS.loseLife(); screenFlash('wrong'); }
 }
 
+// ── 24h chart real (CoinGecko) con drag-to-scroll ──────────
+let port24hViewStart = 0;  // índice de inicio del viewport
+function drawPort24hChart(){
+  const canvas = document.getElementById('port-24h-chart');
+  if(!canvas) return;
+  const data = STATE.port24h?.[portAsset];
+  if(!data || !data.candles || data.candles.length === 0) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = 'rgba(168,160,200,.3)';
+    ctx.font = '12px Inter';
+    ctx.textAlign = 'center';
+    const W = canvas.parentElement.offsetWidth - 20;
+    ctx.fillText('Cargando datos 24h...', W/2, 60);
+    return;
+  }
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.offsetWidth - 20;
+  const H = 120;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Viewport: muestra hasta ~60 candles a la vez
+  const all = data.candles;
+  const viewSize = Math.min(60, all.length);
+  const maxStart = Math.max(0, all.length - viewSize);
+  if(port24hViewStart > maxStart) port24hViewStart = maxStart;
+  if(port24hViewStart < 0) port24hViewStart = 0;
+  const candles = all.slice(port24hViewStart, port24hViewStart + viewSize);
+
+  // Rango de precios del viewport
+  let yMin = Infinity, yMax = -Infinity;
+  candles.forEach(c => { if(c.l<yMin) yMin=c.l; if(c.h>yMax) yMax=c.h; });
+  const pad = (yMax - yMin) * 0.08 || yMax*0.005;
+  yMin -= pad; yMax += pad;
+
+  // Background
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, '#120d22');
+  grad.addColorStop(1, '#06040f');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(45,31,85,.3)';
+  ctx.lineWidth = 0.5;
+  for(let i=0; i<=3; i++){
+    const y = (i/3)*H;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  // Calcular cambio % en el viewport
+  const firstC = candles[0].c;
+  const lastC  = candles[candles.length-1].c;
+  const chg = ((lastC - firstC) / firstC) * 100;
+  const isUp = chg >= 0;
+  const lineColor = isUp ? '#4ade80' : '#f87171';
+  const fillColor = isUp ? 'rgba(74,222,128,.15)' : 'rgba(248,113,113,.15)';
+
+  // Area
+  const cw = W / candles.length;
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  candles.forEach((c,i)=>{
+    const y = H - ((c.c - yMin) / (yMax - yMin)) * H;
+    const x = (i + 0.5) * cw;
+    if(i === 0) ctx.lineTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  candles.forEach((c,i)=>{
+    const y = H - ((c.c - yMin) / (yMax - yMin)) * H;
+    const x = (i + 0.5) * cw;
+    if(i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Last point dot
+  const lastY = H - ((lastC - yMin) / (yMax - yMin)) * H;
+  const lastX = (candles.length - 0.5) * cw;
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 3, 0, Math.PI*2);
+  ctx.fillStyle = lineColor;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 6, 0, Math.PI*2);
+  ctx.strokeStyle = lineColor;
+  ctx.globalAlpha = 0.3;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Change % overlay
+  ctx.fillStyle = isUp ? 'rgba(74,222,128,.7)' : 'rgba(248,113,113,.7)';
+  ctx.font = 'bold 11px JetBrains Mono';
+  ctx.textAlign = 'right';
+  ctx.fillText((isUp?'+':'') + chg.toFixed(2) + '%', W-4, 14);
+
+  // Indicador de scroll (mini bar abajo)
+  if(all.length > viewSize){
+    const barW = W * (viewSize / all.length);
+    const barX = W * (port24hViewStart / all.length);
+    ctx.fillStyle = 'rgba(147,83,255,.3)';
+    ctx.fillRect(barX, H-2, barW, 2);
+  }
+
+  // Update range label
+  const rEl = document.getElementById('port-24h-range');
+  if(rEl){
+    rEl.textContent = fmtPrice(yMin+pad) + ' / ' + fmtPrice(yMax+pad);
+  }
+}
+
+// ── Touch/drag handling para el chart 24h ──
+let port24hDragging = false, port24hDragStart = 0, port24hDragStartView = 0;
+function setupPort24hDrag(){
+  const canvas = document.getElementById('port-24h-chart');
+  if(!canvas) return;
+  if(canvas.dataset.dragReady) return; // already set up
+  canvas.dataset.dragReady = '1';
+  const onStart = (x) => { port24hDragging = true; port24hDragStart = x; port24hDragStartView = port24hViewStart; };
+  const onMove = (x) => {
+    if(!port24hDragging) return;
+    const W = canvas.offsetWidth;
+    const all = STATE.port24h?.[portAsset]?.candles || [];
+    const viewSize = Math.min(60, all.length);
+    if(all.length === 0 || W === 0) return;
+    const candlesPerPx = all.length / W;
+    const dx = (port24hDragStart - x) * candlesPerPx;
+    let newStart = port24hDragStartView + Math.round(dx);
+    const maxStart = Math.max(0, all.length - viewSize);
+    newStart = Math.max(0, Math.min(maxStart, newStart));
+    if(newStart !== port24hViewStart){
+      port24hViewStart = newStart;
+      drawPort24hChart();
+    }
+  };
+  const onEnd = () => { port24hDragging = false; };
+  canvas.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX); });
+  canvas.addEventListener('mousemove', e => onMove(e.clientX));
+  canvas.addEventListener('mouseup', onEnd);
+  canvas.addEventListener('mouseleave', onEnd);
+  canvas.addEventListener('touchstart', e => { onStart(e.touches[0].clientX); }, {passive:true});
+  canvas.addEventListener('touchmove', e => { onMove(e.touches[0].clientX); }, {passive:true});
+  canvas.addEventListener('touchend', onEnd);
+}
+
 // ── Live price card ──────────────────────────────────────────
-function portUpdateLivePrice(){
+async function portUpdateLivePrice(){
   const a = PORT_ASSETS[portAsset];
   if(!a) return;
   const price = STATE.prices[portAsset] || ASSETS[portAsset]?.base || 0;
@@ -5220,10 +5481,34 @@ function portUpdateLivePrice(){
   if(aEl) aEl.textContent = a.label;
   const spEl = document.getElementById('port-spread');
   if(spEl) spEl.textContent = fmtPrice(a.spread);
+  // 24h data: usa CoinGecko (real) si está, sino fallback a session
+  STATE.port24h = STATE.port24h || {};
+  const cache = STATE.port24h[portAsset];
+  const stale = !cache || (Date.now() - (cache.fetchedAt||0) > 5*60*1000); // 5 min cache
+  if(stale){
+    STATE.port24h[portAsset] = await fetch24hCandles(portAsset);
+  }
+  const data = STATE.port24h[portAsset] || {};
   const hiEl = document.getElementById('port-24h-high');
-  if(hiEl) hiEl.textContent = portPriceHigh[portAsset] ? fmtPrice(portPriceHigh[portAsset]) : '—';
+  if(hiEl) hiEl.textContent = data.high24h ? fmtPrice(data.high24h) : '—';
   const loEl = document.getElementById('port-24h-low');
-  if(loEl) loEl.textContent = portPriceLow[portAsset] ? fmtPrice(portPriceLow[portAsset]) : '—';
+  if(loEl) loEl.textContent = data.low24h ? fmtPrice(data.low24h) : '—';
+  // Indicador de fuente
+  const srcEl = document.getElementById('port-price-source');
+  if(srcEl){
+    if(data.source === 'coingecko'){
+      const ago = data.fetchedAt ? Math.floor((Date.now()-data.fetchedAt)/1000) : 0;
+      srcEl.innerHTML = `<span style="color:var(--green)">📡 CoinGecko</span> · <span style="color:var(--text3)">hace ${ago < 60 ? ago+'s' : Math.floor(ago/60)+'m'}</span>`;
+    } else if(data.source === 'simulated'){
+      srcEl.innerHTML = `<span style="color:var(--gold)">⚠ Simulado</span> · <span style="color:var(--text3)">sin conexión a CoinGecko</span>`;
+    } else {
+      srcEl.innerHTML = `<span style="color:var(--text3)">— Cargando…</span>`;
+    }
+  }
+  // Redraw chart con data real
+  port24hViewStart = 0; // reset scroll al cambiar activo
+  drawPort24hChart();
+  setupPort24hDrag();
 }
 
 // ── Header / equity ─────────────────────────────────────────
