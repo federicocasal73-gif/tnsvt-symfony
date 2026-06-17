@@ -20,8 +20,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/app')]
 class GameAppController extends AbstractController
 {
-    private const GAME_VERSION = '1.0.0';
-    private const GAME_VERSION_CODE = 1;
+    private const GAME_VERSION = '1.0.1';
+    private const GAME_VERSION_CODE = 2;
     private const GAME_APK_FILENAME = 'tnsvt-market-instinct.apk';
 
     public function __construct(
