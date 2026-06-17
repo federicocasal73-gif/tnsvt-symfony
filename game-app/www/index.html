@@ -55,7 +55,7 @@ if('serviceWorker' in navigator){
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif}
-body{display:flex;flex-direction:column}
+body{position:relative}
 
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:3px}
@@ -70,6 +70,7 @@ body{display:flex;flex-direction:column}
   display:flex;gap:16px;overflow-x:auto;scrollbar-width:none;
   font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;
   flex-shrink:0;
+  position:fixed;top:0;left:0;right:0;z-index:50;
 }
 #ticker::-webkit-scrollbar{display:none}
 .tick-item{display:flex;gap:5px;align-items:center}
@@ -82,7 +83,7 @@ body{display:flex;flex-direction:column}
 @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* MAIN CONTAINER */
-#app{flex:1;overflow:hidden;position:relative}
+#app{position:fixed;top:30px;bottom:60px;left:0;right:0;overflow:hidden;z-index:1}
 
 /* SCREENS */
 .screen{
@@ -100,7 +101,6 @@ body{display:flex;flex-direction:column}
   position:fixed;bottom:0;left:0;right:0;z-index:100;
   box-shadow:0 -4px 20px rgba(0,0,0,.4);
 }
-#app{padding-bottom:60px}
 .nav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3px;cursor:pointer;transition:all .2s;
