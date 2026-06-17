@@ -320,6 +320,64 @@ let sb = window.API;
         document.getElementById('hub-view').style.display = 'flex';
       }
 
+      // ============================================================
+      // T.N.S.V.T — MARKET INSTINCT GAME
+      // Abre el juego en un overlay fullscreen con iframe
+      // ============================================================
+      function openTnsvtGame() {
+        // Si ya está abierto, no hacer nada
+        if (document.getElementById('tnsvt-game-overlay')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'tnsvt-game-overlay';
+        overlay.style.cssText = `
+          position: fixed; inset: 0; z-index: 9999;
+          background: #000;
+          animation: fadeIn .3s ease;
+          display: flex; flex-direction: column;
+        `;
+        overlay.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 12px; background:linear-gradient(90deg, rgba(13,10,26,.97), rgba(26,18,48,.97)); border-bottom:1px solid #9353ff; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#4ade80; box-shadow:0 0 6px #4ade80;"></span>
+              <span style="font-family:'Cinzel',serif; color:#c8a0ff; font-weight:700; letter-spacing:1px; font-size:13px;">T.N.S.V.T — MARKET INSTINCT</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button id="tnsvt-game-fullscreen" style="background:rgba(147,83,255,.15); border:1px solid #9353ff; color:#c8a0ff; padding:4px 12px; border-radius:18px; font-size:12px; cursor:pointer;">⛶ Fullscreen</button>
+              <button id="tnsvt-game-close" style="background:rgba(248,113,113,.15); border:1px solid #f87171; color:#f87171; padding:4px 14px; border-radius:18px; font-size:12px; cursor:pointer; font-weight:600;">✕ Cerrar</button>
+            </div>
+          </div>
+          <iframe id="tnsvt-game-iframe" src="/game" style="flex:1; width:100%; border:0; background:#06040f;" allow="autoplay; fullscreen"></iframe>
+        `;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+
+        // Close handler
+        const close = () => {
+          overlay.style.animation = 'fadeOut .3s ease';
+          setTimeout(() => {
+            overlay.remove();
+            document.body.style.overflow = '';
+          }, 280);
+        };
+
+        document.getElementById('tnsvt-game-close').onclick = close;
+        document.getElementById('tnsvt-game-fullscreen').onclick = () => {
+          const iframe = document.getElementById('tnsvt-game-iframe');
+          if (iframe.requestFullscreen) iframe.requestFullscreen();
+        };
+
+        // ESC para cerrar
+        const escHandler = (e) => {
+          if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        showToast('🎮 T.N.S.V.T Market Instinct cargado. ¡A jugar!');
+        try { HAPTICS?.win?.(); } catch(_){}
+      }
+      window.openTnsvtGame = openTnsvtGame;
+
       function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
@@ -2880,6 +2938,7 @@ let sb = window.API;
       window.playLessonSafe = playLessonSafe;
       window.openModule = openModule;
       window.closeTradingPanel = closeTradingPanel;
+      window.openTnsvtGame = openTnsvtGame;
       window.switchTab = switchTab;
       window.mcNav2 = mcNav2;
       window.mcShowNode = mcShowNode;

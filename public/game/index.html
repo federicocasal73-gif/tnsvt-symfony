@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="T.N.S.V.T — Market Instinct">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#06040f">
+<title>T.N.S.V.T — Market Instinct</title>
+<script>
+window.TNSVT_GAME = {
+  parentApp: window.parent !== window,
+  apiBase: '/api/game',
+  tnsvtApp: 'tnsvt',
+  buildTag: 'integrated-v1.0',
+};
+</script>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2306040f'/><text y='68' x='50' text-anchor='middle' font-size='58'>🔮</text></svg>">
+<style>
+  /* TNSVT INTEGRATION BAR */
+  #tnsvt-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: linear-gradient(90deg, rgba(13,10,26,.97), rgba(26,18,48,.97), rgba(13,10,26,.97));
+    border-bottom: 1px solid #9353ff;
+    padding: 6px 12px; display: flex; align-items: center; justify-content: space-between;
+    font-family: 'Inter', sans-serif; font-size: 12px;
+  }
+  #tnsvt-bar .tb-left { display: flex; align-items: center; gap: 8px; }
+  #tnsvt-bar .tb-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+  #tnsvt-bar .tb-name { font-family: 'Cinzel', serif; color: #c8a0ff; font-weight: 700; letter-spacing: 1px; }
+  #tnsvt-bar .tb-xp { color: #f0c060; font-weight: 600; font-size: 11px; }
+  #tnsvt-bar .tb-back, #tnsvt-bar .tb-action {
+    background: rgba(147,83,255,.15); border: 1px solid #9353ff;
+    border-radius: 18px; padding: 4px 12px; color: #c8a0ff;
+    font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: none;
+    transition: all .2s;
+  }
+  #tnsvt-bar .tb-back:hover, #tnsvt-bar .tb-action:hover { background: rgba(147,83,255,.3); }
+  body { padding-top: 36px !important; }
+  #ticker { margin-top: 0 !important; }
+  /* End TNSVT bar */
+</style>
+<script>
+// PWA Service Worker inline (caching para offline) - solo standalone
+if('serviceWorker' in navigator && !window.TNSVT_GAME.parentApp){
+  const sw = `
+    const CACHE='tnsv-v1';
+    self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/']))));
+    self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
+  `;
+  const blob = new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06040f;
+  --bg2:#0d0a1a;
+  --bg3:#150f2a;
+  --panel:#1a1230;
+  --panel2:#211840;
+  --border:#2d1f55;
+  --violet:#9353ff;
+  --violet2:#7a3de0;
+  --violet3:#c8a0ff;
+  --gold:#f0c060;
+  --gold2:#d4a030;
+  --gold3:#fff0c0;
+  --green:#4ade80;
+  --red:#f87171;
+  --blue:#60a5fa;
+  --text:#e8e0ff;
+  --text2:#a090c0;
+  --text3:#6a5a8a;
+  --glow:rgba(147,83,255,0.3);
+  --glow-gold:rgba(240,192,96,0.25);
+  --r:14px;
+  --r2:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif}
+body{display:flex;flex-direction:column}
+</style>
+</head>
+<body>
+
+<!-- TNSVT INTEGRATION BAR (top, siempre visible) -->
+<div id="tnsvt-bar">
+  <div class="tb-left">
+    <span class="tb-dot" id="tnsvt-status-dot"></span>
+    <span class="tb-name">T.N.S.V.T</span>
+    <span class="tb-xp" id="tnsvt-xp-badge">✦ 0 XP</span>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="tb-action" onclick="tnsvtGameHome()">🏠 Inicio TNSVT</button>
+    <button class="tb-back" onclick="tnsvtGameBack()">← Volver</button>
+  </div>
+</div>
+
+<div id="ticker">
+  <span class="tick-item"><span class="tick-dot"></span><span style="color:var(--text3);font-size:10px">LIVE</span></span>
+  <span class="tick-item" id="t-BTC"><span class="tick-sym">BTC</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-ETH"><span class="tick-sym">ETH</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-SOL"><span class="tick-sym">SOL</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-BNB"><span class="tick-sym">BNB</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-XRP"><span class="tick-sym">XRP</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-GOLD" style="border-left:1px solid rgba(45,31,85,.6);padding-left:12px;margin-left:4px"><span class="tick-sym" style="color:var(--gold)">GOLD</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-SP500"><span class="tick-sym" style="color:var(--blue)">SP500</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-NAS100"><span class="tick-sym" style="color:var(--blue)">NAS100</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-DXY"><span class="tick-sym" style="color:rgba(200,160,255,.8)">DXY</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+  <span class="tick-item" id="t-EURUSD"><span class="tick-sym" style="color:rgba(200,160,255,.8)">EUR/USD</span><span class="tick-price">...</span><span class="tick-chg">...</span></span>
+</div>
+<div id="streak-bar-wrap" class="hidden">
+  <div id="streak-bar-inner">
+    <div id="streak-icons">
+      <span class="streak-icon" id="si-1">🔥</span>
+      <span class="streak-icon" id="si-2">🔥</span>
+      <span class="streak-icon" id="si-3">🔥</span>
+      <span class="streak-icon" id="si-4">⚡</span>
+      <span class="streak-icon" id="si-5">⚡</span>
+      <span class="streak-icon" id="si-6">⚡</span>
+      <span class="streak-icon" id="si-7">✦</span>
+      <span class="streak-icon" id="si-8">✦</span>
+      <span class="streak-icon" id="si-9">✦</span>
+      <span class="streak-icon" id="si-10">👑</span>
+    </div>
+    <div id="streak-mult-label" style="color:var(--text3)">RACHA</div>
+    <div id="streak-mult-xp">×1 XP</div>
+  </div>
+</div>
+<div id="app">
+<!-- ======================== SCREEN: INICIO ======================== -->
+<div class="screen active" id="s-inicio">
+  <div class="hero">
+    <div class="hero-title">T.N.S.V.T — Market Instinct</div>
+    <div class="hero-name">Hola, Trader ✦</div>
+    <div class="hero-rank">
+      <span class="badge badge-rank">⚔ OPERADOR</span>
+      <span class="badge badge-xp">✦ 2,340 XP</span>
+      <span id="price-badge" class="badge badge-live">● LIVE</span>
+    </div>
+    <div class="hero-xp-row">
+      <div class="hero-xp-label"><span>Progreso al siguiente rango</span><span>2,340 / 3,500</span></div>
+      <div class="xp-bar-wrap"><div class="xp-bar-fill" style="width:67%"></div></div>
+    </div>
+  </div>
+  <div class="sec-hdr"><span class="sec-title">Misiones de Hoy</span><span class="sec-link" onclick="goScreen('s-misiones')">Ver todas →</span></div>
+  <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:6px">
+    <div class="mission-item" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+      <div class="miss-icon">🎯</div>
+      <div class="miss-info">
+        <div class="miss-name">Acertar 5 operaciones</div>
+        <div class="miss-prog">3 / 5 completadas</div>
+        <div class="miss-bar"><div class="miss-fill" style="width:60%"></div></div>
+      </div>
+      <div class="miss-reward"><div class="miss-xp">+150 XP</div></div>
+    </div>
+    <div class="mission-item" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+      <div class="miss-icon">⚡</div>
+      <div class="miss-info">
+        <div class="miss-name">Racha de 3 en Survival</div>
+        <div class="miss-prog">0 / 3</div>
+        <div class="miss-bar"><div class="miss-fill" style="width:0%"></div></div>
+      </div>
+      <div class="miss-reward"><div class="miss-xp">+200 XP</div></div>
+    </div>
+  </div>
+  <div class="sec-hdr"><span class="sec-title">Modo del Día</span></div>
+  <div class="feat-mode" onclick="goScreen('s-daily')">
+    <div style="font-size:32px;margin-bottom:8px">📅</div>
+    <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;margin-bottom:4px">Daily Challenge</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">El mismo activo para todos. Un solo intento. ¿Quién lee mejor el mercado hoy?</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="badge badge-rank">🔥 2,847 jugadores</span>
+      <span style="font-size:12px;color:var(--text3)" id="daily-countdown">Renueva en: --:--:--</span>
+    </div>
+  </div>
+  <div class="sec-hdr"><span class="sec-title">Jugar Ahora</span><span class="sec-link" onclick="goScreen('s-modos')">Todos →</span></div>
+  <div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;padding-bottom:16px">
+    <div class="mode-card" onclick="startClassic()">
+      <div class="mode-icon">📊</div>
+      <div class="mode-info">
+        <div class="mode-name">Classic</div>
+        <div class="mode-desc">Long · Short · Sin Trade — el juego base</div>
+        <div class="mode-meta">
+          <span class="mode-tag" style="background:rgba(74,222,128,.15);color:var(--green)">LIBRE</span>
+          <span class="mode-tag" style="background:rgba(147,83,255,.15);color:var(--violet3)">8 ACTIVOS</span>
+        </div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+    <div class="mode-card" onclick="startSurvival()">
+      <div class="mode-icon">❤️</div>
+      <div class="mode-info">
+        <div class="mode-name">Survival</div>
+        <div class="mode-desc">3 vidas · dificultad creciente</div>
+        <div class="mode-meta">
+          <span class="mode-tag" style="background:rgba(248,113,113,.15);color:var(--red)">INTENSO</span>
+        </div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+    <div class="mode-card" onclick="goScreen('s-arena')">
+      <div class="mode-icon">⚔️</div>
+      <div class="mode-info">
+        <div class="mode-name">Arena 1vs1</div>
+        <div class="mode-desc">Desafiá a otro trader en tiempo real</div>
+        <div class="mode-meta">
+          <span class="mode-tag" style="background:rgba(240,192,96,.15);color:var(--gold)">COMPETITIVO</span>
+        </div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+    <div class="mode-card" onclick="goScreen('s-fractal')" style="border-color:rgba(255,215,0,.3);background:linear-gradient(135deg,rgba(255,215,0,.05),transparent)">
+      <div class="mode-icon">🔱</div>
+      <div class="mode-info">
+        <div class="mode-name" style="color:#ffd700">Modo Fractal</div>
+        <div class="mode-desc">BOS · LG · Zonas · Setup 2-Step — T.N.S.V.T</div>
+        <div class="mode-meta">
+          <span class="mode-tag" style="background:rgba(255,215,0,.15);color:#ffd700">METODOLOGÍA</span>
+          <span class="mode-tag" style="background:rgba(74,222,128,.1);color:var(--green)">NUEVO</span>
+        </div>
+      </div>
+      <div style="font-size:18px">👑</div>
+    </div>
+    <div class="mode-card" onclick="goScreen('s-glosario')" style="border-color:rgba(96,165,250,.25);background:linear-gradient(135deg,rgba(96,165,250,.05),transparent)">
+      <div class="mode-icon">📖</div>
+      <div class="mode-info">
+        <div class="mode-name" style="color:var(--blue)">Glosario Completo</div>
+        <div class="mode-desc">OB · POI · BOS · LG · EQH · TR · 30+ conceptos</div>
+        <div class="mode-meta">
+          <span class="mode-tag" style="background:rgba(96,165,250,.15);color:var(--blue)">EDUCACIÓN</span>
+        </div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+  </div>
+</div>
+</div>
+<div id="toast-container"></div>
+<script>
+function tnsvtGameBack(){
+  if(window.parent!==window && window.parent.tnsvtCloseGame){
+    window.parent.tnsvtCloseGame();
+  } else {
+    if(document.referrer && document.referrer.includes('/')){
+      window.history.back();
+    } else {
+      window.location.href='/';
+    }
+  }
+}
+function tnsvtGameHome(){
+  if(window.parent!==window){
+    window.parent.location.href='/';
+  } else {
+    window.location.href='/';
+  }
+}
+</script>
+</body>
+</html>
