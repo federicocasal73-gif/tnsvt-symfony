@@ -1,31 +1,57 @@
 @echo off
+REM ============================================================
+REM TNSVT - Server starter
+REM Levanta php -S 0.0.0.0:8000 en background, accesible en:
+REM   - localhost:8000  (solo esta PC)
+REM   - 192.168.x.x:8000  (LAN de tu casa)
+REM   - 100.x.y.z:8000  (Tailscale - celular y amigos en tu tailnet)
+REM ============================================================
+
 setlocal
-cd /d C:\Users\HP 240 inch G9\tnsvt-symfony
-set PHP_EXE="C:\Users\HP 240 inch G9\AppData\Local\Microsoft\WinGet\Packages\PHP.PHP.8.4_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe"
 
-echo ============================================
-echo   T.N.S.V.T - INICIANDO SERVIDOR
-echo ============================================
+REM Ir a la raiz del proyecto
+cd /d "%~dp0"
 
-REM 1) Compilar assets (CSS + JS bundleados)
-echo [1/2] Compilando assets del frontend...
-%PHP_EXE% bin/console asset-map:compile --env=dev
-if errorlevel 1 (
-    echo [WARN] asset-map:compile fallo - los assets pueden estar desactualizados.
-    echo         La pagina puede no cargar CSS/JS hasta que lo arregles.
+REM 1. Matar cualquier instancia previa de PHP corriendo en :8000
+echo.
+echo [1/4] Matando instancias previas de PHP...
+for /f "tokens=*" %%i in ('powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { (Get-Process -Id \$_.OwningProcess).Id }" 2^>nul') do (
+    echo   - Matando PID %%i
+    powershell -NoProfile -Command "Stop-Process -Id %%i -Force -ErrorAction SilentlyContinue" 2>nul
 )
 
-REM 2) Limpiar cache (opcional pero util en dev)
-echo [2/2] Limpiando cache de Symfony...
-%PHP_EXE% bin/console cache:clear --env=dev >nul 2>&1
+REM 2. Crear directorio de logs si no existe
+if not exist "var\log" mkdir "var\log"
+
+REM 3. Levantar el server en background via PowerShell
+echo.
+echo [2/4] Iniciando PHP server en background...
+powershell -NoProfile -Command ^
+    "Start-Process -FilePath 'php' -ArgumentList '-S','0.0.0.0:8000','-t','public' -WorkingDirectory '%CD%' -RedirectStandardOutput '%CD%\var\log\server.log' -RedirectStandardError '%CD%\var\log\server.err.log' -WindowStyle Hidden -PassThru | Select-Object Id, ProcessName | Format-Table -AutoSize | Out-String | Write-Host"
+
+REM 4. Esperar 2 segundos y verificar que arrancó
+echo.
+echo [3/4] Verificando que el server arranco...
+timeout /t 2 /nobreak >nul
+powershell -NoProfile -Command ^
+    "if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) { Write-Host '   OK - server escuchando en :8000' -ForegroundColor Green } else { Write-Host '   ERROR - server no arranco, revisa var\log\server.err.log' -ForegroundColor Red; exit 1 }"
+
+REM 5. Detectar IPs y mostrar URLs disponibles
+echo.
+echo [4/4] URLs disponibles:
+echo   - http://localhost:8000  (local)
+powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } | ForEach-Object { Write-Host ('   - http://' + $_.IPAddress + ':8000  (LAN/Tailscale)') }"
+powershell -NoProfile -Command "try { \$ts = & 'C:\Program Files\Tailscale\tailscale.exe' ip 2>\$null | Select-Object -First 1; if (\$ts) { Write-Host ('   Tailscale IP: ' + \$ts) -ForegroundColor Yellow } } catch {}"
 
 echo.
-echo ============================================
-echo   Servidor listo en http://localhost:8000
-echo   PHP: %PHP_EXE%
-echo   Para frenar: cerra esta ventana o Ctrl+C
-echo ============================================
+echo ============================================================
+echo  Server TNSVT corriendo en background.
+echo  Log:  var\log\server.log
+echo  Err:  var\log\server.err.log
+echo.
+echo  Para detenerlo: stop_server.bat
+echo  Para ver logs en vivo: tail_logs.bat
+echo ============================================================
 echo.
 
-REM 3) Levantar el server PHP
-%PHP_EXE% -S 0.0.0.0:8000 -t "C:\Users\HP 240 inch G9\tnsvt-symfony\public" "C:\Users\HP 240 inch G9\tnsvt-symfony\public\router.php"
+endlocal
