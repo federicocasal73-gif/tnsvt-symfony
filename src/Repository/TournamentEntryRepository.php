@@ -24,17 +24,22 @@ class TournamentEntryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Leaderboard en vivo: todos los entries activos de un torneo
-     * ordenados por pnl_pct DESC (los que mas ganaron arriba)
+     * Leaderboard: todos los entries del torneo ordenados por pnl_pct DESC.
+     * Si el torneo esta activo, muestra solo los activos.
+     * Si esta finished/closed, muestra todos (para ver el resultado final).
      */
     public function getLeaderboard(Tournament $t): array
     {
-        return $this->createQueryBuilder('e')
+        $qb = $this->createQueryBuilder('e')
             ->where('e.tournament = :t')
-            ->andWhere('e.status = :active')
-            ->setParameter('t', $t)
-            ->setParameter('active', TournamentEntry::STATUS_ACTIVE)
-            ->orderBy('e.pnlPct', 'DESC')
+            ->setParameter('t', $t);
+
+        if ($t->isActive()) {
+            $qb->andWhere('e.status = :active')
+               ->setParameter('active', TournamentEntry::STATUS_ACTIVE);
+        }
+
+        return $qb->orderBy('e.pnlPct', 'DESC')
             ->getQuery()
             ->getResult();
     }
