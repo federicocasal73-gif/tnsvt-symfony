@@ -4,8 +4,9 @@
 	"webDir": "public",
 	"server": {
 		"androidScheme": "https",
-		"url": "http://100.122.8.48:8000",
-		"cleartext": true
+		"url": "http://100.108.182.28:8000",
+		"cleartext": true,
+		"errorPath": "error.html"
 	},
 	"android": {
 		"allowMixedContent": true,
