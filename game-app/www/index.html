@@ -1193,35 +1193,36 @@ body{display:flex;flex-direction:column}
 <!-- ======================== SCREEN: TORNEOS ======================== -->
 <div class="screen" id="s-torneos">
   <div id="torneo-lobby">
-    <div style="padding:20px 16px 16px;background:linear-gradient(135deg,var(--panel2),var(--panel));border-bottom:1px solid var(--border);position:relative;overflow:hidden">
-      <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;background:radial-gradient(circle,rgba(240,192,96,.3),transparent 70%);pointer-events:none"></div>
-      <div style="font-size:36px;margin-bottom:8px">🏆</div>
-      <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:var(--gold);margin-bottom:4px">Torneo Semanal</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">10 rondas · Ranking global · Premios en XP</div>
-      <div style="display:flex;gap:8px">
-        <span class="badge" style="background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3)">⏱ 2d 14h restantes</span>
-        <span class="badge badge-rank">👥 1,247 inscritos</span>
-      </div>
-    </div>
-    <div style="padding:16px">
-      <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--text3);letter-spacing:1px;margin-bottom:12px">PREMIOS</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(90deg,rgba(255,215,0,.12),transparent);border:1px solid rgba(255,215,0,.3);border-radius:var(--r2)">
-          <span style="font-size:20px">🥇</span><div style="flex:1"><div style="font-weight:700">1° Lugar</div><div style="font-size:11px;color:var(--text3)">Top del torneo</div></div><div style="font-family:'Cinzel',serif;font-size:16px;color:var(--gold);font-weight:700">+2,000 XP</div>
+    <div style="padding:16px;background:linear-gradient(135deg,var(--panel2),var(--panel));border-bottom:1px solid var(--border);position:relative;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--gold)">🏆 Torneos</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">Competí por premios en USD reales</div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(192,192,192,.06);border:1px solid rgba(192,192,192,.2);border-radius:var(--r2)">
-          <span style="font-size:20px">🥈</span><div style="flex:1"><div style="font-weight:700">2° Lugar</div></div><div style="font-family:'Cinzel',serif;font-size:16px;color:#c0c0c0;font-weight:700">+1,000 XP</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(205,127,50,.06);border:1px solid rgba(205,127,50,.2);border-radius:var(--r2)">
-          <span style="font-size:20px">🥉</span><div style="flex:1"><div style="font-weight:700">3° Lugar</div></div><div style="font-family:'Cinzel',serif;font-size:16px;color:#cd7f32;font-weight:700">+500 XP</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r2)">
-          <span style="font-size:20px">🏅</span><div style="flex:1"><div style="font-weight:700">Top 10</div></div><div style="font-family:'Cinzel',serif;font-size:16px;color:var(--violet3);font-weight:700">+200 XP</div>
+        <div id="torneoWalletChip" style="text-align:right;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 10px">
+          <div style="font-size:8px;color:var(--text3);letter-spacing:1.5px">WALLET</div>
+          <div id="torneoWalletBalance" style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:var(--green)">$0.00</div>
         </div>
       </div>
+      <div id="torneosNotAuth" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;font-size:11px;color:#fca5a5">⚠ No estás conectado a TNSVT. Configurá tu código en <b>Perfil → Sync TNSVT</b> para inscribirte.</div>
     </div>
-    <div style="padding:0 16px 16px">
-      <button class="btn btn-gold btn-lg" style="width:100%" onclick="startTorneo()">🏆 Entrar al Torneo</button>
+
+    <div style="padding:10px 16px 0;display:flex;gap:6px;align-items:center">
+      <input type="text" id="torneosSearch" placeholder="Buscar torneo..." oninput="renderTorneosList()" style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:12px">
+      <button onclick="loadActiveTorneos()" style="padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:14px;cursor:pointer">🔄</button>
+    </div>
+
+    <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--text3);letter-spacing:1.5px;padding:14px 16px 6px">DISPONIBLES</div>
+    <div id="torneosList" style="padding:0 16px 8px;display:flex;flex-direction:column;gap:8px">Cargando torneos...</div>
+
+    <div id="torneosMySection" style="display:none">
+      <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--text3);letter-spacing:1.5px;padding:8px 16px 6px">MIS TORNEOS</div>
+      <div id="torneosMyList" style="padding:0 16px 8px;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <div style="padding:12px 16px 20px;border-top:1px solid var(--border);margin-top:6px;background:rgba(168,160,200,.04)">
+      <button class="btn btn-secondary btn-lg" style="width:100%;margin-bottom:4px" onclick="startTorneo()">🎮 Modo Práctica (sin premios)</button>
+      <div style="text-align:center;font-size:10px;color:var(--text3);margin-top:4px">Práctica libre · +200 XP · No afecta tu wallet</div>
     </div>
   </div>
 
@@ -2205,7 +2206,7 @@ function goScreen(id){
   if(id==='s-arena') initArena();
   if(id==='s-fractal'){ document.getElementById('fractal-lobby').style.display='block'; document.getElementById('fractal-game').style.display='none'; }
   if(id==='s-glosario') initGlosario();
-  if(id==='s-torneos') { document.getElementById('torneo-lobby').style.display='';document.getElementById('torneo-game').style.display='none'; }
+  if(id==='s-torneos') { document.getElementById('torneo-lobby').style.display='';document.getElementById('torneo-game').style.display='none'; if(typeof loadActiveTorneos==='function') loadActiveTorneos(); }
 }
 
 // ============================================================
@@ -3012,14 +3013,193 @@ let torneoCandles=[];
 let torneoTimerInt=null;
 let torneoWaited=false;
 let torneoState={score:0,round:1,positions:[1247,1196,1087,923,874,756,645,534,423,312,201,145,88,43,21,12,7,5,3,1]};
+let currentTorneo=null;
 
 function startTorneo(){
+  currentTorneo=null; // practice mode - no real tournament
   torneoState = {score:0,round:1,positions:[...Array(1248)].map((_,i)=>i+1)};
   document.getElementById('torneo-lobby').style.display='none';
   const g = document.getElementById('torneo-game');
   g.style.display='flex';
   STATE.torneo.score=0;STATE.torneo.round=1;
   torneoNextRound();
+}
+
+async function joinTorneo(id){
+  if(!TNSVT_CONFIG.enabled || !TNSVT_CONFIG.code){
+    if(window.showToast) showToast('⚠ Configurá tu código TNSVT en Perfil → Sync TNSVT');
+    return;
+  }
+  if(window.showToast) showToast('⏳ Inscribiendo...');
+  try {
+    const r = await fetch(TNSVT_CONFIG.serverUrl.replace(/\/$/,'') + '/api/tournaments/' + id + '/join', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-Game-Code': TNSVT_CONFIG.code },
+      body: JSON.stringify({ starting_equity: 50000 }),
+      credentials: 'omit'
+    });
+    const d = await r.json();
+    if(!r.ok || d.error){
+      const msg = d.message || d.error || 'Error desconocido';
+      if(window.showToast) showToast('❌ ' + msg);
+      if(d.error === 'wallet_insufficient'){
+        if(window.showToast) showToast('💰 Necesitás $' + d.requested + ' USD en tu wallet. Pedile al admin que te acredite.');
+      }
+      return;
+    }
+    if(window.showToast) showToast('✅ Inscrito al torneo #' + id + '. Suerte!');
+    currentTorneo = { id: d.tournament_id, starting_equity: parseFloat(d.starting_equity), entry_fee: parseFloat(d.entry_fee_paid) };
+    // Carga wallet balance despues del join
+    loadTorneoWallet();
+    // Inicia el juego
+    torneoState = {score:0,round:1,positions:[...Array(1248)].map((_,i)=>i+1)};
+    document.getElementById('torneo-lobby').style.display='none';
+    const g = document.getElementById('torneo-game');
+    g.style.display='flex';
+    STATE.torneo.score=0;STATE.torneo.round=1;
+    torneoNextRound();
+  } catch(e){
+    if(window.showToast) showToast('❌ Error: ' + e.message);
+  }
+}
+
+let _torneosCache = { active: [], mine: [] };
+
+async function loadActiveTorneos(){
+  const list = document.getElementById('torneosList');
+  const mySection = document.getElementById('torneosMySection');
+  const myList = document.getElementById('torneosMyList');
+  const notAuth = document.getElementById('torneosNotAuth');
+  if(list) list.innerHTML = '<div style="text-align:center;padding:18px;color:var(--text3);font-size:12px">Cargando...</div>';
+
+  // Mostrar/ocultar warning si no esta autenticado
+  if(notAuth) notAuth.style.display = (!TNSVT_CONFIG.enabled || !TNSVT_CONFIG.code) ? 'block' : 'none';
+
+  // Cargar wallet
+  loadTorneoWallet();
+
+  // 1) Torneos activos (publico, no requiere auth)
+  try {
+    const r = await fetch((TNSVT_CONFIG.serverUrl||'http://192.168.1.2:8000').replace(/\/$/,'') + '/api/tournaments/active');
+    const d = await r.json();
+    _torneosCache.active = (d && d.tournaments) ? d.tournaments : [];
+  } catch(e){
+    _torneosCache.active = [];
+    if(list) list.innerHTML = '<div style="text-align:center;padding:18px;color:#f87171;font-size:12px">❌ No se pudo conectar al servidor. Revisá la URL en Perfil → Sync TNSVT.</div>';
+    return;
+  }
+
+  // 2) Mis torneos (requiere auth)
+  if(TNSVT_CONFIG.enabled && TNSVT_CONFIG.code){
+    try {
+      const r = await fetch((TNSVT_CONFIG.serverUrl||'').replace(/\/$/,'') + '/api/tournaments/my', {
+        headers: { 'X-Game-Code': TNSVT_CONFIG.code }
+      });
+      const d = await r.json();
+      _torneosCache.mine = (d && d.entries) ? d.entries : [];
+      if(mySection) mySection.style.display = _torneosCache.mine.length > 0 ? 'block' : 'none';
+    } catch(e){
+      _torneosCache.mine = [];
+      if(mySection) mySection.style.display = 'none';
+    }
+  } else {
+    if(mySection) mySection.style.display = 'none';
+  }
+
+  renderTorneosList();
+  renderTorneosMyList();
+}
+
+function renderTorneosList(){
+  const list = document.getElementById('torneosList');
+  if(!list) return;
+  const search = (document.getElementById('torneosSearch')?.value || '').toLowerCase().trim();
+  let arr = _torneosCache.active.slice();
+  if(search) arr = arr.filter(t => (t.name||'').toLowerCase().includes(search));
+
+  if(arr.length === 0){
+    list.innerHTML = '<div style="text-align:center;padding:18px;color:var(--text3);font-size:12px">'+(search?'Sin resultados.':'No hay torneos activos. Pedile al admin que cree uno.')+'</div>';
+    return;
+  }
+  list.innerHTML = arr.map(t => torneoCard(t, false)).join('');
+}
+
+function renderTorneosMyList(){
+  const list = document.getElementById('torneosMyList');
+  if(!list) return;
+  const arr = _torneosCache.mine.slice();
+  if(arr.length === 0){ list.innerHTML = ''; return; }
+  list.innerHTML = arr.map(t => torneoCard(t.tournament, true)).join('');
+}
+
+function torneoCard(t, isMine){
+  if(!t) return '';
+  const statusColor = t.status==='active' ? 'var(--green)' : t.status==='finished' ? 'var(--text3)' : 'var(--red)';
+  const daysLeft = t.days_remaining != null ? t.days_remaining : '?';
+  const daysText = daysLeft === 0 ? 'Termina hoy' : daysLeft === 1 ? '1 día restante' : daysLeft+' días restantes';
+  const feeColor = parseFloat(t.entry_fee_usd||0) > 0 ? 'var(--gold)' : 'var(--green)';
+  const spotsLeft = t.spots_left != null ? t.spots_left : (t.max_players - t.participants);
+  const full = spotsLeft <= 0;
+  const joined = t.my_entry != null;
+  let actionBtn = '';
+  if(isMine){
+    const myPnl = t.my_entry && t.my_entry.pnl_pct ? parseFloat(t.my_entry.pnl_pct).toFixed(2) : null;
+    const pnlColor = myPnl != null ? (parseFloat(myPnl) >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
+    const pnlText = myPnl != null ? (parseFloat(myPnl) >= 0 ? '+' : '') + myPnl + '%' : '—';
+    actionBtn = '<div style="font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;color:'+pnlColor+'">'+pnlText+'</div>';
+  } else {
+    if(joined){
+      actionBtn = '<div style="font-size:11px;color:var(--green);font-weight:700">✓ INSCRITO</div>';
+    } else if(full){
+      actionBtn = '<div style="font-size:11px;color:var(--red);font-weight:700">LLENO</div>';
+    } else if(t.status !== 'active'){
+      actionBtn = '<div style="font-size:11px;color:var(--text3);font-weight:700">'+t.status_label+'</div>';
+    } else {
+      const canJoin = TNSVT_CONFIG.enabled && TNSVT_CONFIG.code;
+      actionBtn = '<button onclick="joinTorneo('+t.id+')" '+(canJoin?'':'disabled')+' style="padding:6px 12px;background:'+(canJoin?'linear-gradient(135deg,var(--gold),var(--gold2))':'var(--bg2)')+';border:0;color:'+(canJoin?'var(--bg)':'var(--text3)')+';border-radius:6px;font-size:11px;font-weight:700;cursor:'+(canJoin?'pointer':'not-allowed')+'">🏆 Unirse</button>';
+    }
+  }
+  return '<div style="background:var(--panel);border:1px solid '+(isMine?'var(--gold)':'var(--border)')+';border-radius:10px;padding:12px;position:relative;overflow:hidden">'
+    +'<div style="display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:6px">'
+    +  '<div style="flex:1;min-width:0">'
+    +    '<div style="font-family:Cinzel,serif;font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(t.name||'Torneo')+'</div>'
+    +    '<div style="font-size:9px;letter-spacing:1.5px;color:'+statusColor+';text-transform:uppercase;margin-top:2px">⏱ '+daysText+'</div>'
+    +  '</div>'
+    +  '<div style="text-align:right">'
+    +    '<div style="font-size:9px;color:var(--text3);letter-spacing:1px">ENTRY</div>'
+    +    '<div style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:'+feeColor+'">$'+parseFloat(t.entry_fee_usd||0).toFixed(2)+'</div>'
+    +  '</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:12px;padding:6px 0;border-top:1px solid rgba(168,160,200,.08);border-bottom:1px solid rgba(168,160,200,.08);margin:6px 0">'
+    +  '<div style="flex:1"><div style="font-size:8px;color:var(--text3);letter-spacing:1px">POZO</div><div style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600;color:var(--gold)">$'+parseFloat(t.prize_pool_usd||0).toFixed(2)+'</div></div>'
+    +  '<div style="flex:1"><div style="font-size:8px;color:var(--text3);letter-spacing:1px">JUGADORES</div><div style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600">'+t.participants+'/'+t.max_players+'</div></div>'
+    +  '<div style="flex:1"><div style="font-size:8px;color:var(--text3);letter-spacing:1px">DIST</div><div style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600">'+t.prize_distribution+'</div></div>'
+    +'</div>'
+    +(t.description?'<div style="font-size:11px;color:var(--text2);margin-bottom:6px;line-height:1.4">'+escapeHtml(t.description)+'</div>':'')
+    +'<div style="display:flex;justify-content:flex-end">'+actionBtn+'</div>'
+    +'</div>';
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadTorneoWallet(){
+  const el = document.getElementById('torneoWalletBalance');
+  if(!el) return;
+  if(!TNSVT_CONFIG.enabled || !TNSVT_CONFIG.code){ el.textContent='$0.00'; el.style.color='var(--text3)'; return; }
+  try {
+    const r = await fetch((TNSVT_CONFIG.serverUrl||'').replace(/\/$/,'') + '/api/wallet/balance', {
+      headers: { 'X-Game-Code': TNSVT_CONFIG.code }
+    });
+    const d = await r.json();
+    const bal = parseFloat(d.balance_usd || 0);
+    el.textContent = '$' + bal.toFixed(2);
+    el.style.color = bal > 0 ? 'var(--green)' : 'var(--text3)';
+  } catch(e){
+    el.textContent = '$0.00';
+    el.style.color = 'var(--text3)';
+  }
 }
 
 function torneoNextRound(){
@@ -3063,6 +3243,32 @@ function torneoFinish(){
   else if(score>=1500){xp=200;pos='Top 10';}
   addXP(xp);
   tnsvtSync('torneo', score, xp, { position: pos, round: STATE.torneo.round||1 });
+
+  // Si hay un torneo real activo, actualiza equity en backend
+  if(currentTorneo && TNSVT_CONFIG.enabled && TNSVT_CONFIG.code){
+    // Mapeo score 0-3000 → PnL -100% to +100%
+    // score 0 = -100% pnl (peor caso), score 1500 = 0%, score 3000 = +100%
+    const pnlPct = (score / 1500) * 100 - 100;
+    const currentEquity = currentTorneo.starting_equity * (1 + pnlPct / 100);
+    const cTorneo = currentTorneo;
+    currentTorneo = null; // reset antes del await
+    fetch(TNSVT_CONFIG.serverUrl.replace(/\/$/,'') + '/api/tournaments/' + cTorneo.id + '/update-equity', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-Game-Code': TNSVT_CONFIG.code },
+      body: JSON.stringify({ current_equity: currentEquity.toFixed(2) }),
+      credentials: 'omit'
+    })
+    .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
+    .then(d => {
+      if(window.showToast) showToast('📊 PnL: ' + (parseFloat(d.pnl_pct) >= 0 ? '+' : '') + parseFloat(d.pnl_pct).toFixed(2) + '% ($' + d.pnl_usd + ')');
+    })
+    .catch(err => {
+      if(window.showToast) showToast('⚠ Equity update failed: ' + (err.error || err.message || 'error'));
+    });
+  }else{
+    currentTorneo = null;
+  }
+
   showResultOverlay('🏆','Torneo Finalizado',pos+' — Gran actuación',null,[
     {val:score,lbl:'Score final'},{val:pos,lbl:'Posición'},{val:'+'+xp+' XP',lbl:'Recompensa'}
   ],()=>{
