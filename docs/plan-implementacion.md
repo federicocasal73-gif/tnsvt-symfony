@@ -37,6 +37,36 @@
 
 TNSVT es una aplicación de mentoría de trading con app móvil nativa Android (APK) y PWA. Actualmente corre en una PC local con Tailscale para acceso privado. El objetivo es transformarlo en un producto comercial escalable para 50 clientes pagos.
 
+### Arquitectura: 1 servidor, múltiples clientes
+
+```
+                  ┌─────────────────────────────────────┐
+                  │   VPS Hostinger KVM 2               │
+                  │   Symfony Backend (PHP 8.4)         │
+                  │   MySQL/MariaDB                     │
+                  │   https://tnsvt.app                 │
+                  └────────────────┬────────────────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+              ▼                    ▼                    ▼
+       ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+       │  Web (PWA)   │    │ App Android  │    │  iOS (futuro)│
+       │  Navegador   │    │  APK         │    │  IPA         │
+       │  tnsvt.app   │    │  WebView     │    │  WebView     │
+       └──────────────┘    └──────────────┘    └──────────────┘
+       Misma URL            Misma URL           Misma URL
+       https://tnsvt.app    https://tnsvt.app   https://tnsvt.app
+```
+
+El backend Symfony sirve simultáneamente a:
+- La web (navegador, PWA instalable)
+- La app Android (APK con WebView)
+- Futuras apps iOS (mismo WebView)
+- API REST para integraciones externas
+
+**Un solo servidor hostea todo.**
+
 ### Decisiones clave
 
 | Decisión | Elección |
