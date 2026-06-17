@@ -24,6 +24,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep link: com.tnsvt.app://leaderboard?xp=300 -->
+            <!-- TNSVT main app puede ser abierto desde T.N.S.V.T Market game para sync de scores -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.tnsvt.app" />
+            </intent-filter>
+
+            <!-- Deep link alternativo: com.tnsvt.game://sync-score?xp=300 -->
+            <!-- El game puede enviar scores via este scheme tambien -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.tnsvt.game" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -28,10 +28,14 @@ class GameController extends AbstractController
 
     /**
      * Verifica la sesión del user y devuelve info básica
+     * Acepta auth por sesión web (cookie) o por header X-Game-Code (para apps externas)
      */
     #[Route('/api/game/session', name: 'api_game_session', methods: ['GET'])]
-    public function session(#[CurrentUser] ?User $user): JsonResponse
+    public function session(Request $request, #[CurrentUser] ?User $user): JsonResponse
     {
+        // Intentar autenticar por X-Game-Code header
+        $user = $user ?? $this->authByCode($request);
+
         if (!$user) {
             return new JsonResponse([
                 'authenticated' => false,
@@ -56,10 +60,45 @@ class GameController extends AbstractController
     }
 
     /**
+     * Autentica un user externo (T.N.S.V.T Market app) por su código
+     * Devuelve datos del user si el código es válido y está activo
+     */
+    #[Route('/api/game/auth', name: 'api_game_auth', methods: ['POST'])]
+    public function auth(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $code = trim($data['code'] ?? $request->headers->get('X-Game-Code') ?? '');
+
+        if (!$code) {
+            return new JsonResponse(['error' => 'Código requerido'], 400);
+        }
+
+        $user = $this->em->getRepository(User::class)
+            ->findOneBy(['code' => $code, 'active' => true]);
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Código inválido o inactivo'], 401);
+        }
+
+        return new JsonResponse([
+            'authenticated' => true,
+            'user_id' => $user->getId(),
+            'username' => $user->getCode(),
+            'display_name' => $user->getName(),
+            'xp' => $this->getUserXp($user),
+            'level' => $this->getUserLevel($this->getUserXp($user)),
+            'rank' => $this->getRank($this->getUserLevel($this->getUserXp($user))),
+        ]);
+    }
+
+    /**
      * Guarda un score del juego y devuelve XP actualizado
+     *
+     * Auth: sesión web (cookie) O header X-Game-Code O body.code
      *
      * Payload esperado:
      * {
+     *   "code": "TNSVT-XXXX",   // Opcional si usás X-Game-Code header
      *   "mode": "classic" | "survival" | "daily" | "arena" | "torneo" | "fractal" | "portfolio",
      *   "score": int,
      *   "metadata": { "asset": "BTC", "rounds": 5, "accuracy": 80, "result": "long", "xp_gained": 50 }
@@ -68,8 +107,10 @@ class GameController extends AbstractController
     #[Route('/api/game/score', name: 'api_game_score', methods: ['POST'])]
     public function saveScore(Request $request, #[CurrentUser] ?User $user): JsonResponse
     {
+        // Intentar autenticar por X-Game-Code header o body.code si no hay sesión
+        $user = $user ?? $this->authByCode($request);
         if (!$user) {
-            return new JsonResponse(['error' => 'No autenticado'], 401);
+            return new JsonResponse(['error' => 'No autenticado. Envía X-Game-Code header o body.code'], 401);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -105,20 +146,20 @@ class GameController extends AbstractController
         $this->em->flush();
 
         // Calcular XP total del user (de scores)
-        $totalXp = $this->em->getRepository(GameScore::class)
+        $totalXp = (int) ($this->em->getRepository(GameScore::class)
             ->createQueryBuilder('g')
             ->select('SUM(g.xpGained) as total')
             ->where('g.user = :user')
             ->setParameter('user', $user)
             ->getQuery()
-            ->getSingleScalarResult() ?: 0;
+            ->getSingleScalarResult() ?: 0);
 
-        $totalXp = (int) $totalXp;
         $level = $this->getUserLevel($totalXp);
 
         return new JsonResponse([
             'success' => true,
             'score_id' => $gameScore->getId(),
+            'user_id' => $user->getId(),
             'xp_gained' => $xpGained,
             'total_xp' => $totalXp,
             'level' => $level,
@@ -253,6 +294,29 @@ class GameController extends AbstractController
     */
 
     // === HELPERS ===
+
+    /**
+     * Autentica un user externo por código (X-Game-Code header o body.code)
+     * Usado por el T.N.S.V.T Market app (com.tnsvt.game) que no comparte cookies con TNSVT
+     */
+    private function authByCode(Request $request): ?User
+    {
+        $code = trim($request->headers->get('X-Game-Code', ''));
+
+        if (!$code) {
+            $data = json_decode($request->getContent(), true);
+            if (is_array($data) && isset($data['code'])) {
+                $code = trim((string) $data['code']);
+            }
+        }
+
+        if (!$code) {
+            return null;
+        }
+
+        return $this->em->getRepository(User::class)
+            ->findOneBy(['code' => $code, 'active' => true]);
+    }
 
     private function getUserXp(User $user): int
     {

@@ -1316,11 +1316,13 @@ body{display:flex;flex-direction:column}
     <div class="tab" onclick="perfilTab('historial',this)">Historial</div>
     <div class="tab" onclick="perfilTab('tienda',this)">Tienda</div>
     <div class="tab" onclick="perfilTab('planes',this)">Pro</div>
+    <div class="tab" onclick="perfilTab('sync',this)">⚡ Sync TNSVT</div>
   </div>
   <div id="perfil-logros" class="perfil-tab-content"></div>
   <div id="perfil-historial" class="perfil-tab-content" style="display:none"></div>
   <div id="perfil-tienda" class="perfil-tab-content" style="display:none"></div>
   <div id="perfil-planes" class="perfil-tab-content" style="display:none"></div>
+  <div id="perfil-sync" class="perfil-tab-content" style="display:none"></div>
 </div>
 
 <!-- ======================== SCREEN: FRACTAL MODE ======================== -->
@@ -4101,7 +4103,7 @@ function initPerfil(){
 function perfilTab(tab, btn){
   document.querySelectorAll('#s-perfil .tab').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  ['logros','historial','tienda','planes'].forEach(t=>{
+  ['logros','historial','tienda','planes','sync'].forEach(t=>{
     const el=document.getElementById('perfil-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
@@ -4109,6 +4111,138 @@ function perfilTab(tab, btn){
   if(tab==='historial') renderPHistorial();
   if(tab==='tienda')   renderTienda('frames');
   if(tab==='planes')   renderPlanes();
+  if(tab==='sync')     renderTnsvtSettings();
+}
+
+function renderTnsvtSettings(){
+  const el = document.getElementById('perfil-sync');
+  if(!el) return;
+  const c = TNSVT_CONFIG;
+  const lastSyncTxt = c.lastSync ? new Date(c.lastSync).toLocaleString() : 'Nunca';
+  const statusColor = c.enabled ? 'var(--green)' : 'var(--text3)';
+  const statusTxt = c.enabled ? '🟢 Activo' : '⚪ Inactivo';
+  el.innerHTML = `
+    <div style="padding:14px 16px">
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--violet3);font-weight:700">⚡ TNSVT Sync</div>
+          <div style="font-size:11px;color:${statusColor};font-weight:700">${statusTxt}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">
+          Conectá tu cuenta TNSVT para que tus scores sumen XP y suban tu rango en la plataforma.
+          Necesitás el código de acceso de tu cuenta TNSVT.
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">URL del server TNSVT</label>
+          <input id="tnsvt-url" type="url" placeholder="http://192.168.1.2:8000" value="${c.serverUrl||''}"
+            style="width:100%;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Tu código TNSVT</label>
+          <input id="tnsvt-code" type="text" placeholder="TNSVT-XXXX" value="${c.code||''}"
+            style="width:100%;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button onclick="tnsvtTest()" style="flex:1;padding:9px;background:rgba(96,165,250,.15);border:1px solid var(--blue);color:var(--blue);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">🔌 Probar</button>
+          <button onclick="tnsvtSave()" style="flex:1;padding:9px;background:linear-gradient(135deg,var(--violet),var(--violet2));border:0;color:#fff;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">💾 Guardar</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button onclick="tnsvtToggle()" style="flex:1;padding:9px;background:${c.enabled?'rgba(248,113,113,.15)':'rgba(74,222,128,.15)'};border:1px solid ${c.enabled?'var(--red)':'var(--green)'};color:${c.enabled?'var(--red)':'var(--green)'};border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">${c.enabled?'⏸ Desactivar':'▶ Activar'}</button>
+          <button onclick="tnsvtClear()" style="padding:9px 14px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
+        </div>
+        <div id="tnsvt-test-result" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          Último sync: ${lastSyncTxt}${c.lastError ? '<br>⚠ Último error: '+c.lastError : ''}
+        </div>
+      </div>
+
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px">
+        <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--gold);font-weight:700;margin-bottom:8px">🔗 Deep link a TNSVT</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px">
+          Si tenés TNSVT instalado, podés abrirlo directo con un score. Útil cuando no podés llegar al server.
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input id="tnsvt-dl-xp" type="number" placeholder="XP" value="100" style="flex:1;padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace">
+          <input id="tnsvt-dl-mode" type="text" placeholder="modo" value="survival" style="flex:1;padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace">
+        </div>
+        <button onclick="tnsvtDeepLink()" style="width:100%;padding:10px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:0;color:#1a1230;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">📤 Enviar a TNSVT (deep link)</button>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5">
+          Abre TNSVT con <code style="background:var(--bg2);padding:1px 5px;border-radius:3px">com.tnsvt.app://sync-score?xp=X&mode=Y</code>
+        </div>
+      </div>
+
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:14px">
+        <div style="font-size:11px;color:var(--text2);line-height:1.6">
+          <div style="font-weight:700;color:var(--gold);margin-bottom:6px">📡 ¿Cómo funciona?</div>
+          • Cada vez que termina un modo, se envía un <code style="background:var(--bg2);padding:1px 5px;border-radius:3px">POST /api/game/score</code> al server<br>
+          • Se autentica con tu código vía header <code style="background:var(--bg2);padding:1px 5px;border-radius:3px">X-Game-Code</code><br>
+          • El XP se suma a tu cuenta TNSVT y sube tu nivel/rango<br>
+          • Si TNSVT no está reachable, los scores se guardan igual localmente<br>
+          • Usá <strong>http://192.168.1.2:8000</strong> en tu red local o tu Tailscale IP
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function tnsvtGetInput(){
+  return {
+    serverUrl: (document.getElementById('tnsvt-url')?.value||'').trim(),
+    code: (document.getElementById('tnsvt-code')?.value||'').trim(),
+  };
+}
+
+async function tnsvtTest(){
+  const c = tnsvtGetInput();
+  const result = document.getElementById('tnsvt-test-result');
+  if(!c.serverUrl || !c.code){ result.innerHTML = '⚠ Completá URL y código'; return; }
+  result.innerHTML = '🔄 Probando...';
+  try {
+    const r = await fetch(c.serverUrl.replace(/\/$/,'') + '/api/game/auth', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code: c.code})
+    });
+    const data = await r.json();
+    if(data.authenticated){
+      result.innerHTML = `✅ Conectado como <strong>${data.display_name}</strong> · ${data.xp||0} XP · ${data.rank}`;
+    } else {
+      result.innerHTML = '❌ ' + (data.error || 'Código inválido');
+    }
+  } catch(e){
+    result.innerHTML = '❌ Error de red: ' + e.message;
+  }
+}
+
+function tnsvtSave(){
+  const c = tnsvtGetInput();
+  tnsvtSaveConfig({ ...c, enabled: !!TNSVT_CONFIG.enabled });
+  if(window.showToast) showToast('✅ Config guardada');
+}
+
+function tnsvtToggle(){
+  const c = tnsvtGetInput();
+  if(!TNSVT_CONFIG.enabled && (!c.serverUrl || !c.code)){
+    if(window.showToast) showToast('⚠ Completá URL y código primero');
+    return;
+  }
+  tnsvtSaveConfig({ ...c, enabled: !TNSVT_CONFIG.enabled });
+  if(window.showToast) showToast(TNSVT_CONFIG.enabled ? '✅ Sync activado' : '⏸ Sync desactivado');
+}
+
+function tnsvtClear(){
+  if(!confirm('¿Borrar la config de TNSVT?')) return;
+  tnsvtSaveConfig({ serverUrl:'', code:'', enabled:false, lastSync:0, lastError:null });
+  if(window.showToast) showToast('🗑 Config borrada');
+}
+
+function tnsvtDeepLink(){
+  const xp = parseInt(document.getElementById('tnsvt-dl-xp')?.value || '0', 10);
+  const mode = (document.getElementById('tnsvt-dl-mode')?.value || 'survival').trim();
+  if(!xp || xp <= 0){ if(window.showToast) showToast('⚠ XP debe ser > 0'); return; }
+  const url = `com.tnsvt.app://sync-score?xp=${xp}&mode=${encodeURIComponent(mode)}`;
+  if(window.showToast) showToast('📤 Abriendo TNSVT...');
+  try { window.location.href = url; }
+  catch(e){ if(window.showToast) showToast('❌ No se pudo abrir TNSVT'); }
 }
 
 function renderLogros(){
@@ -5798,16 +5932,55 @@ function addXP(amount){
 }
 
 // ============================================================
-// TNSVT SYNC — envía scores al backend de TNSVT vía postMessage
-// Solo funciona si está embebido en el wrapper de TNSVT (iframe)
+// TNSVT SYNC — envía scores al backend de TNSVT
+// Si TNSVT_CONFIG.serverUrl está configurado, usa fetch() directo
+// Si no, intenta postMessage (modo iframe / wrapper embebido)
 // ============================================================
+const TNSVT_CONFIG_KEY = 'tnsvt_config_v1';
+const TNSVT_CONFIG = (function(){
+  try {
+    const raw = localStorage.getItem(TNSVT_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : { serverUrl:'', code:'', enabled:false, lastSync:0, lastError:null };
+  } catch(e){ return { serverUrl:'', code:'', enabled:false, lastSync:0, lastError:null }; }
+})();
+
+function tnsvtSaveConfig(cfg){
+  Object.assign(TNSVT_CONFIG, cfg);
+  try { localStorage.setItem(TNSVT_CONFIG_KEY, JSON.stringify(TNSVT_CONFIG)); } catch(e){}
+  renderTnsvtSettings();
+}
+
 function tnsvtSync(mode, score, xp, extra){
+  const payload = { mode, score, metadata: Object.assign({ xp_gained: xp||0 }, extra||{}) };
+
+  // 1) Si TNSVT_CONFIG está activo, fetch directo al backend
+  if(TNSVT_CONFIG.enabled && TNSVT_CONFIG.serverUrl && TNSVT_CONFIG.code){
+    fetch(TNSVT_CONFIG.serverUrl.replace(/\/$/,'') + '/api/game/score', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-Game-Code': TNSVT_CONFIG.code },
+      body: JSON.stringify(payload),
+      credentials: 'omit',
+      keepalive: true,
+    })
+    .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
+    .then(data => {
+      TNSVT_CONFIG.lastSync = Date.now();
+      TNSVT_CONFIG.lastError = null;
+      tnsvtSaveConfig(TNSVT_CONFIG);
+      if(window.showToast) showToast('✦ TNSVT: +'+(data.xp_gained||0)+' XP (total '+(data.total_xp||0)+')');
+    })
+    .catch(err => {
+      TNSVT_CONFIG.lastError = (err && err.error) ? err.error : 'Error de red';
+      tnsvtSaveConfig(TNSVT_CONFIG);
+      if(window.showToast) showToast('⚠ TNSVT sync falló: ' + TNSVT_CONFIG.lastError);
+    });
+    return;
+  }
+
+  // 2) Fallback: postMessage al parent (modo iframe / wrapper embebido)
   try {
     if(window.parent === window) return;
-    window.parent.postMessage({
-      type: 'tnsvt-game-score',
-      payload: { mode, score, metadata: Object.assign({ xp_gained: xp||0 }, extra||{}) }
-    }, '*');
+    window.parent.postMessage({ type: 'tnsvt-game-score', payload }, '*');
   } catch(e){}
 }
 

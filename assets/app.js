@@ -3930,3 +3930,56 @@ let sb = window.API;
       window.mfToggleCheck = mfToggleCheck;
       window.mfResetChecklist = mfResetChecklist;
       window.mfUpdateResult = mfUpdateResult;
+
+      // ============================================================
+      // DEEP LINK HANDLER — recibe scores desde T.N.S.V.T Market game
+      // Formato: com.tnsvt.app://sync-score?xp=300&mode=survival
+      //          com.tnsvt.game://sync-score?xp=300&mode=survival
+      // ============================================================
+      async function handleDeepLink(url) {
+        if (!url) return;
+        try {
+          const u = new URL(url);
+          if (u.protocol !== 'com.tnsvt.app:' && u.protocol !== 'com.tnsvt.game:') return;
+          const action = u.host || u.pathname.replace(/^\/\//, '');
+          if (action === 'sync-score') {
+            const xp = parseInt(u.searchParams.get('xp') || '0', 10);
+            const mode = u.searchParams.get('mode') || 'classic';
+            if (xp > 0) {
+              showToast(`🎮 Score recibido: +${xp} XP (${mode})`);
+              try { HAPTICS?.win?.(); } catch(_){}
+              // Intentar guardar vía API si está logueado
+              try {
+                const r = await fetch('/api/game/score', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ mode, score: xp, metadata: { xp_gained: xp, source: 'deep-link' } })
+                });
+                if (r.ok) {
+                  const data = await r.json();
+                  showToast(`✦ TNSVT: +${data.xp_gained} XP, total ${data.total_xp}`);
+                }
+              } catch(e) { /* offline, score queda en el game */ }
+            }
+          } else if (action === 'leaderboard') {
+            showToast('🏆 Abriendo leaderboard...');
+            setTimeout(() => switchTab('tab-journal'), 500);
+          } else if (action === 'open') {
+            showToast('👋 Bienvenido desde T.N.S.V.T Market');
+          }
+        } catch(e) { console.warn('Deep link parse error:', e); }
+      }
+      window.handleDeepLink = handleDeepLink;
+
+      // Registrar listener de Capacitor para deep links
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+        const App = window.Capacitor.Plugins.App;
+        App.addListener('appUrlOpen', (data) => {
+          if (data && data.url) handleDeepLink(data.url);
+        });
+        // Si la app ya estaba abierta con un deep link
+        App.getLaunchUrl && App.getLaunchUrl().then(r => {
+          if (r && r.url) handleDeepLink(r.url);
+        }).catch(() => {});
+      }
