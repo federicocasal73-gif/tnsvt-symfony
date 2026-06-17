@@ -17,7 +17,7 @@ const API = {
       // Si el origin es el scheme interno de Capacitor (https://localhost),
       // forzamos la URL del server.
       if (loc.hostname === 'localhost' && loc.protocol === 'https:') {
-        return 'http://100.122.8.48:8000';
+        return 'http://100.108.182.28:8000';
       }
     } catch (_) {}
     return '';
