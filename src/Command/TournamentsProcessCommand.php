@@ -20,11 +20,16 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * y distribuye el prize pool entre los winners.
  *
  * Uso:
- *   php bin/console tournaments:process
- *   php bin/console tournaments:process --dry-run
+ *   php bin/console tournaments:process            # 1 ejecucion
+ *   php bin/console tournaments:process --dry-run   # solo muestra, no modifica
+ *   php bin/console tournaments:process --watch     # loop infinito (cron interno)
+ *   php bin/console tournaments:process --watch --interval=30  # loop cada 30s
  *
  * Ideal correrlo via cron cada 1 minuto:
  *   * * * * * cd /path && php bin/console tournaments:process >> /var/log/tournaments.log 2>&1
+ *
+ * O como proceso background en el server (mas simple, sin cron):
+ *   nohup php bin/console tournaments:process --watch >> /var/log/tournaments.log 2>&1 &
  */
 #[AsCommand(
     name: 'tournaments:process',
@@ -43,13 +48,31 @@ class TournamentsProcessCommand extends Command
     protected function configure(): void
     {
         $this->addOption('dry-run', null, InputOption::VALUE_NONE, 'Solo muestra lo que haria, no modifica nada');
+        $this->addOption('watch', null, InputOption::VALUE_NONE, 'Corre en loop infinito cada N segundos (default 60)');
+        $this->addOption('interval', null, InputOption::VALUE_REQUIRED, 'Segundos entre ejecuciones en modo --watch', 60);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $dryRun = (bool) $input->getOption('dry-run');
+        $watch = (bool) $input->getOption('watch');
+        $interval = (int) $input->getOption('interval');
 
+        if ($watch) {
+            $io->writeln(sprintf('🔁 Watch mode ON - corriendo cada %d segundos. Ctrl+C para parar.', $interval));
+            while (true) {
+                $this->processOnce($io, $dryRun);
+                $io->writeln(sprintf('⏱  Esperando %d segundos...', $interval));
+                sleep($interval);
+            }
+        }
+
+        return $this->processOnce($io, $dryRun);
+    }
+
+    private function processOnce(SymfonyStyle $io, bool $dryRun): int
+    {
         if ($dryRun) {
             $io->warning('DRY RUN - no se modificara nada en la DB');
         }

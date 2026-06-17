@@ -2886,6 +2886,16 @@
       <p id="adminCreditFeedback" style="font-size:0.82rem; margin-top:10px; min-height:1.2em; text-align:center"></p>
     </div>
 
+    <div style="background:rgba(13,8,24,0.6); border:1px solid rgba(240,192,96,.25); border-radius:12px; padding:20px; margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); margin:0">📤 Retiros pendientes</h3>
+        <span id="adminPendingCount" style="background:rgba(240,192,96,.2);color:var(--gold-bright);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;min-width:24px;text-align:center">0</span>
+      </div>
+      <p style="font-size:0.75rem; color:var(--text3); margin-bottom:12px">Cuando un user pide retirar, le descontás el saldo. Aproba cuando le transferiste por MP/Binance, rechaza para devolverle el saldo.</p>
+      <button onclick="loadPendingWithdraws()" class="back-btn" style="margin-bottom:8px">🔄 Refrescar</button>
+      <div id="adminPendingWithdraws" style="font-size:0.78rem; color:var(--text2)">Cargando...</div>
+    </div>
+
     <div style="background:rgba(13,8,24,0.6); border:1px solid rgba(168,160,200,.15); border-radius:12px; padding:20px; margin-bottom:16px">
       <h3 style="font-family:'Cinzel',serif; color:var(--text2); margin-bottom:8px;">📋 Auditoria - Ultimas transacciones</h3>
       <div style="display:flex; gap:6px; margin-bottom:8px">
@@ -3283,6 +3293,70 @@ async function adminWalletRefresh(){
         +'</div>';
     }).join('');
   } catch(e){ container.innerHTML='<div style="color:var(--red)">❌ '+e.message+'</div>'; }
+}
+
+async function loadPendingWithdraws(){
+  const container = document.getElementById('adminPendingWithdraws');
+  const counter = document.getElementById('adminPendingCount');
+  if(!container) return;
+  container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text3)">Cargando...</div>';
+  try {
+    const r = await fetch('/api/admin/wallet/pending', {headers:{'X-Admin-Password':'TNSVT-2026-CristoRey!'}});
+    const d = await r.json();
+    if(d.error){ container.innerHTML='<div style="color:var(--red)">❌ '+d.error+'</div>'; counter.textContent='!'; return; }
+    const list = d.pending_withdraws || [];
+    counter.textContent = list.length;
+    counter.style.background = list.length>0 ? 'rgba(240,192,96,.3)' : 'rgba(74,222,128,.2)';
+    counter.style.color = list.length>0 ? 'var(--gold-bright)' : 'var(--green)';
+    if(list.length===0){
+      container.innerHTML='<div style="text-align:center; padding:20px; color:var(--text3)">✅ Sin retiros pendientes.</div>';
+      return;
+    }
+    container.innerHTML = list.map(w => {
+      return '<div style="padding:10px; border:1px solid rgba(240,192,96,.2); border-radius:8px; margin-bottom:8px; background:rgba(13,8,24,.4)">'
+        +'<div style="display:flex; justify-content:space-between; align-items:start; gap:8px; margin-bottom:6px">'
+        +  '<div style="flex:1; min-width:0">'
+        +    '<div style="font-size:12px; font-weight:700; color:var(--text)">'+escapeHtml(w.display_name||w.username)+' <span style="color:var(--text3); font-weight:400; font-size:10px">@ '+w.username+'</span></div>'
+        +    '<div style="font-size:9px; color:var(--text3); margin-top:2px">'+w.method+(w.notes?' · '+escapeHtml(w.notes):'')+'</div>'
+        +    '<div style="font-size:9px; color:var(--text3); margin-top:2px">'+w.created_at.substring(0,16).replace('T',' ')+'</div>'
+        +  '</div>'
+        +  '<div style="font-family:JetBrains Mono,monospace; font-size:16px; font-weight:700; color:var(--gold)">$'+parseFloat(w.amount_abs).toFixed(2)+'</div>'
+        +'</div>'
+        +'<div style="display:flex; gap:6px">'
+        +  '<button onclick="adminApproveWithdraw('+w.transaction_id+')" style="flex:1; padding:8px; background:linear-gradient(135deg,var(--green),#16a34a); color:#fff; border:0; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer">✓ Aprobar</button>'
+        +  '<button onclick="adminRejectWithdraw('+w.transaction_id+')" style="flex:1; padding:8px; background:rgba(248,113,113,.15); color:var(--red); border:1px solid var(--red); border-radius:6px; font-size:11px; font-weight:700; cursor:pointer">✗ Rechazar</button>'
+        +'</div>'
+        +'</div>';
+    }).join('');
+  } catch(e){ container.innerHTML='<div style="color:var(--red)">❌ '+e.message+'</div>'; }
+}
+
+async function adminApproveWithdraw(id){
+  if(!confirm('Aprobar este retiro? Transferile al user por MP/Binance antes de confirmar.')) return;
+  try {
+    const r = await fetch('/api/admin/wallet/withdraw/'+id+'/approve', {
+      method: 'POST', headers: {'X-Admin-Password':'TNSVT-2026-CristoRey!'}
+    });
+    const d = await r.json();
+    if(d.error){ showToast('❌ '+(d.message||d.error)); return; }
+    showToast('✓ Retiro #'+id+' aprobado');
+    loadPendingWithdraws();
+    adminWalletRefresh();
+  } catch(e){ showToast('❌ '+e.message); }
+}
+
+async function adminRejectWithdraw(id){
+  if(!confirm('Rechazar este retiro? Le devolvemos el saldo al user.')) return;
+  try {
+    const r = await fetch('/api/admin/wallet/withdraw/'+id+'/reject', {
+      method: 'POST', headers: {'X-Admin-Password':'TNSVT-2026-CristoRey!'}
+    });
+    const d = await r.json();
+    if(d.error){ showToast('❌ '+(d.message||d.error)); return; }
+    showToast('✓ Retiro #'+id+' rechazado · devuelto $'+d.refunded_amount);
+    loadPendingWithdraws();
+    adminWalletRefresh();
+  } catch(e){ showToast('❌ '+e.message); }
 }
 
 // ==================== ADMIN TORNEOS ====================

@@ -54,4 +54,22 @@ echo  Para ver logs en vivo: tail_logs.bat
 echo ============================================================
 echo.
 
+REM 6. Preguntar si quiere iniciar el cron de torneos tambien
+echo.
+set /p START_CRON="Iniciar cron de torneos (auto-close cada 60s)? [S/n]: "
+if /i "%START_CRON%"=="" goto :start_cron
+if /i "%START_CRON%"=="n" goto :skip_cron
+if /i "%START_CRON%"=="N" goto :skip_cron
+
+:start_cron
+echo.
+echo Iniciando cron de torneos...
+call start_cron.bat
+goto :end
+
+:skip_cron
+echo.
+echo Para iniciar el cron despues: start_cron.bat
+
+:end
 endlocal
