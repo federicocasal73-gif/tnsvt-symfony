@@ -4004,3 +4004,24 @@ let sb = window.API;
           if (r && r.url) handleDeepLink(r.url);
         }).catch(() => {});
       }
+
+      // ==================== FCM PUSH NOTIFICATIONS ====================
+      (async function setupPush(){
+        try {
+          const { PushNotifications } = await import('@capacitor/push-notifications');
+          const perm = await PushNotifications.requestPermissions();
+          if(perm.receive === 'granted'){
+            await PushNotifications.register();
+            PushNotifications.addListener('registration', ({value}) => {
+              const code = localStorage.getItem('tnsvt_game_code') || '';
+              if(code){
+                fetch('/api/devices/register', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({user_code: code, fcm_token: value, platform:'android'})
+                }).catch(() => {});
+              }
+            });
+          }
+        } catch(e){ console.warn('FCM setup:', e); }
+      })();
