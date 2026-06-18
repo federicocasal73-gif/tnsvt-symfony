@@ -3062,22 +3062,12 @@
     <div style="font-size:10px; color:var(--text3); margin-top:8px">📡 Cotizacion dolarapi.com · blue venta</div>
   </div>
 
-  <!-- CARGAR SALDO BUTTONS -->
-  <button onclick="mpShowModal()" style="width:100%; margin-bottom:6px; padding:12px; background:linear-gradient(135deg,var(--violet),#009ee3); color:#fff; border:0; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 15px rgba(0,158,227,.3)">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-    Cargar con MercadoPago
-  </button>
-  <button onclick="bnShowModal()" style="width:100%; margin-bottom:14px; padding:12px; background:linear-gradient(135deg,var(--violet),#f0b90b); color:#fff; border:0; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 15px rgba(240,185,11,.25)">
-    <span style="font-weight:900; font-size:16px">B</span>
-    Cargar con Binance Pay (USDT)
-  </button>
-
   <!-- INFO BOX -->
   <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:14px">
     <div style="font-family:'Cinzel',serif; font-size:13px; color:var(--gold-bright); margin-bottom:8px">💡 Como funciona</div>
     <div style="font-size:12px; color:var(--text2); line-height:1.6">
       Tu wallet guarda USD virtual. Lo usas para pagar entry fees de torneos.<br>
-      <strong>Para cargar saldo</strong>: usa MP o Binance Pay arriba, o mandame transferencia directa.<br>
+      <strong>Para cargar saldo</strong>: mandame MP/Binance con tu code TNSVT. Yo te lo acredito.<br>
       <strong>Para retirar</strong>: hace un withdraw, te lo transfiero por MP/Binance a mano.<br>
       <span style="color:var(--gold)">⚠ Simulacion con dinero virtual. No es consejo financiero. +18.</span>
     </div>
@@ -3110,52 +3100,6 @@
   <!-- CONTENT -->
   <div id="torneosContent" style="padding:12px 14px">
     <div style="text-align:center; color:var(--text3); padding:30px; font-size:0.85rem">Cargando torneos...</div>
-  </div>
-</div>
-
-<!-- MERCADOPAGO MODAL -->
-<div id="mpModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.7); z-index:9999; justify-content:center; align-items:center; backdrop-filter:blur(4px)">
-  <div style="background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:24px; width:90%; max-width:360px; position:relative; box-shadow:0 8px 40px rgba(0,0,0,.5)">
-    <button onclick="mpHideModal()" style="position:absolute; top:8px; right:12px; background:none; border:none; color:var(--text3); font-size:24px; cursor:pointer;">&times;</button>
-    <div style="font-family:'Cinzel',serif; color:var(--text); font-size:15px; margin-bottom:16px">💳 Cargar saldo con MP</div>
-    <div style="font-size:12px; color:var(--text2); margin-bottom:16px; line-height:1.5">
-      Ingresa el monto en USD. Se convierte a ARS al tipo de cambio blue + fees.
-    </div>
-    <div style="font-size:11px; color:var(--text3); margin-bottom:8px">Monto en USD</div>
-    <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap">
-      <button onclick="mpSetAmount(5)" class="mp-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$5</button>
-      <button onclick="mpSetAmount(10)" class="mp-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$10</button>
-      <button onclick="mpSetAmount(20)" class="mp-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$20</button>
-      <button onclick="mpSetAmount(50)" class="mp-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$50</button>
-    </div>
-    <input type="number" id="mpAmountInput" min="1" max="1000" step="0.01" placeholder="Monto personalizado (1-1000 USD)" style="width:100%; padding:10px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; margin-bottom:14px; outline:none; box-sizing:border-box">
-    <button id="mpPayBtn" onclick="mpCreatePayment()" style="width:100%; padding:12px; background:linear-gradient(135deg,var(--violet),#009ee3); color:#fff; border:0; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-      Pagar con MercadoPago
-    </button>
-    <div id="mpError" style="display:none; margin-top:10px; padding:10px; background:rgba(255,80,80,.15); border:1px solid var(--red); border-radius:8px; color:var(--red); font-size:11px; text-align:center"></div>
-  </div>
-</div>
-
-<!-- BINANCE PAY MODAL -->
-<div id="bnModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.7); z-index:9999; justify-content:center; align-items:center; backdrop-filter:blur(4px)">
-  <div style="background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:24px; width:90%; max-width:360px; position:relative; box-shadow:0 8px 40px rgba(0,0,0,.5)">
-    <button onclick="bnHideModal()" style="position:absolute; top:8px; right:12px; background:none; border:none; color:var(--text3); font-size:24px; cursor:pointer;">&times;</button>
-    <div style="font-family:'Cinzel',serif; color:var(--text); font-size:15px; margin-bottom:16px">💳 Cargar con Binance Pay</div>
-    <div style="font-size:12px; color:var(--text2); margin-bottom:16px; line-height:1.5">
-      Paga con USDT desde tu wallet de Binance. Sin fees. Se acredita automaticamente.
-    </div>
-    <div style="font-size:11px; color:var(--text3); margin-bottom:8px">Monto en USD (USDT)</div>
-    <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap">
-      <button onclick="bnSetAmount(5)" class="bn-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$5</button>
-      <button onclick="bnSetAmount(10)" class="bn-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$10</button>
-      <button onclick="bnSetAmount(20)" class="bn-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$20</button>
-      <button onclick="bnSetAmount(50)" class="bn-amount-btn" style="flex:1; min-width:50px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer">$50</button>
-    </div>
-    <input type="number" id="bnAmountInput" min="1" max="1000" step="0.01" placeholder="Monto personalizado (1-1000 USD)" style="width:100%; padding:10px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; margin-bottom:14px; outline:none; box-sizing:border-box">
-    <button id="bnPayBtn" onclick="bnCreatePayment()" style="width:100%; padding:12px; background:linear-gradient(135deg,var(--violet),#f0b90b); color:#fff; border:0; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-      Pagar con Binance Pay
-    </button>
-    <div id="bnError" style="display:none; margin-top:10px; padding:10px; background:rgba(255,80,80,.15); border:1px solid var(--red); border-radius:8px; color:var(--red); font-size:11px; text-align:center"></div>
   </div>
 </div>
 
@@ -3197,132 +3141,6 @@ async function walletRefresh(){
       }).join('');
     }
   } catch(e){ showToast('Error cargando wallet: '+e.message); }
-}
-
-// ==================== MERCADOPAGO ====================
-let _mpAmount = 0;
-function mpShowModal(){
-  document.getElementById('mpModal').style.display = 'flex';
-  document.getElementById('mpError').style.display = 'none';
-  document.getElementById('mpAmountInput').value = '';
-  _mpAmount = 0;
-}
-function mpHideModal(){ document.getElementById('mpModal').style.display = 'none'; }
-function mpSetAmount(n){
-  _mpAmount = n;
-  document.getElementById('mpAmountInput').value = n;
-  document.getElementById('mpError').style.display = 'none';
-  document.querySelectorAll('.mp-amount-btn').forEach(b => {
-    b.style.borderColor = parseFloat(b.textContent.replace('$','')) === n ? 'var(--violet)' : 'var(--border)';
-    b.style.background = parseFloat(b.textContent.replace('$','')) === n ? 'rgba(139,92,246,.2)' : 'var(--bg2)';
-  });
-}
-async function mpCreatePayment(){
-  const btn = document.getElementById('mpPayBtn');
-  const errDiv = document.getElementById('mpError');
-  btn.disabled = true; btn.textContent = '⏳ Procesando...';
-  errDiv.style.display = 'none';
-
-  let amount = _mpAmount > 0 ? _mpAmount : parseFloat(document.getElementById('mpAmountInput').value);
-  if(!amount || amount < 1 || amount > 1000){
-    errDiv.textContent = '⚠ El monto debe ser entre 1 y 1000 USD';
-    errDiv.style.display = 'block';
-    btn.disabled = false; btn.innerHTML = 'Pagar con MercadoPago';
-    return;
-  }
-
-  try {
-    const r = await fetch('/api/mercadopago/create-payment', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({amount_usd: amount})
-    });
-    const d = await r.json();
-    if(d.error){
-      errDiv.textContent = '❌ ' + d.error;
-      errDiv.style.display = 'block';
-      btn.disabled = false; btn.innerHTML = 'Pagar con MercadoPago';
-      return;
-    }
-    // Redirect to MP checkout
-    window.location.href = d.init_point;
-  } catch(e){
-    errDiv.textContent = '❌ Error de conexion: ' + e.message;
-    errDiv.style.display = 'block';
-    btn.disabled = false; btn.innerHTML = 'Pagar con MercadoPago';
-  }
-}
-// Handle pg=ok/error/pending query params (return from MP/Binance)
-(function(){
-  const params = new URLSearchParams(window.location.search);
-  const pg = params.get('pg');
-  if(pg === 'ok'){
-    showToast('✅ Pago exitoso! Tu saldo se acredita automaticamente.');
-    setTimeout(() => walletRefresh(), 1000);
-  } else if(pg === 'pending'){
-    showToast('⏳ Pago pendiente. Se acreditara cuando el procesador lo confirme.');
-  } else if(pg === 'error'){
-    showToast('❌ Pago cancelado o rechazado.');
-  }
-  if(pg && history.replaceState){
-    history.replaceState({}, '', window.location.pathname);
-  }
-})();
-
-// ==================== BINANCE PAY ====================
-let _bnAmount = 0;
-function bnShowModal(){
-  document.getElementById('bnModal').style.display = 'flex';
-  document.getElementById('bnError').style.display = 'none';
-  document.getElementById('bnAmountInput').value = '';
-  _bnAmount = 0;
-}
-function bnHideModal(){ document.getElementById('bnModal').style.display = 'none'; }
-function bnSetAmount(n){
-  _bnAmount = n;
-  document.getElementById('bnAmountInput').value = n;
-  document.getElementById('bnError').style.display = 'none';
-  document.querySelectorAll('.bn-amount-btn').forEach(b => {
-    b.style.borderColor = parseFloat(b.textContent.replace('$','')) === n ? 'var(--violet)' : 'var(--border)';
-    b.style.background = parseFloat(b.textContent.replace('$','')) === n ? 'rgba(139,92,246,.2)' : 'var(--bg2)';
-  });
-}
-async function bnCreatePayment(){
-  const btn = document.getElementById('bnPayBtn');
-  const errDiv = document.getElementById('bnError');
-  btn.disabled = true; btn.textContent = '⏳ Procesando...';
-  errDiv.style.display = 'none';
-
-  let amount = _bnAmount > 0 ? _bnAmount : parseFloat(document.getElementById('bnAmountInput').value);
-  if(!amount || amount < 1 || amount > 1000){
-    errDiv.textContent = '⚠ El monto debe ser entre 1 y 1000 USD';
-    errDiv.style.display = 'block';
-    btn.disabled = false; btn.innerHTML = 'Pagar con Binance Pay';
-    return;
-  }
-
-  try {
-    const r = await fetch('/api/binance-pay/create-order', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({amount_usd: amount})
-    });
-    const d = await r.json();
-    if(d.error){
-      errDiv.textContent = '❌ ' + d.error;
-      errDiv.style.display = 'block';
-      btn.disabled = false; btn.innerHTML = 'Pagar con Binance Pay';
-      return;
-    }
-    // Redirect to Binance Pay checkout
-    window.location.href = d.checkout_url;
-  } catch(e){
-    errDiv.textContent = '❌ Error de conexion: ' + e.message;
-    errDiv.style.display = 'block';
-    btn.disabled = false; btn.innerHTML = 'Pagar con Binance Pay';
-  }
 }
 
 // ==================== TORNEOS ====================
