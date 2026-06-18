@@ -94,6 +94,12 @@ body{position:relative}
 }
 .screen.active{display:flex}
 
+/* PERFIL STICKY HEADER */
+#s-perfil{overflow-y:hidden;padding-bottom:0}
+#perfil-header{flex-shrink:0;position:sticky;top:0;z-index:52;background:var(--bg)}
+#perfil-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:70px}
+#perfil-body .perfil-tab-content{min-height:100%}
+
 /* BOTTOM NAV */
 #nav{
   height:60px;background:var(--bg2);border-top:1px solid var(--border);
@@ -1304,38 +1310,42 @@ body{position:relative}
 
 <!-- ======================== SCREEN: PERFIL ======================== -->
 <div class="screen" id="s-perfil">
-  <div class="hero">
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
-      <div id="perfil-hero-av" class="avatar-frame" style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--violet2));display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid rgba(147,83,255,.4);box-shadow:0 0 20px rgba(147,83,255,.3);flex-shrink:0;transition:all .3s"><span class="avatar-emoji">🎯</span></div>
-      <div>
-        <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700">Trader</div>
-        <div style="display:flex;gap:6px;margin-top:4px">
-          <span class="badge badge-rank">⚔ OPERADOR</span>
+  <div id="perfil-header">
+    <div class="hero">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div id="perfil-hero-av" class="avatar-frame" style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--violet2));display:flex;align-items:center;justify-content:center;font-size:30px;border:2px solid rgba(147,83,255,.4);box-shadow:0 0 20px rgba(147,83,255,.3);flex-shrink:0;transition:all .3s"><span class="avatar-emoji">🎯</span></div>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700">Trader</div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <span class="badge badge-rank">⚔ OPERADOR</span>
+          </div>
         </div>
       </div>
+      <div class="hero-xp-row">
+        <div class="hero-xp-label"><span style="color:var(--gold)">✦ 2,340 XP</span><span>Siguiente: 3,500</span></div>
+        <div class="xp-bar-wrap"><div class="xp-bar-fill" style="width:67%"></div></div>
+      </div>
     </div>
-    <div class="hero-xp-row">
-      <div class="hero-xp-label"><span style="color:var(--gold)">✦ 2,340 XP</span><span>Siguiente: 3,500</span></div>
-      <div class="xp-bar-wrap"><div class="xp-bar-fill" style="width:67%"></div></div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-val">47</div><div class="stat-lbl">Partidas</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--green)">68%</div><div class="stat-lbl">Precisión</div></div>
+      <div class="stat-box"><div class="stat-val">12</div><div class="stat-lbl">Racha max</div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tab-logros" onclick="perfilTab('logros',this)">Logros</div>
+      <div class="tab" id="tab-historial" onclick="perfilTab('historial',this)">Historial</div>
+      <div class="tab" id="tab-tienda" onclick="perfilTab('tienda',this)">Tienda</div>
+      <div class="tab" id="tab-planes" onclick="perfilTab('planes',this)">Pro</div>
+      <div class="tab" id="tab-sync" onclick="perfilTab('sync',this)">⚡ Sync TNSVT</div>
     </div>
   </div>
-  <div class="stat-grid">
-    <div class="stat-box"><div class="stat-val">47</div><div class="stat-lbl">Partidas</div></div>
-    <div class="stat-box"><div class="stat-val" style="color:var(--green)">68%</div><div class="stat-lbl">Precisión</div></div>
-    <div class="stat-box"><div class="stat-val">12</div><div class="stat-lbl">Racha max</div></div>
+  <div id="perfil-body">
+    <div id="perfil-logros" class="perfil-tab-content"></div>
+    <div id="perfil-historial" class="perfil-tab-content" style="display:none"></div>
+    <div id="perfil-tienda" class="perfil-tab-content" style="display:none"></div>
+    <div id="perfil-planes" class="perfil-tab-content" style="display:none"></div>
+    <div id="perfil-sync" class="perfil-tab-content" style="display:none"></div>
   </div>
-  <div class="tabs">
-    <div class="tab active" id="tab-logros" onclick="perfilTab('logros',this)">Logros</div>
-    <div class="tab" id="tab-historial" onclick="perfilTab('historial',this)">Historial</div>
-    <div class="tab" id="tab-tienda" onclick="perfilTab('tienda',this)">Tienda</div>
-    <div class="tab" id="tab-planes" onclick="perfilTab('planes',this)">Pro</div>
-    <div class="tab" id="tab-sync" onclick="perfilTab('sync',this)">⚡ Sync TNSVT</div>
-  </div>
-  <div id="perfil-logros" class="perfil-tab-content"></div>
-  <div id="perfil-historial" class="perfil-tab-content" style="display:none"></div>
-  <div id="perfil-tienda" class="perfil-tab-content" style="display:none"></div>
-  <div id="perfil-planes" class="perfil-tab-content" style="display:none"></div>
-  <div id="perfil-sync" class="perfil-tab-content" style="display:none"></div>
 </div>
 
 <!-- ======================== SCREEN: FRACTAL MODE ======================== -->

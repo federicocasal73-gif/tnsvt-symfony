@@ -7,6 +7,7 @@ use App\Entity\TournamentEntry;
 use App\Entity\WalletTransaction;
 use App\Repository\TournamentEntryRepository;
 use App\Repository\TournamentRepository;
+use App\Service\TournamentMailer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -41,6 +42,7 @@ class TournamentsProcessCommand extends Command
         private EntityManagerInterface $em,
         private TournamentRepository $tournamentRepository,
         private TournamentEntryRepository $entryRepository,
+        private TournamentMailer $tournamentMailer,
     ) {
         parent::__construct();
     }
@@ -162,6 +164,14 @@ class TournamentsProcessCommand extends Command
         $t->setFinishedAt(new \DateTimeImmutable());
         $t->setPrizePool(number_format($prizePool, 2, '.', ''));
         $this->em->flush();
+
+        // Notificar a los participantes (best-effort)
+        try {
+            $emailsSent = $this->tournamentMailer->notifyTournamentClosed($t);
+            $io->writeln(sprintf('    <info>📧 %d emails enviados</info>', $emailsSent));
+        } catch (\Throwable $e) {
+            $io->warning('Error enviando emails: ' . $e->getMessage());
+        }
 
         $io->writeln(sprintf('    <info>✓ Cerrado. Prize pool: $%.2f, %d winners</info>',
             $prizePool, min($maxRank, count($entries))));

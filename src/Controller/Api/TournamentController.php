@@ -33,6 +33,7 @@ class TournamentController extends AbstractController
         private TournamentEntryRepository $entryRepository,
         private UserRepository $userRepository,
         private WalletTransactionRepository $txRepository,
+        private \App\Service\TournamentMailer $tournamentMailer,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -348,6 +349,13 @@ class TournamentController extends AbstractController
 
         $this->em->persist($t);
         $this->em->flush();
+
+        // Notificar a los users activos (best-effort, no bloquea la respuesta)
+        try {
+            $this->tournamentMailer->notifyTournamentCreated($t);
+        } catch (\Throwable $e) {
+            // Log y seguir, no fallar la creacion
+        }
 
         return new JsonResponse([
             'success' => true,
