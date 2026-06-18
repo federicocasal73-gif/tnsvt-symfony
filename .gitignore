@@ -67,3 +67,6 @@ yarn-error.log
 
 # Build output de Capacitor
 /public/assets/
+
+# Game app TNSVT Market Instinct (separado a su propio repo: tnsvt-market-instinct)
+/game-app/
