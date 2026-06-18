@@ -7,6 +7,7 @@ use App\Entity\WalletTransaction;
 use App\Repository\UserRepository;
 use App\Repository\WalletTransactionRepository;
 use App\Security\AdminAuthTrait;
+use App\Service\PushNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,6 +27,7 @@ class AdminWalletController extends AbstractController
         private EntityManagerInterface $em,
         private UserRepository $userRepository,
         private WalletTransactionRepository $txRepository,
+        private PushNotificationService $push,
     ) {}
 
     /**
@@ -86,6 +88,9 @@ class AdminWalletController extends AbstractController
 
         $this->em->persist($tx);
         $this->em->flush();
+
+        // Push notification
+        $this->push->sendToUser($user, '💰 Saldo acreditado', "Recibiste \${$amount} USD en tu wallet");
 
         return new JsonResponse([
             'success' => true,

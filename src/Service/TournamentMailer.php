@@ -29,6 +29,7 @@ class TournamentMailer
         private ParameterBagInterface $params,
         private UserRepository $userRepository,
         private TournamentEntryRepository $entryRepository,
+        private PushNotificationService $push,
         private LoggerInterface $logger,
     ) {}
 
@@ -64,6 +65,16 @@ class TournamentMailer
             }
         }
         $this->logger->info(sprintf('Tournament created: %d emails enviados para "%s"', $sent, $t->getName()));
+
+        // Push notification to all active users
+        $pushed = $this->push->broadcast(
+            'Nuevo torneo: ' . $t->getName(),
+            "Entry \${$t->getEntryFee()} | Pozo \${$basePrize} | Max {$t->getMaxPlayers()} players",
+        );
+        if ($pushed > 0) {
+            $this->logger->info("Push enviado a {$pushed} dispositivos");
+        }
+
         return $sent;
     }
 
@@ -123,6 +134,19 @@ class TournamentMailer
             }
         }
         $this->logger->info(sprintf('Tournament closed: %d emails enviados para "%s"', $sent, $t->getName()));
+
+        // Push notifications to participants
+        foreach ($rankedEntries as $r) {
+            $entry = $r['entry'];
+            $user = $entry->getUser();
+            if (!$user) continue;
+            $isWinner = $r['prize'] > 0;
+            $body = $isWinner
+                ? "Quedaste #{$r['rank']}! Ganaste \${$r['prize']} USD"
+                : "Torneo cerrado. Tu posicion: #{$r['rank']}";
+            $this->push->sendToUser($user, '🏆 ' . $t->getName(), $body);
+        }
+
         return $sent;
     }
 
