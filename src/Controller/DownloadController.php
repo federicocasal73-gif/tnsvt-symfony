@@ -8,10 +8,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Landing page para descargar la app T.N.S.V.T Market Instinct (com.tnsvt.game)
+ * Landing pages para descargar APKs de T.N.S.V.T
  *
- * El usuario abre http://192.168.1.2:8000/download/tnsvt-market desde el cell
- * y toca el boton "Instalar" para bajar el APK directamente desde el server.
+ * - /download/tnsvt-market  → landing page con ambas apps (juego + web)
  */
 class DownloadController extends AbstractController
 {
@@ -23,14 +22,14 @@ class DownloadController extends AbstractController
     #[Route('/download/tnsvt-market', name: 'download_tnsvt_market', methods: ['GET'])]
     public function tnsvtMarket(): Response
     {
-        $apkPath = $this->projectDir . '/public/downloads/tnsvt-market-instinct.apk';
-        $exists = file_exists($apkPath);
-        $size = $exists ? filesize($apkPath) : 0;
-        $sizeMb = round($size / 1024 / 1024, 2);
-        $sha256 = $exists ? hash_file('sha256', $apkPath) : '';
-        $version = $exists ? '1.0.3' : 'N/A';
-        $downloadUrl = '/api/app/download-game';
-        $versionInfoUrl = '/api/app/game-version';
+        $gamePath = $this->projectDir . '/public/downloads/tnsvt-market-instinct.apk';
+        $webPath = $this->projectDir . '/public/apk/tnsvt-v1.3.0.apk';
+        $gameExists = file_exists($gamePath);
+        $webExists = file_exists($webPath);
+        $gameSize = $gameExists ? filesize($gamePath) : 0;
+        $webSize = $webExists ? filesize($webPath) : 0;
+        $gameSizeMb = round($gameSize / 1024 / 1024, 2);
+        $webSizeMb = round($webSize / 1024 / 1024, 2);
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -39,212 +38,98 @@ class DownloadController extends AbstractController
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#06040f">
-<title>T.N.S.V.T Market — Descargar APK</title>
+<title>T.N.S.V.T — Descargar APKs</title>
 <style>
   :root {
-    --bg: #06040f;
-    --bg2: #0d0a1a;
-    --panel: #1a1230;
-    --panel2: #211840;
-    --border: #2d1f55;
-    --gold: #f0c060;
-    --gold2: #d4a030;
-    --gold3: #fff0c0;
-    --violet: #9353ff;
-    --violet2: #7a3de0;
-    --violet3: #c8a0ff;
-    --green: #4ade80;
-    --red: #f87171;
-    --text: #e8e0ff;
-    --text2: #a090c0;
-    --text3: #6a5a8a;
+    --bg: #06040f; --bg2: #0d0a1a; --panel: #1a1230; --panel2: #211840;
+    --border: #2d1f55; --gold: #f0c060; --gold2: #d4a030; --violet: #9353ff;
+    --violet2: #7a3de0; --green: #4ade80; --red: #f87171;
+    --text: #e8e0ff; --text2: #a090c0; --text3: #6a5a8a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
-    min-height: 100vh;
     min-height: 100dvh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     padding: 20px;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  .container { display:flex; flex-direction:column; gap:20px; max-width:440px; width:100%; }
   .card {
     background: linear-gradient(135deg, var(--panel), var(--panel2));
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 28px 24px;
-    max-width: 420px;
-    width: 100%;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 24px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    text-align: center; position: relative; overflow: hidden;
   }
   .card::before {
     content: '';
-    position: absolute;
-    top: -50px;
-    right: -50px;
-    width: 200px;
-    height: 200px;
+    position: absolute; top: -50px; right: -50px;
+    width: 200px; height: 200px;
     background: radial-gradient(circle, rgba(147,83,255,0.3), transparent 70%);
     pointer-events: none;
   }
-  .icon {
-    width: 96px;
-    height: 96px;
-    margin: 0 auto 16px;
+  .card-icon {
+    width: 72px; height: 72px; margin: 0 auto 12px;
     background: linear-gradient(135deg, var(--bg2), var(--panel));
-    border: 2px solid var(--gold);
-    border-radius: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Cinzel', serif;
-    font-size: 56px;
-    font-weight: 900;
-    color: var(--gold);
-    text-shadow: 0 0 12px rgba(240,192,96,0.5);
-    box-shadow: 0 0 30px rgba(240,192,96,0.2);
-    position: relative;
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 900; position: relative;
   }
-  h1 {
-    font-family: 'Cinzel', serif;
-    font-size: 22px;
-    color: var(--violet3);
-    margin-bottom: 4px;
-    letter-spacing: 1px;
-  }
-  .sub {
-    font-size: 12px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 18px;
-  }
-  .info {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 18px;
-    text-align: left;
-  }
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    font-size: 13px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-  }
-  .info-row:last-child { border-bottom: 0; }
-  .info-lbl { color: var(--text3); }
-  .info-val { color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .card-game .card-icon { border: 2px solid var(--gold); color: var(--gold); }
+  .card-web .card-icon { border: 2px solid var(--violet); color: var(--violet3); }
+  h2 { font-family: 'Cinzel', serif; font-size: 18px; margin-bottom: 2px; }
+  .card-game h2 { color: var(--gold); }
+  .card-web h2 { color: var(--violet3); }
+  .card-sub { font-size: 11px; color: var(--text3); letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; }
+  .card-info { font-size: 11px; color: var(--text2); margin-bottom: 14px; line-height: 1.5; }
   .btn {
-    display: block;
-    width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, var(--gold), var(--gold2));
-    color: var(--bg);
-    border: 0;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;
-    margin-bottom: 10px;
-    box-shadow: 0 4px 20px rgba(240,192,96,0.3);
-    transition: transform .15s;
+    display: block; width: 100%; padding: 12px; border: 0; border-radius: 10px;
+    font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;
+    transition: transform .15s; margin-bottom: 6px;
   }
   .btn:hover { transform: translateY(-2px); }
+  .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold2)); color: var(--bg); box-shadow: 0 4px 20px rgba(240,192,96,0.3); }
+  .btn-violet { background: linear-gradient(135deg, var(--violet), var(--violet2)); color: #fff; box-shadow: 0 4px 20px rgba(147,83,255,0.3); }
   .btn:active { transform: translateY(0); }
-  .btn.secondary {
-    background: rgba(147,83,255,0.15);
-    color: var(--violet3);
-    box-shadow: none;
-    border: 1px solid var(--violet);
+  .size-badge {
+    display: inline-block; font-size: 9px; background: rgba(255,255,255,0.08);
+    padding: 2px 8px; border-radius: 10px; color: var(--text3); margin-left: 6px;
   }
-  .help {
-    font-size: 11px;
-    color: var(--text3);
-    line-height: 1.6;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-    text-align: left;
-  }
-  .help strong { color: var(--violet3); }
-  .status {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 8px var(--green);
-    margin-right: 6px;
-  }
-  .footer {
-    margin-top: 14px;
-    font-size: 10px;
-    color: var(--text3);
-  }
-  .error {
-    color: var(--red);
-    font-size: 13px;
-    margin-bottom: 14px;
-  }
+  .error { color: var(--red); font-size: 12px; margin-bottom: 8px; }
+  .footer { text-align: center; font-size: 10px; color: var(--text3); margin-top: 4px; }
 </style>
 </head>
 <body>
-  <div class="card">
+  <div class="container">
 HTML;
 
-        if (!$exists) {
-            $html .= '<div class="error">⚠ APK no disponible. Pedile al admin que lo suba a <code>public/downloads/</code></div>';
+        // Game card
+        $html .= '<div class="card card-game">';
+        if (!$gameExists) {
+            $html .= '<div class="error">⚠ APK del juego no disponible</div>';
         }
+        $html .= '<div class="card-icon">T</div>';
+        $html .= '<h2>T.N.S.V.T Market Instinct</h2>';
+        $html .= '<div class="card-sub">🎮 Trading Game <span class="size-badge">' . $gameSizeMb . ' MB</span></div>';
+        $html .= '<div class="card-info">Modos Classic · Survival · Daily · Arena 1v1 · Torneo · Fractal · Portfolio Demo</div>';
+        $html .= '<a class="btn btn-gold" href="/api/app/download-game" download>⬇ Instalar Juego</a>';
+        $html .= '</div>';
 
-        $html .= <<<HTML
-    <div class="icon">T</div>
-    <h1>T.N.S.V.T Market</h1>
-    <div class="sub">INSTINCT · Trading Game</div>
-    <div class="info">
-      <div class="info-row"><span class="info-lbl">Package</span><span class="info-val">com.tnsvt.game</span></div>
-      <div class="info-row"><span class="info-lbl">Versión</span><span class="info-val">v{$version}</span></div>
-      <div class="info-row"><span class="info-lbl">Tamaño</span><span class="info-val">{$sizeMb} MB</span></div>
-      <div class="info-row"><span class="info-lbl">Min Android</span><span class="info-val">5.1 (API 22)</span></div>
-      <div class="info-row"><span class="info-lbl">Firmado</span><span class="info-val" style="color:var(--green)"><span class="status"></span>v1+v2</span></div>
-    </div>
-    <a class="btn" href="{$downloadUrl}" download>⬇ Instalar T.N.S.V.T Market</a>
-    <a class="btn secondary" href="{$versionInfoUrl}">📡 Ver JSON de versión</a>
-    <div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:12px;padding:12px;margin-bottom:14px;text-align:left">
-      <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--green);margin-bottom:6px;letter-spacing:1px">🆕 NOVEDADES v1.0.3</div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.5">
-        <b>VIP $9.99 USD</b> — Desbloque&aacute; Modo Fractal completo (BOS, LG, Zonas, Setup), Torneos con premios y Modo Hist&oacute;rico.<br>
-        <b>Nav inferior fija</b> — El men&uacute; Inicio/Modos/Jugar/Liga/Perfil queda anclado al fondo.<br>
-        <b>Precios live</b> — Cripto en tiempo real en el ticker superior.<br>
-        <b>Auto-update</b> — La app te avisa cuando hay versi&oacute;n nueva.
-      </div>
-    </div>
-    <div class="help">
-      <strong>📲 Cómo instalar:</strong><br>
-      1. Tocá <strong>Instalar T.N.S.V.T Market</strong><br>
-      2. Si te pide permiso, aceptá <strong>"Permitir de esta fuente"</strong><br>
-      3. Abrí el APK descargado desde <strong>Descargas</strong><br>
-      4. Tocá <strong>Instalar</strong> · ¡Listo!<br><br>
-      <strong>🎮 Modos de juego:</strong> Classic, Survival, Daily, Arena 1v1, Torneo 10 rondas (real o pr&aacute;ctica), Fractal Hist&oacute;rico, Portfolio Demo.<br><br>
-      <strong>💰 Torneos con \$USD:</strong> Dentro de la app, and&aacute; a <b>Perfil → Sync TNSVT</b> y carg&aacute; tu c&oacute;digo. Pedile al admin que te acredite saldo en la wallet. Despu&eacute;s en <b>Torneos</b> toc&aacute; "Unirse" en cualquier torneo activo.<br><br>
-      <strong>⚡ Sync con TNSVT:</strong> Tu XP sube a tu cuenta TNSVT autom&aacute;ticamente. Tu wallet se debita al unirte y se acredita si gan&aacute;s.
-    </div>
-    <div class="footer">T.N.S.V.T · Cristo Íntegro · v1.0.3</div>
-  </div>
-</body>
-</html>
-HTML;
+        // Web card
+        $html .= '<div class="card card-web">';
+        if (!$webExists) {
+            $html .= '<div class="error">⚠ APK de la web no disponible</div>';
+        }
+        $html .= '<div class="card-icon">⛧</div>';
+        $html .= '<h2>T.N.S.V.T Web App</h2>';
+        $html .= '<div class="card-sub">🌐 Plataforma Completa <span class="size-badge">' . $webSizeMb . ' MB</span></div>';
+        $html .= '<div class="card-info">Feed · Academia · Macroeconomía · 2-Step · Journal · Chat · Musica · Admin</div>';
+        $html .= '<a class="btn btn-violet" href="/api/app/download-web" download>⬇ Instalar Web TNSVT</a>';
+        $html .= '</div>';
+
+        $html .= '<div class="footer">T.N.S.V.T · Reino del Cristo Íntegro</div>';
+        $html .= '</div></body></html>';
 
         return new Response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']);
     }

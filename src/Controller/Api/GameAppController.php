@@ -23,6 +23,8 @@ class GameAppController extends AbstractController
     private const GAME_VERSION = '1.0.3';
     private const GAME_VERSION_CODE = 4;
     private const GAME_APK_FILENAME = 'tnsvt-market-instinct.apk';
+    private const WEB_APK_FILENAME = 'tnsvt-v1.3.0.apk';
+    private const WEB_VERSION = '1.3.0';
 
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
@@ -59,7 +61,7 @@ class GameAppController extends AbstractController
 
         if (!file_exists($apkPath)) {
             return new JsonResponse([
-                'error' => 'APK no disponible. Pedile al admin que suba el archivo a public/downloads/.',
+                'error' => 'APK del juego no disponible. Pedile al admin que lo compile.',
             ], 404);
         }
 
@@ -71,6 +73,29 @@ class GameAppController extends AbstractController
         );
         $response->headers->set('Content-Length', (string) filesize($apkPath));
         $response->headers->set('X-App-Version', self::GAME_VERSION);
+        $response->headers->set('Cache-Control', 'public, max-age=300');
+        return $response;
+    }
+
+    #[Route('/download-web', name: 'api_app_download_web', methods: ['GET'])]
+    public function downloadWeb(): Response
+    {
+        $apkPath = $this->projectDir . '/public/apk/' . self::WEB_APK_FILENAME;
+
+        if (!file_exists($apkPath)) {
+            return new JsonResponse([
+                'error' => 'APK de la web no disponible. Pedile al admin que lo suba a public/apk/.',
+            ], 404);
+        }
+
+        $response = new BinaryFileResponse($apkPath);
+        $response->headers->set('Content-Type', 'application/vnd.android.package-archive');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            'tnsvt-web-v' . self::WEB_VERSION . '.apk'
+        );
+        $response->headers->set('Content-Length', (string) filesize($apkPath));
+        $response->headers->set('X-App-Version', self::WEB_VERSION);
         $response->headers->set('Cache-Control', 'public, max-age=300');
         return $response;
     }
