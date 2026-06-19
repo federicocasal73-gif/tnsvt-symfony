@@ -7,8 +7,8 @@
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">100.108.182.28</domain>
-        <domain includeSubdomains="true">192.168.1.2</domain>
+        <domain includeSubdomains="true">100.122.8.48</domain>
+        <domain includeSubdomains="true">192.168.0.170</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
