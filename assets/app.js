@@ -153,7 +153,7 @@ let sb = window.API;
             const err = data.error || 'Código inválido';
             let friendly = '❌ ' + err;
             if (/password|contrase/i.test(err)) {
-              friendly = '❌ Contraseña incorrecta. La pass nueva del admin es: TNSVT-2026-CristoRey!';
+              friendly = '❌ Contraseña incorrecta. Consultá al administrador.';
             } else if (/invalido|desactivado/i.test(err)) {
               friendly = '❌ Código inválido o desactivado. Revisá que esté bien escrito.';
             } else if (/requerida/i.test(err)) {
@@ -201,6 +201,13 @@ let sb = window.API;
         sessionStorage.removeItem('tnsv_auth');
         localStorage.removeItem('tnsv_user');
         window.TNSVT_USER = null;
+        tjTrades = [];
+        notifList = [];
+        chatConversations = [];
+        activeConvId = null;
+        acadCoursesCache = [];
+        postPhotoData = null;
+        signalPhotoData = null;
         musicHideBar();
         musicHideFullPlayer();
         const a = document.getElementById('bgMusicAudio');
@@ -937,7 +944,7 @@ let sb = window.API;
 
       async function tjDeleteTrade(id) {
         if (!confirm('¿Eliminar este trade? No se puede deshacer.')) return;
-        try { await sb.deleteTrade(id); } catch(e) {}
+        try { await sb.deleteTrade(id); } catch(e) { console.warn('[journal] deleteTrade:', e); }
         tjTrades = tjTrades.filter(t => t.id !== id);
         tjRefresh();
       }
@@ -1698,11 +1705,6 @@ let sb = window.API;
       // 🔐 SISTEMA DE AUTENTICACIÓN ADMIN — validado en backend
       // La contraseña del panel Academia se valida en POST /api/admin/verify-academia-pass
       // y está configurada en la variable de entorno ACADEMIA_ADMIN_PASS
-
-      function _getDailyCode() {
-        const now = new Date();
-        return String((now.getDate() + (now.getMonth() + 1) + _S) % 9999).padStart(4, '0');
-      }
 
       let adminAuthenticated = false;
       let acadCoursesCache = [];
@@ -3397,7 +3399,7 @@ let sb = window.API;
             chatConversations = data;
             renderConversations();
           }
-        } catch(e) {}
+        } catch(e) { console.warn('[chat] loadChats:', e); }
       }
 
       function initChatPolling() {
@@ -3600,7 +3602,7 @@ let sb = window.API;
             tjTrades = data;
             tjLoaded = true;
           }
-        } catch(e) {}
+        } catch(e) { console.warn('[journal] loadJournalFromApi:', e); }
         tjRefresh();
       }
 
@@ -3655,7 +3657,6 @@ let sb = window.API;
       window.removePostPhoto = removePostPhoto;
       window.attachSignalPhoto = attachSignalPhoto;
       window.removeSignalPhoto = removeSignalPhoto;
-      window.removePostPhoto = removePostPhoto;
       window.attachCommentPhoto = attachCommentPhoto;
       window.removeCommentPhoto = removeCommentPhoto;
       window.renderFeed = renderFeed;
