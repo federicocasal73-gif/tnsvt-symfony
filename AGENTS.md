@@ -40,11 +40,26 @@
 
 ### Key addresses
 - Server: `http://192.168.1.2:8000`
-- GitHub: `https://github.com/federicocasal73-gif/tnsvt-symfony`
+- GitHub web: `https://github.com/federicocasal73-gif/-federicocasal73-gif-tnsvt-symfony` (privado, NUEVO, funcional)
+- GitHub game: `https://github.com/federicocasal73-gif/tnsvt-market-instinct` (privado, funcional)
 
-### Notes
+### Live Chart (Academia) - NUEVO 2026-06-21
+- Reemplaza widget TradingView con chart canvas propio T.N.S.V.T
+- Endpoint: `GET /api/market/candles?symbol=X&interval=Y&limit=Z`
+  - Source: Binance public API (`api.binance.com/api/v3/klines`) + fallback random walk
+  - Symbols: BTCUSDT, ETHUSDT, EURUSDT, GBPUSD, USDJPY, XAUUSD
+  - Intervals: 1m, 5m, 15m, 30m, 1h, 4h, 1d
+- Endpoint: `GET /api/market/symbols`
+- Frontend: `initTradingViewWeb()` en `assets/app.js` (canvas DPR-aware, header OHLCV, auto-refresh 10s)
+- Cache-bust: `?v=2.2`, SW `tnsvt-v34`
+
+### Notas
 - Game app uses Capacitor v6, web app uses Capacitor v8
 - JDK 21 at `C:\dev\jdk\jdk-21\jdk-21.0.7+6`
 - Service account JSON at `android/app/juego-app-store-trading-firebase-adminsdk-fbsvc-81993dce61.json`
 - google-services.json package name: `T.N.S.V.TMarketInstic`
+- **Push con HTTP 500**: cuando el repo tiene historial con archivos grandes (bundle 2.21 GB), usar `git push --force --thin` para enviar solo los objetos nuevos
+- **Bundle backup**: `/_backup/tnsvt-symfony-FULL.bundle` (ignorado por .gitignore) - respaldo para clonar si se pierde el .git
+- **APK web v1.6.0**: `public/downloads/tnsvt-app.apk` (134 MB) + `public/apk/tnsvt-v1.6.0.apk`
+- **APK game v1.2.0**: `public/downloads/tnsvt-market-instinct.apk` (5.22 MB)
 - Firebase project: `juego-app-store-trading`
