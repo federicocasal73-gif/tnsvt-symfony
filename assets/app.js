@@ -351,6 +351,11 @@ let sb = window.API;
         const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
         if (btn) btn.classList.add('active');
         if (tabId === 'tab-admin' && typeof adminRefreshList === 'function') adminRefreshList();
+        if (tabId === 'tab-academia') {
+          if (typeof fetchLiveChart === 'function' && document.getElementById('liveChartCanvas')) {
+            fetchLiveChart();
+          }
+        }
       }
       function switchTradingTab(tabId) { switchTab(tabId); }
 
