@@ -34,6 +34,7 @@
 # Backups locales (no commitear)
 /.git.zip
 *.zip
+/_backup/
 *.tar.gz
 *.bak
 
@@ -42,6 +43,19 @@
 /android/app/keystore.properties
 /android/*.jks
 /android/*.keystore
+
+# Secretos de Firebase (NUNCA commitear)
+/android/app/google-services.json
+/android/app/*-firebase-adminsdk-*.json
+
+# Archivos de release APK (se generan en build, no en repo)
+/public/apk/*.apk
+/public/downloads/*.apk
+
+# Archivos de usuario generados en runtime
+/_archive_apks/
+/public/docs/
+/public/uploads/avatars/
 
 ###> capacitor ###
 # Android build output y cache (no commitear)
@@ -70,3 +84,4 @@ yarn-error.log
 
 # Game app TNSVT Market Instinct (separado a su propio repo: tnsvt-market-instinct)
 /game-app/
+public/downloads/*.bundle

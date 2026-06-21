@@ -141,8 +141,11 @@ const API = {
     return this.put(`/api/notifications/read-all?user_code=${userCode}`);
   },
 
-  async getNotifCount(userCode) {
-    return this.get(`/api/notifications/count?user_code=${userCode}`);
+async getNotifCount(userCode) {
+    return this.get(`/api/notifications/count?user_code=${encodeURIComponent(userCode)}`);
+  },
+  async deleteNotification(id, userCode) {
+    return this.del(`/api/notifications/${id}?user_code=${encodeURIComponent(userCode)}`);
   },
 
   // Chat
@@ -170,8 +173,85 @@ const API = {
     return this.post(`/api/chat/conversations/${convId}/read`, { user_code: userCode });
   },
 
+  async deleteConversation(convId, userCode) {
+    return this.del(`/api/chat/conversations/${convId}?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async leaveConversation(convId, userCode) {
+    return this.post(`/api/chat/conversations/${convId}/leave`, { user_code: userCode });
+  },
+
   async getChatUsers(userCode) {
     return this.get(`/api/chat/users?user_code=${userCode}`);
+  },
+
+  // Profile (foto de perfil)
+  async getProfile(code) {
+    return this.get(`/api/profile/${encodeURIComponent(code)}`);
+  },
+  async uploadAvatar(userCode, file) {
+    const url = API._resolve(`/api/profile/avatar?user_code=${encodeURIComponent(userCode)}`);
+    const fd = new FormData();
+    fd.append('avatar', file);
+    API.loadingCount++; API._emitLoading();
+    try {
+      const res = await fetch(url, { method: 'POST', credentials: 'include', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+      return data;
+    } finally { API.loadingCount--; API._emitLoading(); }
+  },
+  async deleteAvatar(userCode) {
+    return this.del(`/api/profile/avatar?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  // Diagnostics (admin)
+  async getDiagnostics(userCode) {
+    return this.get(`/api/diagnostics?user_code=${encodeURIComponent(userCode)}`);
+  },
+  async getSWStatus() {
+    if (!('serviceWorker' in navigator)) return { supported: false };
+    const regs = await navigator.serviceWorker.getRegistrations();
+    return {
+      supported: true,
+      count: regs.length,
+      controllers: navigator.serviceWorker.controller ? 1 : 0,
+      registrations: regs.map(r => ({
+        scope: r.scope,
+        active: r.active ? r.active.scriptURL : null,
+        waiting: r.waiting ? r.waiting.scriptURL : null,
+        installing: r.installing ? r.installing.scriptURL : null,
+      })),
+    };
+  },
+
+  // Monitoring (admin)
+  async logMonitorEvent(eventData) {
+    // POST /api/monitoring/event - crear un nuevo evento (error/warning/info)
+    return this.post('/api/monitoring/event', eventData);
+  },
+  async getMonitorLogs(userCode, opts = {}) {
+    // GET /api/monitoring/log?user_code=...&level=error&limit=50
+    const params = new URLSearchParams();
+    if (userCode) params.set('user_code', userCode);
+    if (opts.level) params.set('level', opts.level);
+    if (opts.limit) params.set('limit', opts.limit);
+    return this.get(`/api/monitoring/log?${params.toString()}`);
+  },
+  async getMonitorStats(userCode) {
+    return this.get(`/api/monitoring/stats?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  // Market data (Academia - live chart)
+  async getMarketCandles(symbol, interval, limit = 100) {
+    const params = new URLSearchParams();
+    params.set('symbol', symbol);
+    params.set('interval', interval);
+    params.set('limit', limit);
+    return this.get(`/api/market/candles?${params.toString()}`);
+  },
+  async getMarketSymbols() {
+    return this.get('/api/market/symbols');
   }
 };
 

@@ -177,6 +177,12 @@ let sb = window.API;
           roleEl.style.color = isAdmin ? 'var(--gold)' : '';
           showToast("✨ Acceso concedido, " + (data.user.name || "Trader") + " ✨");
           updateNodeStates();
+          // Mostrar avatar inmediatamente con la inicial del nombre
+          // (sin esperar a que cargue el profile del backend)
+          renderHeaderAvatar();
+          if (typeof bindAvatarEvents === 'function') bindAvatarEvents();
+          // Cargar foto de perfil (en background)
+          loadMyProfile();
           loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
           // Mostrar la barra persistente de música en cualquier sección
@@ -329,10 +335,15 @@ let sb = window.API;
       function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
+        const target = document.getElementById(tabId);
+        if (target) {
+          target.classList.add('active');
+        } else {
+          console.warn('[switchTab] tab not found:', tabId);
+        }
         const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
         if (btn) btn.classList.add('active');
-        if (tabId === 'tab-admin') adminRefreshList();
+        if (tabId === 'tab-admin' && typeof adminRefreshList === 'function') adminRefreshList();
       }
       function switchTradingTab(tabId) { switchTab(tabId); }
 
@@ -399,6 +410,11 @@ let sb = window.API;
           updateNodeStates();
           loaderInitWatch();
           if (typeof initAllPanels === 'function') initAllPanels();
+          // Mostrar avatar inmediatamente
+          renderHeaderAvatar();
+          if (typeof bindAvatarEvents === 'function') bindAvatarEvents();
+          // Cargar foto de perfil (si la sesión se restauró)
+          if (window.TNSVT_USER?.code) loadMyProfile();
         }
       }
 
@@ -1287,6 +1303,24 @@ let sb = window.API;
         postCatSelected = cat;
         document.querySelectorAll('.create-cat-opt').forEach(b => b.classList.remove('sel'));
         btn.classList.add('sel');
+        // Auto-mostrar el form de señal cuando se selecciona la categoria SEÑAL.
+        const sf = document.getElementById('signalForm');
+        if (sf) {
+          if (cat === 'señales') {
+            sf.classList.add('vis');
+            // requestAnimationFrame para que el browser aplique display:block
+            // antes de medir getBoundingClientRect.
+            requestAnimationFrame(() => {
+              const rect = sf.getBoundingClientRect();
+              const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+              if (!fullyVisible) {
+                sf.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            });
+          } else {
+            sf.classList.remove('vis');
+          }
+        }
       }
 
       function toggleSignalForm() {
@@ -1294,9 +1328,35 @@ let sb = window.API;
         if (!sf) return;
         sf.classList.toggle('vis');
         if (sf.classList.contains('vis')) {
-          sf.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Usar rAF para que el browser aplique display:block ANTES de medir.
+          // Asi getBoundingClientRect da las coordenadas correctas del form visible.
+          requestAnimationFrame(() => {
+            const rect = sf.getBoundingClientRect();
+            const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+            if (!fullyVisible) {
+              sf.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          });
         }
       }
+      window.toggleSignalForm = toggleSignalForm;
+
+      function closeSignalForm() {
+        const sf = document.getElementById('signalForm');
+        if (!sf) return;
+        sf.classList.remove('vis');
+        // Limpiar inputs del form de senal
+        ['sig-asset','sig-entry','sig-sl','sig-tp1','sig-tp2'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        // Resetear selector de direccion a BUY
+        const dir = document.getElementById('sig-dir');
+        if (dir) dir.value = 'BUY';
+        // Quitar foto adjunta
+        if (typeof removeSignalPhoto === 'function') removeSignalPhoto();
+      }
+      window.closeSignalForm = closeSignalForm;
 
       // ── Foto adjunta al post ──
       let postPhotoData = null;
@@ -1647,10 +1707,246 @@ let sb = window.API;
       let adminAuthenticated = false;
       let acadCoursesCache = [];
 
+      // ==================== LIVE CHART (Academia) ====================
+      // Chart en vivo propio (sin TradingView widget) que se actualiza cada
+      // 10 segundos con datos reales de Binance public API. Si Binance
+      // no responde, usa el endpoint /api/market/candles que tiene fallback
+      // a velas simuladas.
+      let liveChartState = {
+        symbol: 'BTCUSDT',
+        interval: '15m',
+        candles: [],
+        lastPrice: 0,
+        lastChange: 0,
+        lastVol: 0,
+        lastHigh: 0,
+        lastLow: 0,
+        source: 'simulated',
+        pollTimer: null,
+      };
+
+      async function initTradingViewWeb(){
+        const canvas = document.getElementById('liveChartCanvas');
+        const container = document.getElementById('tradingview-web-chart');
+        if (!canvas || !container) return;
+        // Leer symbol/interval de los selects
+        const symSel = document.getElementById('tv-symbol');
+        const intSel = document.getElementById('tv-interval');
+        if (symSel && !symSel.dataset.bound) {
+          symSel.dataset.bound = '1';
+          symSel.addEventListener('change', () => { liveChartState.symbol = symSel.value; fetchLiveChart(); });
+        }
+        if (intSel && !intSel.dataset.bound) {
+          intSel.dataset.bound = '1';
+          intSel.addEventListener('change', () => { liveChartState.interval = intSel.value; fetchLiveChart(); });
+        }
+        liveChartState.symbol = symSel ? symSel.value : 'BTCUSDT';
+        liveChartState.interval = intSel ? intSel.value : '15m';
+        // Resize handler
+        if (!canvas.dataset.resizeBound) {
+          canvas.dataset.resizeBound = '1';
+          window.addEventListener('resize', () => renderLiveChart());
+        }
+        await fetchLiveChart();
+        if (liveChartState.pollTimer) clearInterval(liveChartState.pollTimer);
+        liveChartState.pollTimer = setInterval(fetchLiveChart, 10000);
+      }
+      window.initTradingViewWeb = initTradingViewWeb;
+
+      async function fetchLiveChart(){
+        try {
+          const data = await API.getMarketCandles(liveChartState.symbol, liveChartState.interval, 80);
+          if (!data || !data.candles) return;
+          liveChartState.candles = data.candles;
+          liveChartState.source = data.source;
+          const last = data.candles[data.candles.length - 1];
+          if (last) {
+            liveChartState.lastPrice = last.c;
+            liveChartState.lastVol = last.v;
+          }
+          // Calcular cambio % vs la primera vela
+          const first = data.candles[0];
+          if (first && last) {
+            liveChartState.lastChange = ((last.c - first.o) / first.o) * 100;
+            const highs = data.candles.map(c => c.h);
+            const lows = data.candles.map(c => c.l);
+            liveChartState.lastHigh = Math.max(...highs);
+            liveChartState.lastLow = Math.min(...lows);
+          }
+          updateLiveChartHeader();
+          renderLiveChart();
+        } catch (e) {
+          console.warn('[liveChart] fetch:', e.message);
+        }
+      }
+      window.fetchLiveChart = fetchLiveChart;
+
+      function updateLiveChartHeader(){
+        const fmt = (n, d=2) => {
+          if(n === undefined || n === null || isNaN(n)) return '—';
+          if(Math.abs(n) >= 1000) return n.toLocaleString('en-US', {maximumFractionDigits: 0});
+          return n.toLocaleString('en-US', {maximumFractionDigits: d});
+        };
+        const price = document.getElementById('liveChartPrice');
+        const chg = document.getElementById('liveChartChange');
+        const high = document.getElementById('liveChartHigh');
+        const low = document.getElementById('liveChartLow');
+        const vol = document.getElementById('liveChartVol');
+        const src = document.getElementById('liveChartSource');
+        if (price) price.textContent = fmt(liveChartState.lastPrice, 4);
+        if (chg) {
+          const c = liveChartState.lastChange;
+          const sign = c >= 0 ? '+' : '';
+          chg.textContent = `${sign}${c.toFixed(2)}%`;
+          chg.style.color = c >= 0 ? '#4ade80' : '#f87171';
+          chg.style.background = c >= 0 ? 'rgba(74,222,128,.12)' : 'rgba(248,113,113,.12)';
+        }
+        if (high) high.textContent = fmt(liveChartState.lastHigh, 4);
+        if (low) low.textContent = fmt(liveChartState.lastLow, 4);
+        if (vol) {
+          const v = liveChartState.lastVol;
+          if (v >= 1e6) vol.textContent = (v/1e6).toFixed(2) + 'M';
+          else if (v >= 1e3) vol.textContent = (v/1e3).toFixed(2) + 'K';
+          else vol.textContent = v.toFixed(0);
+        }
+        if (src) {
+          src.textContent = liveChartState.source === 'binance' ? '● Binance' : '● Simulado';
+          src.style.color = liveChartState.source === 'binance' ? '#4ade80' : '#f0c060';
+        }
+      }
+      window.updateLiveChartHeader = updateLiveChartHeader;
+
+      function renderLiveChart(){
+        const canvas = document.getElementById('liveChartCanvas');
+        if (!canvas) return;
+        const container = document.getElementById('tradingview-web-chart');
+        if (!container) return;
+        // Set canvas size to actual pixel size
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = rect.width;
+        const cssH = rect.height - 44; // restar header
+        canvas.width = Math.floor(cssW * dpr);
+        canvas.height = Math.floor(cssH * dpr);
+        canvas.style.width = cssW + 'px';
+        canvas.style.height = cssH + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, cssW, cssH);
+        const candles = liveChartState.candles;
+        if (!candles || !candles.length) {
+          ctx.fillStyle = '#a499b8';
+          ctx.font = '14px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Cargando velas…', cssW/2, cssH/2);
+          return;
+        }
+        // Calcular rango
+        let minP = Infinity, maxP = -Infinity, maxV = 0;
+        candles.forEach(c => {
+          if (c.l < minP) minP = c.l;
+          if (c.h > maxP) maxP = c.h;
+          if (c.v > maxV) maxV = c.v;
+        });
+        const padP = (maxP - minP) * 0.05 || 1;
+        minP -= padP; maxP += padP;
+        const priceRange = maxP - minP;
+        const volAreaH = 50; // area de volumen abajo
+        const priceAreaH = cssH - volAreaH - 8;
+        const padL = 50, padR = 8;
+        const chartW = cssW - padL - padR;
+        // Calcular ancho de vela
+        const n = candles.length;
+        const candleW = Math.max(2, Math.floor(chartW / n) * 0.7);
+        const slotW = chartW / n;
+        const yFromPrice = (p) => priceAreaH - ((p - minP) / priceRange) * priceAreaH;
+        // Grid horizontal
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const y = (i / 4) * priceAreaH;
+          ctx.beginPath();
+          ctx.moveTo(padL, y);
+          ctx.lineTo(cssW - padR, y);
+          ctx.stroke();
+          // Labels de precio
+          const p = maxP - (i / 4) * priceRange;
+          ctx.fillStyle = '#645a78';
+          ctx.font = '10px JetBrains Mono, monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText(formatPrice(p), padL - 4, y + 3);
+        }
+        // Velas + volumen
+        for (let i = 0; i < n; i++) {
+          const c = candles[i];
+          const x = padL + i * slotW + slotW/2;
+          const yO = yFromPrice(c.o);
+          const yC = yFromPrice(c.c);
+          const yH = yFromPrice(c.h);
+          const yL = yFromPrice(c.l);
+          const isUp = c.c >= c.o;
+          const color = isUp ? '#4ade80' : '#f87171';
+          // Cuerpo
+          ctx.fillStyle = color;
+          const bodyTop = Math.min(yO, yC);
+          const bodyH = Math.max(1, Math.abs(yC - yO));
+          ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH);
+          // Wick
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, yH);
+          ctx.lineTo(x, yL);
+          ctx.stroke();
+          // Volumen
+          const volH = (c.v / maxV) * (volAreaH - 4);
+          const volY = cssH - volH;
+          ctx.fillStyle = isUp ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)';
+          ctx.fillRect(x - candleW/2, volY, candleW, volH);
+        }
+        // Ultima vela: highlight
+        const last = candles[n - 1];
+        const lastX = padL + (n - 1) * slotW + slotW/2;
+        const lastY = yFromPrice(last.c);
+        ctx.strokeStyle = '#f0c060';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(lastX, 0);
+        ctx.lineTo(lastX, priceAreaH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Etiqueta de precio de la ultima vela
+        const labelY = Math.max(14, Math.min(priceAreaH - 4, lastY));
+        ctx.fillStyle = '#f0c060';
+        ctx.fillRect(cssW - 60, labelY - 8, 56, 16);
+        ctx.fillStyle = '#000';
+        ctx.font = '10px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(formatPrice(last.c), cssW - 32, labelY + 4);
+      }
+      window.renderLiveChart = renderLiveChart;
+
+      function formatPrice(p){
+        if (p === undefined || p === null || isNaN(p)) return '—';
+        const abs = Math.abs(p);
+        if (abs >= 1000) return p.toFixed(0);
+        if (abs >= 100) return p.toFixed(1);
+        if (abs >= 10) return p.toFixed(2);
+        if (abs >= 1) return p.toFixed(3);
+        return p.toFixed(5);
+      }
+      window.formatPrice = formatPrice;
+
       async function renderAcademia() {
         const grid = document.getElementById('acad-grid');
         if (!grid) return;
         grid.innerHTML = '<div class="acad-loading">Cargando cursos...</div>';
+        // Inicializar chart en vivo si el canvas existe
+        if (typeof window.initTradingViewWeb === 'function' && document.getElementById('liveChartCanvas')) {
+          // Llamar async (no await) para que no bloquee el render de cursos
+          window.initTradingViewWeb().catch(e => console.warn('[acad] liveChart:', e));
+        }
         try {
           const data = await sb.getAcademia();
           acadCoursesCache = data || [];
@@ -2045,15 +2341,19 @@ let sb = window.API;
         const musicBtn = document.getElementById('adminSubtabMusic');
         const walletBtn = document.getElementById('adminSubtabWallet');
         const torneosBtn = document.getElementById('adminSubtabTorneos');
+        const monitorBtn = document.getElementById('adminSubtabMonitor');
+        const diagBtn = document.getElementById('adminSubtabDiag');
         const usersContent = document.getElementById('adminSubtabContentUsers');
         const tasksContent = document.getElementById('adminSubtabContentTasks');
         const musicContent = document.getElementById('adminSubtabContentMusic');
         const walletContent = document.getElementById('adminSubtabContentWallet');
         const torneosContent = document.getElementById('adminSubtabContentTorneos');
+        const monitorContent = document.getElementById('adminSubtabContentMonitor');
+        const diagContent = document.getElementById('adminSubtabContentDiagnostics');
         const resetBtn = (btn) => { if (!btn) return; btn.style.color = '#645a78'; btn.style.borderBottomColor = 'transparent'; };
         const activateBtn = (btn) => { if (!btn) return; btn.style.color = 'var(--gold-bright)'; btn.style.borderBottomColor = 'var(--gold)'; };
-        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn];
-        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent];
+        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn, diagBtn];
+        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent, diagContent];
         const resetAll = () => allBtns.forEach(resetBtn);
         if (tab === 'tasks') {
           resetAll(); activateBtn(tasksBtn);
@@ -2076,6 +2376,16 @@ let sb = window.API;
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
           if (torneosContent) torneosContent.style.display = 'block';
           if (typeof adminTorneosRefresh === 'function') adminTorneosRefresh();
+        } else if (tab === 'monitor') {
+          resetAll(); activateBtn(monitorBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (monitorContent) monitorContent.style.display = 'block';
+          loadMonitorLogs();
+        } else if (tab === 'diagnostics') {
+          resetAll(); activateBtn(diagBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (diagContent) diagContent.style.display = 'block';
+          adminLoadDiagnostics();
         } else {
           resetAll(); activateBtn(usersBtn);
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
@@ -2086,6 +2396,378 @@ let sb = window.API;
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
       var adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
       window.adminPlaylistData = adminPlaylistData; // necesario para los onmouseover inline del HTML
+
+      // ==================== ADMIN DIAGNÓSTICOS ====================
+      async function adminLoadDiagnostics() {
+        const el = document.getElementById('adminDiagnosticsContent');
+        if (!el) {
+          console.warn('[diagnostics] #adminDiagnosticsContent no existe en el DOM');
+          return;
+        }
+        el.innerHTML = '<p style="color:#645a78; font-size:0.85rem;">⏳ Consultando…</p>';
+
+        // Watchdog: si despues de 5s sigue mostrando "Consultando..." sin
+        // haber avanzado, mostrar error inline (asi el usuario ve que pasa
+        // sin tener que abrir DevTools).
+        const watchdog = setTimeout(() => {
+          if (el && /Consultando/.test(el.innerHTML)) {
+            el.innerHTML = `<div style="padding:16px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.35);border-radius:8px;color:#f87171;font-size:0.85rem">
+              <div style="font-weight:700;margin-bottom:6px">⚠ El diagnostico esta tardando mas de 5s</div>
+              <div style="color:#a499b8;font-size:0.78rem;line-height:1.6">
+                Posibles causas:<br>
+                • El Service Worker del navegador esta cacheando un bundle viejo (hard refresh: Ctrl+Shift+R)<br>
+                • El endpoint /api/diagnostics no responde (revisar logs del server)<br>
+                • No hay sesion iniciada (TNSVT_USER.code undefined)<br>
+                <br>
+                <button class="post-btn" style="padding:6px 14px;font-size:0.75rem" onclick="adminLoadDiagnostics()">🔄 Reintentar</button>
+                <button class="back-btn" style="padding:6px 14px;font-size:0.75rem;margin-left:6px" onclick="document.getElementById('adminDiagnosticsContent').innerHTML='<p style=color:#a499b8;font-size:0.85rem>Manual: abre DevTools → Network → /api/diagnostics</p>'">📋 Como diagnosticarlo</button>
+              </div>
+            </div>`;
+          }
+        }, 5000);
+
+        // 1) Estado del SW (cliente)
+        let sw = { supported: false, controllers: 0, count: 0, registrations: [] };
+        try {
+          sw = await API.getSWStatus();
+        } catch (e) {
+          console.warn('[diagnostics] API.getSWStatus:', e);
+        }
+
+        // 2) Estado del backend
+        let backend = { error: 'No se pudo consultar /api/diagnostics' };
+        try {
+          backend = await API.getDiagnostics(window.TNSVT_USER?.code || 'DEMO');
+          if(!backend || !backend.timestamp) backend = { error: 'Respuesta inválida del backend' };
+        } catch (e) {
+          console.warn('[diagnostics] API.getDiagnostics:', e);
+          backend = { error: (e && e.message) || 'Excepción desconocida' };
+        }
+        clearTimeout(watchdog);
+
+        // Render
+        const swStatus = sw.supported
+          ? (sw.controllers > 0 ? '<span style="color:#4ade80">● ACTIVO</span>' : '<span style="color:#f0c060">● Cargando…</span>')
+          : '<span style="color:#f87171">● No soportado</span>';
+
+        const swHtml = sw.registrations?.map(r => `
+          <div style="display:flex; justify-content:space-between; padding:6px 10px; background:rgba(138,60,255,.08); border-radius:6px; margin-bottom:4px; font-size:0.78rem;">
+            <span style="color:#a499b8;">${escapeHtml(r.scope)}</span>
+            <span style="color:#4ade80;">${escapeHtml((r.active||'').split('/').pop() || 'sw')}</span>
+          </div>
+        `).join('') || '<p style="color:#645a78; font-size:0.78rem;">Ningún SW registrado</p>';
+
+        const hintHtml = (backend.hints || []).map(h => {
+          const colors = { ok:'#4ade80', warning:'#f0c060', error:'#f87171', info:'#60a5fa' };
+          const icons  = { ok:'✓', warning:'⚠', error:'✗', info:'ⓘ' };
+          return `<div style="display:flex; gap:8px; padding:10px 12px; background:rgba(0,0,0,.3); border-left:3px solid ${colors[h.level]||'#645a78'}; border-radius:6px; margin-bottom:6px;">
+            <span style="color:${colors[h.level]||'#645a78'}; font-weight:700;">${icons[h.level]||'•'}</span>
+            <span style="font-size:0.82rem; color:#e2dcf0;">${escapeHtml(h.msg)}</span>
+          </div>`;
+        }).join('');
+
+        const fbOk = backend.firebase?.web_configured;
+        const swFileOk = backend.service_workers_files?.['sw.js']?.exists;
+        const fcmFileOk = backend.service_workers_files?.['firebase-messaging-sw.js']?.exists;
+        const saOk = backend.firebase?.service_account_exists;
+
+        el.innerHTML = `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:16px;">
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Service Worker</div>
+              <div class="mon-stat-value" style="font-size:1.05rem;">${swStatus}</div>
+              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${sw.count} registrado(s)</div>
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Firebase Web</div>
+              <div class="mon-stat-value" style="font-size:1.05rem; color:${fbOk?'#4ade80':'#f87171'}">${fbOk?'✓ OK':'✗ Falta'}</div>
+              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">FIREBASE_WEB_*</div>
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">FCM Service Account</div>
+              <div class="mon-stat-value" style="font-size:1.05rem; color:${saOk?'#4ade80':'#f0c060'}">${saOk?'✓ OK':'⚠ Falta'}</div>
+              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${saOk?'Push nativo funciona':'Push web OK, native no'}</div>
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Notificaciones</div>
+              <div class="mon-stat-value" style="font-size:1.05rem;">${backend.notifications?.total ?? '—'}</div>
+              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${backend.notifications?.unread ?? 0} sin leer</div>
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Devices</div>
+              <div class="mon-stat-value" style="font-size:1.05rem;">${backend.devices?.total ?? '—'}</div>
+              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${Object.entries(backend.devices?.by_platform||{}).map(([k,v])=>`${k}:${v}`).join(', ')||'—'}</div>
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Usuarios</div>
+              <div class="mon-stat-value" style="font-size:1.05rem;">${backend.users?.total ?? '—'}</div>
+              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">PHP ${backend.php ?? '—'} · Symfony ${backend.symfony ?? '—'}</div>
+            </div>
+          </div>
+
+          <h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1rem; margin:16px 0 8px;">📦 Archivos Service Worker</h3>
+          <div style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(0,0,0,.3); border-radius:6px; margin-bottom:4px;">
+              <span style="font-size:0.85rem;">public/sw.js</span>
+              <span style="font-size:0.78rem; color:${swFileOk?'#4ade80':'#f87171'};">${swFileOk?'✓ ' + backend.service_workers_files['sw.js'].size_kb + ' KB · ' + (backend.service_workers_files['sw.js'].version||'sin versión'):'✗ No existe'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(0,0,0,.3); border-radius:6px;">
+              <span style="font-size:0.85rem;">public/firebase-messaging-sw.js</span>
+              <span style="font-size:0.78rem; color:${fcmFileOk?'#4ade80':'#f87171'};">${fcmFileOk?'✓ ' + backend.service_workers_files['firebase-messaging-sw.js'].size_kb + ' KB':'✗ No existe'}</span>
+            </div>
+          </div>
+
+          <h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1rem; margin:16px 0 8px;">🌐 SW Activos en el Navegador</h3>
+          <div style="margin-bottom:16px;">${swHtml}</div>
+
+          ${hintHtml ? `<h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1rem; margin:16px 0 8px;">💡 Recomendaciones</h3>${hintHtml}` : ''}
+
+          <p style="font-size:0.7rem; color:#645a78; margin-top:16px; text-align:right;">Actualizado: ${escapeHtml(backend.timestamp || '—')}</p>
+        `;
+      }
+      window.adminLoadDiagnostics = adminLoadDiagnostics;
+
+      // ==================== ADMIN MONITORING (logs de errores) ====================
+      async function loadMonitorLogs() {
+        const list = document.getElementById('monitorLogsList');
+        if (!list) return;
+        const code = window.TNSVT_USER?.code || 'ADMIN01';
+        const levelFilter = document.getElementById('monFilterLevel')?.value || '';
+        list.innerHTML = '<p style="color:#645a78;font-size:0.85rem">⏳ Cargando eventos…</p>';
+        try {
+          const data = await API.getMonitorLogs(code, { level: levelFilter, limit: 100 });
+          // Stats en las cards
+          if (data.stats) {
+            const s = data.stats;
+            const updateStat = (id, val, color) => {
+              const el = document.querySelector(`#${id} .mon-stat-value`);
+              if (el) { el.textContent = val; el.style.color = color || ''; }
+            };
+            updateStat('mon-stat-error', s.error || 0, '#f87171');
+            updateStat('mon-stat-warning', s.warning || 0, '#f0c060');
+            updateStat('mon-stat-info', s.info || 0, '#60a5fa');
+            updateStat('mon-stat-total', (s.error||0)+(s.warning||0)+(s.info||0));
+          }
+          // Lista de logs
+          if (!data.logs || data.logs.length === 0) {
+            list.innerHTML = '<p style="color:#4ade80;font-size:0.85rem;padding:20px;text-align:center">✓ Sin eventos registrados</p>';
+            return;
+          }
+          const colors = { error:'#f87171', warning:'#f0c060', info:'#60a5fa' };
+          const icons  = { error:'✗', warning:'⚠', info:'ⓘ' };
+          list.innerHTML = data.logs.map(l => `
+            <div style="padding:10px 12px;background:rgba(0,0,0,.3);border-left:3px solid ${colors[l.level]||'#645a78'};border-radius:6px;margin-bottom:6px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="color:${colors[l.level]||'#645a78'};font-weight:700;font-size:0.85rem">${icons[l.level]||'•'} ${escapeHtml(l.level || '?').toUpperCase()}</span>
+                <span style="color:#645a78;font-size:0.7rem">${escapeHtml(l.created_at || '')}</span>
+              </div>
+              <div style="font-size:0.82rem;color:#e2dcf0;margin-bottom:4px;word-break:break-word">${escapeHtml(l.message || '')}</div>
+              <div style="font-size:0.7rem;color:#645a78">
+                ${l.source ? `<span style="color:#a499b8">source:</span> ${escapeHtml(l.source)}` : ''}
+                ${l.user_code ? ` · <span style="color:#a499b8">user:</span> ${escapeHtml(l.user_code)}` : ''}
+                ${l.url ? ` · <span style="color:#a499b8">url:</span> ${escapeHtml(l.url)}` : ''}
+              </div>
+            </div>`).join('');
+        } catch (e) {
+          list.innerHTML = `<p style="color:#f87171;font-size:0.85rem">❌ Error cargando eventos: ${escapeHtml(e.message || 'desconocido')}</p>`;
+        }
+      }
+      window.loadMonitorLogs = loadMonitorLogs;
+
+      // Boton "Probar error" — genera un error real que el SW capturara y enviara al backend.
+      async function testMonitorError() {
+        const code = window.TNSVT_USER?.code || 'ADMIN01';
+        try {
+          // Genera un error real (puede ser capturado por el SW si lo hay, o el handler global)
+          throw new Error(`🧪 Test error desde panel admin — ${new Date().toLocaleTimeString()}`);
+        } catch (e) {
+          // Envia manualmente al backend (asi SIEMPRE queda registrado, sin depender del handler global)
+          try {
+            await API.logMonitorEvent({
+              level: 'error',
+              message: e.message,
+              stack: e.stack || null,
+              source: 'admin-test-button',
+              user_code: code,
+              url: location.pathname,
+            });
+            showToast('🧪 Error de prueba enviado al monitoring');
+          } catch (err) {
+            showToast('❌ No pude enviar el error de prueba: ' + err.message);
+          }
+        }
+      }
+      window.testMonitorError = testMonitorError;
+
+      // ==================== AVATAR UPLOAD ====================
+      async function uploadAvatar(inputEl) {
+        const file = inputEl.files && inputEl.files[0];
+        if (!file) return;
+        const userCode = window.TNSVT_USER?.code;
+        if (!userCode) { showToast('No hay usuario logueado'); return; }
+        try {
+          showToast('⏳ Subiendo avatar…');
+          const data = await API.uploadAvatar(userCode, file);
+          showToast('✓ Avatar actualizado');
+          if (window.TNSVT_USER) {
+            window.TNSVT_USER.avatar_url = data.avatar_url;
+            window.TNSVT_USER.avatar_color = data.avatar_color;
+            renderHeaderAvatar();
+            if (window.refreshAvatarMenuAfterChange) window.refreshAvatarMenuAfterChange(data);
+          }
+          // Si estamos en admin, refrescar tabla
+          if (typeof adminRefreshList === 'function' && document.getElementById('tab-admin')?.style.display !== 'none') {
+            adminRefreshList();
+          }
+        } catch (e) {
+          showToast('✗ ' + (e.message || 'Error'));
+        } finally {
+          inputEl.value = '';
+        }
+      }
+      window.uploadAvatar = uploadAvatar;
+
+      async function deleteMyAvatar() {
+        const userCode = window.TNSVT_USER?.code;
+        if (!userCode) return;
+        if (!confirm('¿Borrar tu avatar?')) return;
+        try {
+          await API.deleteAvatar(userCode);
+          showToast('✓ Avatar borrado');
+          if (window.TNSVT_USER) {
+            window.TNSVT_USER.avatar_url = null;
+            renderHeaderAvatar();
+          }
+        } catch (e) {
+          showToast('✗ ' + (e.message || 'Error'));
+        }
+      }
+      window.deleteMyAvatar = deleteMyAvatar;
+
+      // Render avatar en el header — muestra el círculo solo cuando hay sesión.
+      // Si no hay avatar subido, usa las iniciales del nombre + color estable.
+      function renderHeaderAvatar() {
+        const u = window.TNSVT_USER;
+        const wrap = document.getElementById('myAvatarWrap');
+        const el = document.getElementById('myAvatar');
+        if (!u || !u.code) {
+          // Sin sesión: ocultar el círculo, dejar el botón "Desconectar" del HTML original
+          if (wrap) wrap.style.display = 'none';
+          return;
+        }
+        if (wrap) wrap.style.display = 'block';
+
+        const av   = u.avatar_url || null;
+        const name = u.name || u.code || '?';
+        const initials = (name.trim().split(/\s+/).map(p => p[0] || '').join('').slice(0,2).toUpperCase()) || '?';
+        const color = u.avatar_color || '#9353ff';
+
+        if (!el) return;
+        if (av) {
+          el.innerHTML = `<img src="${av}?t=${Date.now()}" alt="${escapeHtml(name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+          el.style.background = 'transparent';
+        } else {
+          el.innerHTML = escapeHtml(initials);
+          el.style.background = color;
+        }
+
+        // Mostrar/ocultar botón "Quitar foto"
+        const del = document.getElementById('deleteAvatarBtn');
+        if (del) del.style.display = av ? 'flex' : 'none';
+      }
+      window.renderHeaderAvatar = renderHeaderAvatar;
+
+      // Vincular el click del avatar al menú (sin onclick inline, que puede
+      // ejecutarse antes que el bundle JS termine de parsearse).
+      function bindAvatarEvents() {
+        const av = document.getElementById('myAvatar');
+        if (av && !av.dataset.bound) {
+          av.dataset.bound = '1';
+          av.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof window.toggleAvatarMenu === 'function') {
+              window.toggleAvatarMenu();
+            }
+          });
+        }
+      }
+      window.bindAvatarEvents = bindAvatarEvents;
+
+      // Carga el perfil del user actual desde el backend y actualiza el avatar.
+      async function loadMyProfile() {
+        const code = window.TNSVT_USER?.code;
+        if (!code) return;
+        try {
+          const data = await API.getProfile(code);
+          if (!data) return;
+          window.TNSVT_USER.avatar_url  = data.avatar_url || null;
+          window.TNSVT_USER.avatar_color = data.avatar_color || null;
+          window.TNSVT_USER.initials    = data.initials || '?';
+          renderHeaderAvatar();
+          // Mostrar/ocultar botón "Quitar foto"
+          const del = document.getElementById('deleteAvatarBtn');
+          if (del) del.style.display = data.avatar_url ? 'flex' : 'none';
+        } catch (e) {
+          console.warn('[profile] loadMyProfile:', e.message);
+        }
+      }
+      window.loadMyProfile = loadMyProfile;
+
+      // Toggle del menú del avatar
+      function toggleAvatarMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('avatarMenu');
+        if (!menu) return;
+        const open = menu.style.display === 'block';
+        menu.style.display = open ? 'none' : 'block';
+        if (!open) {
+          // Cerrar al click fuera
+          setTimeout(() => document.addEventListener('click', closeAvatarMenuOutside, { capture: true, once: true }), 10);
+        }
+      }
+      function closeAvatarMenuOutside(e) {
+        const wrap = document.getElementById('myAvatarWrap');
+        if (wrap && !wrap.contains(e.target)) {
+          document.getElementById('avatarMenu').style.display = 'none';
+        } else {
+          document.addEventListener('click', closeAvatarMenuOutside, { capture: true, once: true });
+        }
+      }
+      window.toggleAvatarMenu = toggleAvatarMenu;
+
+      // ==================== ZOOM WIDGET (mobile) ====================
+      // Escala global de la UI via CSS transform en <body>.
+      // Persiste en localStorage entre sesiones.
+      let currentZoom = parseFloat(localStorage.getItem('tnsvt_zoom') || '1');
+      function applyZoom(level){
+        level = Math.max(0.7, Math.min(1.5, level));
+        currentZoom = level;
+        document.body.style.transform = `scale(${level})`;
+        document.body.style.transformOrigin = 'top center';
+        const display = Math.round(level * 100) + '%';
+        const el = document.getElementById('zoomLevel');
+        if (el) el.textContent = display;
+        try { localStorage.setItem('tnsvt_zoom', String(level)); } catch(_){}
+      }
+      function zoomIn(){ applyZoom(currentZoom + 0.1); }
+      function zoomOut(){ applyZoom(currentZoom - 0.1); }
+      function zoomReset(){ applyZoom(1); }
+      window.zoomIn = zoomIn;
+      window.zoomOut = zoomOut;
+      window.zoomReset = zoomReset;
+      // Aplicar zoom persistido al cargar
+      if (currentZoom !== 1) setTimeout(() => applyZoom(currentZoom), 100);
+
+      // Después de subir/borrar avatar, refrescar el menú para mostrar/ocultar "Quitar foto"
+      async function refreshAvatarMenuAfterChange(data) {
+        const del = document.getElementById('deleteAvatarBtn');
+        if (del) del.style.display = data && data.avatar_url ? 'flex' : 'none';
+      }
+      window.refreshAvatarMenuAfterChange = refreshAvatarMenuAfterChange;
+
+      function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
 
       async function adminMusicRefresh() {
         const empty = document.getElementById('adminPlaylistEmpty');
@@ -2397,16 +3079,6 @@ let sb = window.API;
       let chatLastMessageId = 0;
       let chatPollTimer = null;
 
-      function escapeHtml(str) {
-        if (str === null || str === undefined) return '';
-        return String(str)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      }
-
       function formatChatTime(iso) {
         if (!iso) return '';
         const d = new Date(iso);
@@ -2433,6 +3105,10 @@ let sb = window.API;
         if (conv.type === 'group') return { text: '#', cls: 'group' };
         if (conv.type === 'ai') return { text: 'IA', cls: 'ai' };
         const name = conv.other_user_name || conv.other_user_code || '?';
+        // Si el backend nos da avatar_url del otro user, devolvemos la URL para renderizar <img>
+        if (conv.other_user_avatar_url) {
+          return { image: conv.other_user_avatar_url, text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
+        }
         return { text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
       }
 
@@ -2457,7 +3133,7 @@ let sb = window.API;
           }
           return `
             <div class="chat-conv-item${active}" data-conv-id="${c.id}" onclick="selectConversation(${c.id})">
-              <div class="chat-conv-avatar ${av.cls}">${av.text}</div>
+              <div class="chat-conv-avatar ${av.cls}">${av.image ? `<img src="${escapeHtml(av.image)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.replaceWith(document.createTextNode('${av.text}'))">` : av.text}</div>
               <div class="chat-conv-info">
                 <div class="chat-conv-name">${escapeHtml(convDisplayName(c))}</div>
                 <div class="chat-conv-preview">${preview}</div>
@@ -2532,11 +3208,24 @@ let sb = window.API;
         // Header
         const nameEl = document.getElementById('chatHeaderName');
         const subEl = document.getElementById('chatHeaderSub');
+        const avEl = document.getElementById('chatHeaderAvatar');
         if (nameEl) nameEl.textContent = convDisplayName(conv);
         if (subEl) {
           if (conv.type === 'group') subEl.textContent = 'Conversación grupal';
           else if (conv.type === 'ai') subEl.textContent = 'Coach IA';
           else subEl.textContent = 'Mensaje directo';
+        }
+        // Avatar del header: mostrar foto del otro user si existe
+        if(avEl){
+          const av = convAvatar(conv);
+          if(av.image){
+            avEl.innerHTML = `<img src="${escapeHtml(av.image)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.replaceWith(document.createTextNode('${escapeHtml(av.text)}'))">`;
+            avEl.style.background = 'transparent';
+          } else {
+            avEl.innerHTML = av.text;
+            avEl.style.background = conv.type === 'group' ? 'linear-gradient(135deg, var(--gold), #b8860b)' : 'linear-gradient(135deg, var(--violet), #4a1a8a)';
+            avEl.style.color = conv.type === 'group' ? '#000' : '#fff';
+          }
         }
 
         const stream = document.getElementById('chatStream');
@@ -2656,6 +3345,18 @@ let sb = window.API;
 
       async function pollChat() {
         if (!window.TNSVT_USER) return;
+        // Si la conversacion activa ya no existe (fue borrada, stale state), limpiarla.
+        if (activeConvId && !chatConversations.some(c => c.id === activeConvId)) {
+          console.warn('[chat] activeConvId stale, limpiando:', activeConvId);
+          activeConvId = null;
+          chatLastMessageId = 0;
+          const stream = document.getElementById('chatStream');
+          if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
+          const nameEl = document.getElementById('chatHeaderName');
+          const subEl = document.getElementById('chatHeaderSub');
+          if (nameEl) nameEl.textContent = '—';
+          if (subEl) subEl.textContent = 'Seleccioná una conversación';
+        }
         if (document.getElementById('tab-chat')?.classList.contains('active') && activeConvId) {
           try {
             const messages = await sb.getMessages(activeConvId, window.TNSVT_USER.code, null);
@@ -2676,7 +3377,18 @@ let sb = window.API;
                 renderConversations();
               }
             }
-          } catch(e) {}
+          } catch(e) {
+            // Si el server devuelve 404 (conversacion borrada), limpiar
+            if (e.message && /404|Conversaci.n no encontrada|No encontrada/i.test(e.message)) {
+              console.warn('[chat] conversacion ya no existe:', activeConvId);
+              chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+              activeConvId = null;
+              chatLastMessageId = 0;
+              renderConversations();
+              const stream = document.getElementById('chatStream');
+              if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Esta conversación ya no existe</div>';
+            }
+          }
         }
         // Refresh sidebar every poll
         try {
@@ -2936,7 +3648,6 @@ let sb = window.API;
       window.closeTjDay = closeTjDay;
       window.filterFeed = filterFeed;
       window.selPostCat = selPostCat;
-      window.toggleSignalForm = toggleSignalForm;
       window.createNewPost = createNewPost;
       window.likeFeedPost = likeFeedPost;
       window.deletePost = deletePost;
@@ -2987,6 +3698,126 @@ let sb = window.API;
       window.attachChatPhoto = attachChatPhoto;
       window.removeChatPhoto = removeChatPhoto;
       window.openChatLightbox = openChatLightbox;
+
+      // Chat UI extras (silenciar, reply, menu, typing indicator)
+      let chatSoundOn = true;
+      function toggleChatSound(){
+        chatSoundOn = !chatSoundOn;
+        try { localStorage.setItem('tnsvt_chat_sound', chatSoundOn ? '1' : '0'); } catch(e){}
+        const btn = document.getElementById('chatSoundBtn');
+        if(btn){ btn.textContent = chatSoundOn ? '🔔' : '🔕'; btn.title = chatSoundOn ? 'Sonido activo' : 'Sonido silenciado'; }
+        showToast(chatSoundOn ? '🔔 Sonido activado' : '🔕 Sonido silenciado', 1500);
+      }
+      window.toggleChatSound = toggleChatSound;
+      // Restaurar preferencia al cargar
+      try { const s = localStorage.getItem('tnsvt_chat_sound'); if(s === '0'){ chatSoundOn = false; const b = document.getElementById('chatSoundBtn'); if(b) b.textContent='🔕'; } } catch(e){}
+
+      // Borrar la conversacion activa (boton del dropdown)
+      async function deleteConversation(){
+        if(!activeConvId){
+          showToast('Selecciona una conversación primero', 2000);
+          return;
+        }
+        const conv = chatConversations.find(c => c.id === activeConvId);
+        if(!conv) return;
+        const name = convDisplayName(conv);
+        if(!confirm(`¿Eliminar la conversación con "${name}"?\n\nEsta acción no se puede deshacer.`)){
+          return;
+        }
+        try{
+          await sb.deleteConversation(activeConvId, window.TNSVT_USER.code);
+          // Quitar del array local
+          chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+          activeConvId = null;
+          // Limpiar UI
+          const stream = document.getElementById('chatStream');
+          if(stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
+          const nameEl = document.getElementById('chatHeaderName');
+          const subEl = document.getElementById('chatHeaderSub');
+          if(nameEl) nameEl.textContent = '—';
+          if(subEl) subEl.textContent = 'Seleccioná una conversación';
+          const avEl = document.getElementById('chatHeaderAvatar');
+          if(avEl){ avEl.innerHTML = '?'; avEl.style.background = 'linear-gradient(135deg,var(--violet),#4a1a8a)'; }
+          renderConversations();
+          showToast('🗑️ Conversación eliminada');
+        }catch(e){
+          console.error('[chat] delete error:', e);
+          showToast('❌ No pude eliminar: ' + (e.message || 'error'));
+        }
+      }
+      window.deleteConversation = deleteConversation;
+
+      function onChatTyping(){
+        // Por ahora solo marcamos un flag local. Si el backend implementa typing broadcasts, se envia aca.
+        if(!activeConvId || !window.TNSVT_USER) return;
+        // Stub: en el futuro hacer POST /api/chat/typing cada 3s con throttle
+      }
+      window.onChatTyping = onChatTyping;
+
+      let chatReplyToId = null;
+      function cancelReply(){
+        chatReplyToId = null;
+        const ctx = document.getElementById('chatReplyContext');
+        if(ctx) ctx.style.display = 'none';
+        const input = document.getElementById('chatInput');
+        if(input) input.focus();
+      }
+      window.cancelReply = cancelReply;
+
+      function openChatMenu(){
+        // Dropdown modal con opciones de la conversacion activa
+        const existing = document.getElementById('chatMenuDropdown');
+        if(existing){ existing.remove(); return; }
+        if(!activeConvId){
+          showToast('Selecciona una conversación primero', 2000);
+          return;
+        }
+        const conv = chatConversations.find(c => c.id === activeConvId);
+        if(!conv) return;
+        const dropdown = document.createElement('div');
+        dropdown.id = 'chatMenuDropdown';
+        dropdown.style.cssText = 'position:absolute;top:50px;right:16px;background:rgba(13,8,24,.97);border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:6px;z-index:200;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.6);font-family:Inter,sans-serif;';
+        const items = [
+          { icon:'🔔', label: chatSoundOn ? 'Silenciar' : 'Activar sonido', action: ()=>{ toggleChatSound(); dropdown.remove(); } },
+          { icon:'✓', label:'Marcar como leído', action: async ()=>{ try{ await sb.markChatRead(window.TNSVT_USER.code, activeConvId); showToast('✓ Marcado como leído'); }catch(e){} dropdown.remove(); } },
+          { icon:'🚪', label: conv.type === 'group' ? 'Salir del grupo' : 'Cerrar conversación', action: async ()=>{
+              if(!confirm(conv.type === 'group' ? '¿Salir del grupo "' + convDisplayName(conv) + '"?' : '¿Cerrar la conversación con "' + convDisplayName(conv) + '"?')) return;
+              try{
+                if(conv.type === 'group'){ await sb.leaveConversation(activeConvId, window.TNSVT_USER.code); showToast('🚪 Saliste del grupo'); }
+                else { await sb.markChatRead(activeConvId, window.TNSVT_USER.code); showToast('✓ Conversación cerrada'); }
+                chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+                activeConvId = null;
+                renderConversations();
+              }catch(e){ showToast('❌ ' + (e.message||'error')); }
+              dropdown.remove();
+            }
+          },
+          { icon:'🗑️', label:'Eliminar conversación', danger:true, action: async ()=>{ dropdown.remove(); await deleteConversation(); } },
+          { icon:'ℹ️', label:'Información', action: ()=>{ alert('Conversación: ' + convDisplayName(conv) + '\nTipo: ' + conv.type + '\nID: ' + conv.id); dropdown.remove(); } },
+        ];
+        dropdown.innerHTML = items.map((it,i)=>`<div data-i="${i}" style="padding:8px 12px;cursor:pointer;border-radius:6px;display:flex;gap:10px;align-items:center;font-size:0.82rem;color:${it.danger?'#f87171':'#e2dcf0'};transition:background .15s"><span style="font-size:1rem">${it.icon}</span> ${it.label}</div>`).join('');
+        // Eventos
+        Array.from(dropdown.children).forEach((el,i)=>{
+          el.addEventListener('mouseenter', ()=>el.style.background='rgba(138,60,255,.18)');
+          el.addEventListener('mouseleave', ()=>el.style.background='transparent');
+          el.addEventListener('click', ()=>items[i].action());
+        });
+        // Cerrar al hacer click fuera
+        setTimeout(()=>{
+          const closeOnOutside = (e)=>{
+            if(!dropdown.contains(e.target) && e.target.id !== 'chatMenuBtn'){
+              dropdown.remove();
+              document.removeEventListener('click', closeOnOutside);
+            }
+          };
+          document.addEventListener('click', closeOnOutside);
+        }, 50);
+        // Posicionar relativo al chatHeader
+        const header = document.getElementById('chatHeader');
+        if(header){ header.style.position='relative'; header.appendChild(dropdown); }
+        else document.body.appendChild(dropdown);
+      }
+      window.openChatMenu = openChatMenu;
       window.initAllPanels = initAllPanels;
       window.musicToggle = musicToggle;
       window.musicSetVolume = musicSetVolume;
@@ -3523,27 +4354,103 @@ let sb = window.API;
         }
       }
 
-      // ---- Render panel ----
-      function renderNotifPanel() {
+      // ---- Render panel: trae del BACKEND, no del localStorage ----
+      async function renderNotifPanel() {
         const list = document.getElementById('notifList');
         if (!list) return;
-        if (!notifList.length) {
-          list.innerHTML = '<div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad<br>aparecerán aquí.</div>';
+
+        // Spinner mientras carga
+        list.innerHTML = '<div class="notif-empty" style="opacity:.6">⏳ Cargando...</div>';
+
+        if (!window.TNSVT_USER || !window.TNSVT_USER.code) {
+          list.innerHTML = '<div class="notif-empty">🔔<br>Iniciá sesión para ver notificaciones.</div>';
           return;
         }
-        list.innerHTML = notifList.slice(0, 30).map(n => {
-          const iconMap = { signal: '📊', like: '♥', comment: '💬', post: '✨' };
-          const timeStr = timeAgoStr(n.ts);
-          return `
-            <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markOneRead('${n.id}')">
-              <div class="notif-icon ${n.type}">${iconMap[n.type] || '🔔'}</div>
-              <div class="notif-body">
-                <div class="notif-text">${n.text}</div>
-                <div class="notif-time">${timeStr}</div>
-              </div>
-            </div>`;
-        }).join('');
+
+        try {
+          const res = await fetch(`/api/notifications?user_code=${encodeURIComponent(window.TNSVT_USER.code)}`, {
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const items = await res.json();
+
+          // Sincronizar cache local con backend (no se borra, se mergea)
+          if (Array.isArray(items)) {
+            notifList = items.map(n => ({
+              id: String(n.id),
+              type: n.type || 'dm',
+              text: n.text || '',
+              ts: n.ts || new Date().toISOString(),
+              read: !!n.read,
+              _fromBackend: true,
+            }));
+            saveNotifs();
+            updateBadge();
+          }
+
+          if (!notifList.length) {
+            list.innerHTML = '<div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad<br>aparecerán aquí.</div>';
+            return;
+          }
+          list.innerHTML = notifList.slice(0, 30).map(n => renderNotifItem(n)).join('');
+        } catch (e) {
+          console.warn('[notif] failed to load from backend, using cache:', e);
+          // Fallback a cache local si el backend no responde
+          if (!notifList.length) {
+            list.innerHTML = '<div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad<br>aparecerán aquí.</div>';
+            return;
+          }
+          list.innerHTML = notifList.slice(0, 30).map(n => renderNotifItem(n)).join('');
+        }
       }
+
+      // ---- Render de un item: muestra tipo, de quién y preview ----
+      function renderNotifItem(n) {
+        const iconMap = {
+          signal: '📊', like: '♥', comment: '💬', post: '✨',
+          dm: '💬', mention: '📢', task: '✅', academia: '🎓',
+          generic: '🔔'
+        };
+        const timeStr = timeAgoStr(n.ts);
+        const idEscaped = String(n.id).replace(/'/g, "\\'");
+        const type = n.type || 'generic';
+        const title = n.title || ({ dm: 'Mensaje directo', signal: 'Nueva señal', academia: 'Academia', task: 'Tarea', comment: 'Comentario', mention: 'Mención', like: 'Reacción', post: 'Publicación' }[type] || 'Notificación');
+        const sender = n.sender_name ? `<span class="notif-from">de <strong>${escapeHtml(n.sender_name)}</strong></span>` : '';
+        const avatar = n.sender_avatar || iconMap[type] || '🔔';
+        const preview = n.preview || n.text || '';
+        const hasNumericId = /^\d+$/.test(String(n.id));
+
+        return `
+          <div class="notif-item ${n.read ? '' : 'unread'} type-${type}" data-type="${type}" data-related-url="${escapeHtml(n.related_url || 'feed')}" onclick="markOneRead('${idEscaped}')">
+            <div class="notif-icon ${type}">${avatar}</div>
+            <div class="notif-body">
+              <div class="notif-title">${escapeHtml(title)} ${sender}</div>
+              <div class="notif-text">${escapeHtml(preview)}</div>
+              <div class="notif-time">${timeStr}</div>
+            </div>
+            ${hasNumericId ? `<button class="notif-delete-btn" onclick="event.stopPropagation();deleteNotif('${idEscaped}')" title="Borrar notificacion" aria-label="Borrar">✕</button>` : ''}
+          </div>`;
+      }
+
+      // ---- Borrar una notificacion ----
+      async function deleteNotif(id) {
+        if (!window.TNSVT_USER?.code) return;
+        if (!/^\d+$/.test(String(id))) return;
+        if (!confirm('¿Borrar esta notificación?')) return;
+        try {
+          await API.deleteNotification(id, window.TNSVT_USER.code);
+          // Quitar del array local
+          notifList = notifList.filter(x => String(x.id) !== String(id));
+          saveNotifs();
+          updateBadge();
+          renderNotifPanel();
+          showToast('🗑️ Notificación borrada', 1800);
+        } catch (e) {
+          console.warn('[notif] delete:', e);
+          showToast('❌ No pude borrar: ' + (e.message || 'error'));
+        }
+      }
+      window.deleteNotif = deleteNotif;
 
       function timeAgoStr(ts) {
         const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
@@ -3586,16 +4493,52 @@ let sb = window.API;
       function markAllRead() {
         notifList.forEach(n => n.read = true);
         saveNotifs(); updateBadge(); renderNotifPanel();
+        // Persistir en backend
+        if (window.TNSVT_USER?.code) {
+          fetch(`/api/notifications/read-all?user_code=${encodeURIComponent(window.TNSVT_USER.code)}`, {
+            method: 'PUT',
+            credentials: 'include'
+          }).catch(e => console.warn('[notif] markAllRead backend:', e));
+        }
       }
 
       function markOneRead(id) {
         const n = notifList.find(x => x.id === id);
-        if (n) { n.read = true; saveNotifs(); updateBadge(); renderNotifPanel(); }
-        // Ir al feed
-        switchTab('tab-feed');
-        document.querySelector('.sidebar-btn')?.classList.remove('active');
-        document.querySelector('[onclick*="tab-feed"]')?.classList.add('active');
+        if (n) { n.read = true; saveNotifs(); updateBadge(); }
+        // Persistir en backend si el id es numérico (id real de DB)
+        if (window.TNSVT_USER?.code && /^\d+$/.test(String(id))) {
+          fetch(`/api/notifications/${id}/read?user_code=${encodeURIComponent(window.TNSVT_USER.code)}`, {
+            method: 'PUT',
+            credentials: 'include'
+          }).catch(e => console.warn('[notif] markOneRead backend:', e));
+        }
+        // Cerrar panel
         document.getElementById('notifPanel')?.classList.remove('open');
+        // Ir al tab correcto segun related_url
+        const relatedUrl = n?.related_url || 'feed';
+        const tabMap = {
+          'feed': 'tab-posts',
+          'chat': 'tab-chat',
+          'signals': 'tab-posts',
+          'academia': 'tab-academia',
+          'tasks': 'tab-tasks',
+          'journal': 'tab-journal',
+          'calendar': 'tab-calendar',
+        };
+        const tabId = tabMap[relatedUrl] || 'tab-posts';
+        if (typeof switchTab === 'function') {
+          switchTab(tabId);
+        } else {
+          // Fallback: solo highlight el boton correspondiente
+          document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+          const btn = document.querySelector(`[onclick*="${tabId}"]`);
+          if (btn) btn.classList.add('active');
+        }
+        // Si es feed con categoria senales, filtrar
+        if (relatedUrl === 'signals' && typeof filterFeed === 'function') {
+          const btnSenales = document.querySelector('[onclick*="filterFeed"][onclick*="señales"]');
+          if (btnSenales) btnSenales.click();
+        }
       }
 
       // ---- Push toast flotante ----
@@ -4004,3 +4947,25 @@ let sb = window.API;
           if (r && r.url) handleDeepLink(r.url);
         }).catch(() => {});
       }
+
+      // ─── REGISTRAR SERVICE WORKER (PWA + offline + push) ───
+      // Si el SW no está registrado, el navegador no cachea ni recibe push.
+      // Se registra apenas carga la app, sin esperar al opt-in de notificaciones.
+      (function registerSW() {
+        if (!('serviceWorker' in navigator)) return;
+        // En file:// (caso raro), no se puede registrar
+        if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(reg => {
+            console.log('[PWA] sw.js registrado, scope:', reg.scope);
+            // Forzar update del SW si hay uno nuevo esperando
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          })
+          .catch(err => console.warn('[PWA] sw.js no se pudo registrar:', err));
+        // Escuchar cambios de SW y forzar reload cuando hay uno nuevo
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // El SW nuevo tomó control; opcional: location.reload()
+        });
+      })();

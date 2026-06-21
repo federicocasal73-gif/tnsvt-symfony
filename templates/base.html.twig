@@ -14,13 +14,38 @@
 <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
-  {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    {% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=2.2">
   {% endblock %}
-  <script src="{{ asset('api.js') }}"></script>
-  {% block javascripts %}
-    {% block importmap %}{{ importmap('app') }}{% endblock %}
-  {% endblock %}
+   <script src="{{ asset('api.js') }}?v=2.2"></script>
+   {% block javascripts %}
+     {% block importmap %}{{ importmap('app') }}{% endblock %}
+   {% endblock %}
+   <script>
+     // ─── Cache-busting del importmap: forzar reload si el bundle viejo da 404 ───
+     (function bustImportmap() {
+       var imap = document.querySelector('script[type="importmap"]');
+       if (!imap) return;
+       try {
+         var data = JSON.parse(imap.textContent);
+          var v = 'v=2.2';
+         Object.keys(data.imports || {}).forEach(function(k){
+           var p = data.imports[k];
+           if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
+         });
+         imap.textContent = JSON.stringify(data);
+       } catch (_) {}
+     })();
+     // ─── Watchdog: si a los 4s no hay funciones críticas, forzar reload ───
+     setTimeout(function(){
+       if (typeof window.API === 'undefined' || typeof window.fetch !== 'function') {
+         console.warn('[TNSVT] Assets no cargaron — recargando con cache-bust');
+         var u = location.href.split('#')[0];
+         u += (u.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+         location.replace(u);
+       }
+     }, 4000);
+   </script>
   <style>
   /* ===== MÓDULO MULTIFRACTAL ===== */
   .mf-header { text-align:center; padding:24px 0 18px; border-bottom:1px solid rgba(212,175,55,0.15); margin-bottom:20px; }
@@ -113,7 +138,10 @@
 
   /* ===== MÚSICA: BARRA PERSISTENTE (TIPO SPOTIFY) ===== */
   #musicPlayerBar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147483000;
+    position: fixed !important; left: 0 !important; right: 0 !important; top: auto !important;
+    /* Safe area: respeta el home indicator en iOS / gesture bar en Android */
+    bottom: env(safe-area-inset-bottom, 0px) !important;
+    z-index: 2147483000;
     height: 64px; background: rgba(9,5,18,0.97);
     border-top: 1px solid rgba(212,175,55,0.3);
     backdrop-filter: blur(14px);
@@ -123,6 +151,8 @@
   }
   /* Visibilidad controlada 100% por JS (inline style) - mas confiable */
   #musicPlayerBar.slide-out { transform: translateY(100%); opacity: 0; }
+  /* FIX: evitar flash inicial arriba — forzar visibilidad solo via display, sin transform raro */
+  #musicPlayerBar[style*="display: flex"] { transform: none !important; }
   .mpb-track { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 0 230px; max-width: 260px; }
   .mpb-cover { width: 42px; height: 42px; border-radius: 6px; background: linear-gradient(135deg,var(--violet),var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 2px 8px rgba(212,175,55,0.3); }
   .mpb-cover.playing { animation: mpbSpin 6s linear infinite; }
@@ -170,10 +200,12 @@
       <h2>⛧ T.N.S.V.T ⛧</h2>
       <p class="sub">NEURO-SPIRITUAL VALUE THEORY</p>
       <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" aria-label="Código de acceso" autofocus oninput="toggleAdminPassField()" onkeydown="if(event.key==='Enter'){event.preventDefault();maybeFocusPass();}" style="text-transform:uppercase;">
+      <form id="gateForm" onsubmit="event.preventDefault();verifyGateKey();" style="margin:0;">
       <div id="gatePassWrap" style="position:relative; display:none; margin-top:8px;">
         <input type="password" id="gatePass" placeholder="CONTRASEÑA" aria-label="Contraseña de administrador" autocomplete="current-password" style="padding-right:46px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
         <button type="button" id="gatePassToggle" onclick="togglePassVisibility()" aria-label="Mostrar u ocultar contraseña" title="Mostrar contraseña 👁" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); color:var(--gold-bright); cursor:pointer; font-size:1.2rem; padding:6px 10px; line-height:1; border-radius:6px; transition:all 0.2s; display:flex; align-items:center; justify-content:center; min-width:36px; min-height:36px;" onmouseover="this.style.background='rgba(212,175,55,0.25)';this.style.borderColor='var(--gold-bright)';" onmouseout="this.style.background='rgba(212,175,55,0.1)';this.style.borderColor='rgba(212,175,55,0.3)';">👁</button>
       </div>
+      </form>
       <button class="login-btn" onclick="verifyGateKey()" aria-label="Entrar al gateway">ENTRAR AL GATEWAY</button>
       <p id="adminPassHint" style="display:none; font-size:0.75rem; color:var(--gold); margin-top:8px;">👑 Admin detectado — ingresá tu contraseña</p>
       <p id="loginError" style="display:none; font-size:0.82rem; color:#ff7066; margin-top:10px; padding:8px 12px; background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.3); border-radius:8px;"></p>
@@ -227,7 +259,29 @@
           </div>
         </div>
         <div class="user-info"><div class="user-codename" id="profileCodename">Alma Electa</div><div class="user-status" id="profileRole">Conexión Divina</div></div>
-        <button class="logout-btn" onclick="logout()">Desconectar</button>
+
+        <!-- AVATAR del usuario actual — click = menú perfil -->
+        <div class="avatar-wrap" id="myAvatarWrap" style="position:relative;">
+          <div class="user-avatar" id="myAvatar" data-user-avatar
+               style="width:36px;height:36px;border-radius:50%;background:var(--violet);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;cursor:pointer;border:2px solid rgba(212,175,55,0.4);transition:all 0.2s;color:#fff;overflow:hidden;"
+               title="Mi perfil">
+            ?
+          </div>
+          <div id="avatarMenu" style="display:none;position:absolute;top:44px;right:0;z-index:200;background:rgba(13,8,24,0.98);border:1px solid rgba(212,175,55,0.3);border-radius:12px;padding:8px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+            <div style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:#645a78;letter-spacing:1px;padding:4px 8px 6px;">MI PERFIL</div>
+            <button onclick="document.getElementById('avatarFileInput').click()" style="display:flex;width:100%;padding:10px 12px;background:transparent;border:none;color:#e2dcf0;font-size:0.82rem;text-align:left;cursor:pointer;border-radius:6px;font-family:inherit;align-items:center;gap:8px;" onmouseover="this.style.background='rgba(138,60,255,0.12)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:1rem;">📷</span> Cambiar foto
+            </button>
+            <button onclick="deleteMyAvatar()" id="deleteAvatarBtn" style="display:none;width:100%;padding:10px 12px;background:transparent;border:none;color:#f87171;font-size:0.82rem;text-align:left;cursor:pointer;border-radius:6px;font-family:inherit;align-items:center;gap:8px;" onmouseover="this.style.background='rgba(248,113,113,0.12)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:1rem;">🗑️</span> Quitar foto
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="uploadAvatar(this)">
+            <div style="height:1px;background:rgba(212,175,55,0.15);margin:6px 0;"></div>
+            <button onclick="logout()" style="display:flex;width:100%;padding:10px 12px;background:transparent;border:none;color:#f87171;font-size:0.82rem;text-align:left;cursor:pointer;border-radius:6px;font-family:inherit;align-items:center;gap:8px;" onmouseover="this.style.background='rgba(248,113,113,0.12)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:1rem;">🚪</span> Desconectar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <!-- BANNER PERMISOS PUSH -->
@@ -320,13 +374,13 @@
                 <div class="create-post-row">
                   <div class="create-cat-sel">
                     <button class="create-cat-opt sel" onclick="selPostCat('general',this)">General</button>
-                    <button class="create-cat-opt" onclick="selPostCat('señales',this)">Señal</button>
+                    <button class="create-cat-opt admin-only-cat" onclick="selPostCat('señales',this)">Señal</button>
                     <button class="create-cat-opt" onclick="selPostCat('resultados',this)">Resultado</button>
                     <button class="create-cat-opt" onclick="selPostCat('proyecciones',this)">Proyección</button>
                     <button class="create-cat-opt" onclick="selPostCat('pregunta',this)">Pregunta</button>
                   </div>
                   <div style="display:flex;gap:6px;">
-                    <button style="padding:6px 12px;background:transparent;border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#645a78;cursor:pointer;font-size:0.75rem;" onclick="toggleSignalForm()">📊 + Señal</button>
+                    <button class="admin-only-btn" style="padding:6px 12px;background:transparent;border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#645a78;cursor:pointer;font-size:0.75rem;" onclick="toggleSignalForm()">📊 + Señal</button>
                     <label id="postPhotoLabel" style="cursor:pointer;padding:8px 14px;background:rgba(138,60,255,0.12);border:1px solid rgba(138,60,255,0.35);border-radius:8px;color:#c4a0ff;font-size:0.75rem;display:flex;align-items:center;gap:6px;transition:all 0.2s;font-weight:600;" title="Adjuntar foto al post (funciona para General, Señal, Resultado, Proyección y Pregunta)" onmouseover="this.style.background='rgba(138,60,255,0.22)';this.style.borderColor='rgba(138,60,255,0.6)'" onmouseout="this.style.background='rgba(138,60,255,0.12)';this.style.borderColor='rgba(138,60,255,0.35)'">
                       <span style="font-size:1rem;">📷</span> Foto
                       <span id="postPhotoBadge" style="display:none;background:var(--gold-bright);color:#000;font-size:0.55rem;padding:1px 5px;border-radius:8px;font-weight:700;letter-spacing:0.5px;">LISTA</span>
@@ -340,27 +394,52 @@
                   <button type="button" onclick="removePostPhoto()" style="position:absolute; top:14px; right:14px; background:rgba(255,59,48,0.85); border:none; color:#fff; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:0.9rem; line-height:1;">✕</button>
                 </div>
                 <div class="show-signal-form" id="signalForm">
-                  <div style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📊 Datos de la Señal</div>
-                  <div class="sig-input-row">
-                    <input class="sig-inp" id="sig-asset" placeholder="Activo (ej: NAS100)">
-                    <select class="sig-inp" id="sig-dir" aria-label="Dirección de la señal"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
-                  </div>
-                  <div class="sig-input-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
-                    <input class="sig-inp" id="sig-entry" placeholder="Entry">
-                    <input class="sig-inp" id="sig-sl" placeholder="Stop Loss">
-                    <input class="sig-inp" id="sig-tp1" placeholder="TP1">
-                    <input class="sig-inp" id="sig-tp2" placeholder="TP2 (opc)">
-                  </div>
-                  <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
-                    <label id="sigPhotoLabel" style="cursor:pointer;padding:6px 12px;background:rgba(138,60,255,0.1);border:1px dashed rgba(138,60,255,0.4);border-radius:6px;color:#a499b8;font-size:0.72rem;display:flex;align-items:center;gap:5px;transition:all 0.2s;" title="Adjuntar screenshot/chart a esta señal" onmouseover="this.style.background='rgba(138,60,255,0.2)';this.style.borderColor='rgba(138,60,255,0.6)';this.style.color='#c4a0ff'" onmouseout="this.style.background='rgba(138,60,255,0.1)';this.style.borderColor='rgba(138,60,255,0.4)';this.style.color='#a499b8'">
-                      <span>📷</span> Captura de la señal
-                      <span id="sigPhotoBadge" style="display:none;background:var(--gold-bright);color:#000;font-size:0.55rem;padding:1px 5px;border-radius:8px;font-weight:700;">✓</span>
-                      <input type="file" accept="image/*" style="display:none;" onchange="attachSignalPhoto(this)" aria-label="Adjuntar foto a la señal">
-                    </label>
-                    <div id="sigPhotoPreview" style="display:none;position:relative;">
-                      <img id="sigPhotoImg" src="" alt="preview" style="max-height:70px;border-radius:6px;border:1px solid rgba(212,175,55,0.2);">
-                      <button type="button" onclick="removeSignalPhoto()" style="position:absolute;top:-6px;right:-6px;background:rgba(255,59,48,0.85);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:0.7rem;line-height:1;">✕</button>
+                  <div class="sig-form-header">
+                    <span class="sig-form-icon">📊</span>
+                    <div>
+                      <div class="sig-form-title">Datos de la Señal</div>
+                      <div class="sig-form-subtitle">Publicá una señal con tu análisis</div>
                     </div>
+                  </div>
+
+                  <div class="sig-field">
+                    <label class="sig-label">Activo y dirección</label>
+                    <div class="sig-input-row">
+                      <input class="sig-inp" id="sig-asset" placeholder="Activo (ej: NAS100)">
+                      <select class="sig-inp" id="sig-dir" aria-label="Dirección de la señal"><option value="BUY">🟢 BUY</option><option value="SELL">🔴 SELL</option><option value="BE">🟡 BE (Break Even)</option></select>
+                    </div>
+                  </div>
+
+                  <div class="sig-field">
+                    <label class="sig-label">Niveles de la operación</label>
+                    <div class="sig-input-row sig-4col">
+                      <input class="sig-inp" id="sig-entry" placeholder="Entry">
+                      <input class="sig-inp" id="sig-sl" placeholder="Stop Loss">
+                      <input class="sig-inp" id="sig-tp1" placeholder="TP1">
+                      <input class="sig-inp" id="sig-tp2" placeholder="TP2 (opc)">
+                    </div>
+                  </div>
+
+                  <div class="sig-field">
+                    <label class="sig-label">Captura del chart (opcional)</label>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                      <label id="sigPhotoLabel" style="cursor:pointer;padding:10px 16px;background:rgba(138,60,255,0.12);border:1px dashed rgba(138,60,255,0.5);border-radius:8px;color:#c4a0ff;font-size:0.85rem;display:flex;align-items:center;gap:8px;transition:all 0.2s;" title="Adjuntar screenshot/chart a esta señal" onmouseover="this.style.background='rgba(138,60,255,0.22)';this.style.borderColor='rgba(138,60,255,0.7)';this.style.color='#fff'" onmouseout="this.style.background='rgba(138,60,255,0.12)';this.style.borderColor='rgba(138,60,255,0.5)';this.style.color='#c4a0ff'">
+                        <span style="font-size:1.1rem;">📷</span> Adjuntar captura
+                        <span id="sigPhotoBadge" style="display:none;background:var(--gold-bright);color:#000;font-size:0.6rem;padding:2px 7px;border-radius:8px;font-weight:700;letter-spacing:0.5px;">LISTA</span>
+                        <input type="file" accept="image/*" style="display:none;" onchange="attachSignalPhoto(this)" aria-label="Adjuntar foto a la señal">
+                      </label>
+                      <div id="sigPhotoPreview" style="display:none;position:relative;">
+                        <img id="sigPhotoImg" src="" alt="preview" style="max-height:80px;border-radius:8px;border:1px solid rgba(212,175,55,0.3);">
+                        <button type="button" onclick="removeSignalPhoto()" style="position:absolute;top:-6px;right:-6px;background:rgba(255,59,48,0.85);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:0.8rem;line-height:1;">✕</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="sig-form-hint">💡 Tip: una señal con chart tiene 3× más confianza para la comunidad</div>
+
+                  <div class="sig-form-actions">
+                    <button type="button" class="sig-btn-cancel" onclick="closeSignalForm()">Cancelar</button>
+                    <button type="button" class="sig-btn-publish" onclick="createNewPost()">📊 Publicar Señal</button>
                   </div>
                 </div>
               </div>
@@ -2586,19 +2665,53 @@
     <button class="acad-admin-btn" onclick="openAdminPanel()">⚙️ Admin</button>
   </div>
 
-  <!-- GRID DE CURSOS -->
-  <div class="acad-grid" id="acad-grid">
-    <div class="acad-loading">Cargando cursos...</div>
+  <!-- TRADINGVIEW CHART -->
+  <div class="acad-section" style="margin:20px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+      <h4 style="font-family:'Cinzel';color:var(--gold-bright);margin:0;">📈 Chart en Vivo</h4>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label style="color:#a499b8;font-size:0.75rem;">Par:</label>
+        <select id="tv-symbol" onchange="initTradingViewWeb()" style="background:var(--bg-deep);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">
+          <option value="OANDA:EURUSD">EUR/USD</option>
+          <option value="OANDA:GBPUSD">GBP/USD</option>
+          <option value="OANDA:USDJPY">USD/JPY</option>
+          <option value="OANDA:XAUUSD">XAU/USD (Oro)</option>
+          <option value="BINANCE:BTCUSDT">BTC/USDT</option>
+          <option value="BINANCE:ETHUSDT">ETH/USDT</option>
+        </select>
+        <label style="color:#a499b8;font-size:0.75rem;">TF:</label>
+        <select id="tv-interval" onchange="initTradingViewWeb()" style="background:var(--bg-deep);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">
+          <option value="1">1m</option>
+          <option value="5">5m</option>
+          <option value="15" selected>15m</option>
+          <option value="60">1h</option>
+          <option value="240">4h</option>
+          <option value="D">1D</option>
+        </select>
+      </div>
+    </div>
+    <div id="tradingview-web-chart" style="width:100%;height:500px;border-radius:12px;overflow:hidden;background:var(--bg-base);border:1px solid var(--border);position:relative;">
+      <div id="liveChartHeader" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);font-size:0.82rem">
+        <div style="display:flex;gap:14px;align-items:center">
+          <span id="liveChartPrice" style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:700;color:#fff">—</span>
+          <span id="liveChartChange" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.05)">—</span>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;color:#a499b8;font-size:0.72rem">
+          <span>Alto: <span id="liveChartHigh" style="color:#4ade80">—</span></span>
+          <span>Bajo: <span id="liveChartLow" style="color:#f87171">—</span></span>
+          <span>Vol: <span id="liveChartVol" style="color:#f0c060">—</span></span>
+          <span id="liveChartSource" style="color:#9353ff">●</span>
+        </div>
+      </div>
+      <canvas id="liveChartCanvas" style="display:block;width:100%;height:calc(100% - 44px)"></canvas>
+    </div>
   </div>
 
-  <!-- MODAL VIEWER DE CURSO -->
-  <div class="acad-video-modal" id="acad-modal" onclick="if(event.target===this)closeAcadVideo()">
-    <button class="acad-video-close" onclick="closeAcadVideo()">✕</button>
-    <div class="acad-video-inner">
-      <div class="acad-video-embed" id="acad-video-container"></div>
-      <div class="acad-modal-title" id="acad-modal-title"></div>
-      <div class="acad-modal-desc" id="acad-modal-desc"></div>
-      <div class="acad-lessons-list" id="acad-lessons-list"></div>
+  <!-- GRID DE CURSOS -->
+  <div class="acad-section" style="margin-top:20px;">
+    <h4 style="font-family:'Cinzel';color:var(--gold-bright);margin-bottom:12px;">📚 Cursos</h4>
+    <div class="acad-grid" id="acad-grid">
+      <div class="acad-loading">Cargando cursos...</div>
     </div>
   </div>
 
@@ -2610,8 +2723,10 @@
         <div class="admin-title">⚙️ Panel Admin <button class="admin-close" onclick="closeAdminPanel()">✕</button></div>
         <div class="admin-login">
           <p>Contraseña de administrador</p>
+          <form onsubmit="event.preventDefault();checkAdminPass();" style="margin:0;">
           <input class="admin-input" type="password" id="adminPassInput" placeholder="Contraseña Academia" onkeypress="if(event.key==='Enter')checkAdminPass()">
           <button class="admin-btn-primary" onclick="checkAdminPass()">INGRESAR</button>
+          </form>
         </div>
       </div>
 
@@ -2661,21 +2776,40 @@
         <span class="chat-sidebar-title">💬 Conversaciones</span>
         <button type="button" onclick="openNewDmModal()" title="Mensaje privado" style="background:transparent; border:1px solid rgba(212,175,55,0.3); color:var(--gold-bright); border-radius:6px; padding:4px 10px; font-size:0.8rem; cursor:pointer;">✉️ Nuevo</button>
       </div>
+      <div class="chat-search">
+        <input type="text" id="chatSearchInput" placeholder="🔍 Buscar conversación..." oninput="filterChatList()">
+      </div>
       <div class="chat-conv-list" id="chatConvList">
         <!-- JS-rendered: cada item con avatar, nombre, last message preview, unread badge -->
       </div>
     </aside>
     <main class="chat-main">
       <div class="chat-header" id="chatHeader">
-        <div class="chat-header-info">
-          <span class="chat-header-name" id="chatHeaderName">—</span>
-          <span class="chat-header-sub" id="chatHeaderSub">Seleccioná una conversación</span>
+        <div class="chat-header-left">
+          <div id="chatHeaderAvatar" class="chat-header-avatar" style="display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--violet),#4a1a8a);width:38px;height:38px;border-radius:50%;flex-shrink:0;margin-right:10px;overflow:hidden">?</div>
+          <div class="chat-header-info">
+            <span class="chat-header-name" id="chatHeaderName">—</span>
+            <span class="chat-header-sub" id="chatHeaderSub">Seleccioná una conversación</span>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <button onclick="toggleChatSound()" id="chatSoundBtn" title="Sonido de mensajes">🔔</button>
+          <button onclick="openChatMenu()" id="chatMenuBtn" title="Opciones">⋯</button>
         </div>
       </div>
       <div class="chat-stream" id="chatStream">
-        <div class="chat-empty">Elegí una conversación para empezar</div>
+        <div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>
+      </div>
+      <div class="chat-typing" id="chatTypingIndicator" style="display:none">
+        <div class="chat-typing-dots"><span></span><span></span><span></span></div>
+        <span id="chatTypingText">alguien está escribiendo</span>
       </div>
       <div class="chat-input-area">
+        <div class="chat-reply-context" id="chatReplyContext" style="display:none">
+          <span style="color:var(--gold-bright);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;">Respondiendo a</span>
+          <span class="chat-reply-context-text" id="chatReplyPreview"></span>
+          <button type="button" onclick="cancelReply()" title="Cancelar">✕</button>
+        </div>
         <div class="chat-photo-preview-row" id="chatPhotoPreviewRow" style="display:none">
           <img id="chatPhotoPreview" class="chat-photo-preview" alt="preview">
           <button class="chat-photo-remove" id="chatPhotoRemove" type="button" title="Quitar foto">✕</button>
@@ -2683,7 +2817,7 @@
         <div class="chat-input-row">
           <input type="file" id="chatPhotoInput" accept="image/*" hidden>
           <button class="chat-photo-btn" id="chatPhotoBtn" type="button" title="Adjuntar foto (máx 10MB)">📷</button>
-          <input type="text" id="chatInput" class="chat-input" placeholder="Escribí un mensaje..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Escribí un mensaje..." onkeypress="if(event.key==='Enter') sendChatMessage()" oninput="onChatTyping()">
           <button class="post-btn" id="chatSendBtn" type="button">Enviar</button>
         </div>
       </div>
@@ -2701,10 +2835,12 @@
   </div>
 
   <!-- Sub-pestañas del admin -->
-  <div style="display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid rgba(212,175,55,0.15);">
+  <div style="display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid rgba(212,175,55,0.15); flex-wrap:wrap;">
     <button class="admin-subtab-btn active" id="adminSubtabUsers" onclick="adminShowSubtab('users')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid var(--gold); color:var(--gold-bright); font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">👥 Alumnos</button>
     <button class="admin-subtab-btn" id="adminSubtabTasks" onclick="adminShowSubtab('tasks')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">📋 Tareas Operativas</button>
     <button class="admin-subtab-btn" id="adminSubtabMusic" onclick="adminShowSubtab('music')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🎵 Música</button>
+    <button class="admin-subtab-btn" id="adminSubtabMonitor" onclick="adminShowSubtab('monitor')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🛡️ Monitoring</button>
+    <button class="admin-subtab-btn" id="adminSubtabDiag" onclick="adminShowSubtab('diagnostics')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🔍 Diagnóstico</button>
   </div>
 
   <!-- SUB-PESTAÑA: ALUMNOS -->
@@ -2854,6 +2990,52 @@
 
       <p id="adminMusicFeedback" style="font-size:0.82rem; margin-top:12px; min-height:1.2em;"></p>
     </div>
+
+  <!-- SUB-PESTAÑA: DIAGNÓSTICO -->
+  <div id="adminSubtabContentDiagnostics" style="display:none;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center;">
+      <button class="post-btn" onclick="adminLoadDiagnostics()">🔄 Refrescar diagnóstico</button>
+      <span style="font-size:0.75rem; color:#645a78;">Se auto-ejecuta al abrir esta pestaña.</span>
+    </div>
+    <div id="adminDiagnosticsContent">
+      <p style="color:#645a78; font-size:0.85rem;">⏳ Cargando…</p>
+    </div>
+  </div>
+  </div>
+
+  <!-- SUB-PESTAÑA: MONITORING -->
+  <div id="adminSubtabContentMonitor" style="display:none;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:18px;">
+      <div class="monitor-stat-card" id="mon-stat-error">
+        <div class="mon-stat-label">Errores (24h)</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="mon-stat-warning">
+        <div class="mon-stat-label">Warnings (24h)</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="mon-stat-info">
+        <div class="mon-stat-label">Info (24h)</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="mon-stat-total">
+        <div class="mon-stat-label">Total eventos (24h)</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <select id="monFilterLevel" onchange="loadMonitorLogs()" style="padding:8px 12px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:8px; color:#fff; font-family:inherit; font-size:0.8rem;">
+        <option value="">Todos los niveles</option>
+        <option value="error">Solo errores</option>
+        <option value="warning">Solo warnings</option>
+        <option value="info">Solo info</option>
+      </select>
+      <button onclick="loadMonitorLogs()" style="padding:8px 14px; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); border-radius:8px; color:var(--gold-bright); font-family:inherit; font-size:0.8rem; cursor:pointer;">🔄 Refrescar</button>
+      <button onclick="testMonitorError()" style="padding:8px 14px; background:rgba(138,60,255,0.15); border:1px solid rgba(138,60,255,0.3); border-radius:8px; color:#c4a0ff; font-family:inherit; font-size:0.8rem; cursor:pointer; margin-left:auto;">🧪 Probar error</button>
+    </div>
+
+    <div id="monitorLogsList" style="display:flex; flex-direction:column; gap:8px;"></div>
   </div>
 </div>
   </div>
@@ -2869,6 +3051,14 @@
 
   </div> <!-- cierra login-screen -->
 </div> <!-- cierra app-container -->
+
+<!-- WIDGET DE ZOOM (visible solo en mobile) -->
+<div id="zoomWidget" class="zoom-widget" aria-label="Controles de zoom">
+  <button onclick="zoomIn()" aria-label="Acercar" title="Acercar">+</button>
+  <div class="zoom-level" id="zoomLevel">100%</div>
+  <button onclick="zoomOut()" aria-label="Alejar" title="Alejar">−</button>
+  <button onclick="zoomReset()" aria-label="Reset" title="Reset" style="font-size:0.7rem;">↺</button>
+</div>
 
     <div id="toast">Notificación Operativa</div>
 
