@@ -22,8 +22,8 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  body {
-    width: 100vw; min-height: 100vh; overflow-x: hidden;
+  html, body {
+    width: 100%; min-height: 100vh; overflow-x: hidden;
     background: var(--bg);
     font-family: 'Space Grotesk', sans-serif;
     color: #fff;
@@ -34,7 +34,9 @@
   }
 
   .app-container {
-    position: relative; z-index: 2; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px;
+    position: relative; z-index: 2; min-height: 100vh; width: 100%;
+    display: flex; flex-direction: column; align-items: stretch;
+    padding-bottom: 40px;
   }
 
   /* LOGIN */
