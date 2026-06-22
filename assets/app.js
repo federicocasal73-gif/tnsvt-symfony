@@ -188,10 +188,7 @@ let sb = window.API;
           // Mostrar la barra persistente de música en cualquier sección
           musicShowBar();
           // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
-          const adminBtn = document.getElementById('adminSidebarBtn');
-          if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
-          const chartBtn = document.getElementById('chartSidebarBtn');
-          if (chartBtn) chartBtn.style.display = isAdmin ? 'block' : 'none';
+          applyAdminFeatures(isAdmin);
         } catch (e) {
           showLoginError("❌ Error de conexión: " + (e.message || 'intentá de nuevo'));
         } finally {
@@ -415,16 +412,13 @@ let sb = window.API;
               roleEl.innerText = isAdmin ? '👑 Administrador' : '🎓 Conexión Divina';
               roleEl.style.color = isAdmin ? 'var(--gold)' : '';
             }
-            // Mostrar botones Admin y Chart al restaurar sesión
-            const adminBtn = document.getElementById('adminSidebarBtn');
-            if (adminBtn) adminBtn.style.display = (!!activeUserSession.isAdmin) ? 'block' : 'none';
-            const chartBtn = document.getElementById('chartSidebarBtn');
-            if (chartBtn) chartBtn.style.display = (!!activeUserSession.isAdmin) ? 'block' : 'none';
             window.TNSVT_USER = {
               code: activeUserSession.token,
               name: activeUserSession.codename || 'Trader',
               isAdmin: !!activeUserSession.isAdmin
             };
+            // Mostrar botones Admin y Chart al restaurar sesión
+            applyAdminFeatures(!!activeUserSession.isAdmin);
           }
           updateNodeStates();
           loaderInitWatch();
@@ -2394,6 +2388,31 @@ let sb = window.API;
         const fbKey = window.FIREBASE_CONFIG?.apiKey && window.FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY'
           ? '✓ Configurada'
           : '⚠ No configurada';
+        // Verificar también vía fetch directo al backend (más confiable)
+        try {
+          const r = await fetch('/api/firebase/config', { credentials: 'include' });
+          const fbData = await r.json();
+          if (fbData.configured) {
+            window.__FB_CONFIGURED__ = true;
+            window.FIREBASE_CONFIG = {
+              apiKey: fbData.apiKey,
+              authDomain: fbData.authDomain,
+              projectId: fbData.projectId,
+              storageBucket: fbData.storageBucket,
+              messagingSenderId: fbData.messagingSenderId,
+              appId: fbData.appId,
+              vapidKey: fbData.vapidKey,
+            };
+          } else {
+            window.__FB_CONFIGURED__ = false;
+          }
+        } catch (e) {
+          console.warn('[sysStatus] FB:', e);
+          window.__FB_CONFIGURED__ = false;
+        }
+        const fbReal = window.__FB_CONFIGURED__ === true
+          ? '✓ Detectada'
+          : '⚠ No detectada';
         el.innerHTML = `
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;">
             <div class="monitor-stat-card">
@@ -2403,8 +2422,8 @@ let sb = window.API;
             </div>
             <div class="monitor-stat-card">
               <div class="mon-stat-label">Firebase Web</div>
-              <div class="mon-stat-value" style="font-size:1.05rem;color:${fbKey.includes('✓')?'#4ade80':'#f87171'}">${fbKey}</div>
-              ${fbKey.includes('⚠') ? '<div style="font-size:0.7rem;color:#645a78;margin-top:4px;">Configurar FIREBASE_WEB_* en .env</div>' : ''}
+              <div class="mon-stat-value" style="font-size:1.05rem;color:${fbReal.includes('✓')?'#4ade80':'#f87171'}">${fbReal}</div>
+              ${fbReal.includes('⚠') ? '<div style="font-size:0.7rem;color:#645a78;margin-top:4px;">Configurar FIREBASE_WEB_* en .env</div>' : '<div style="font-size:0.7rem;color:#645a78;margin-top:4px;">backend OK</div>'}
             </div>
             <div class="monitor-stat-card">
               <div class="mon-stat-label">Usuario</div>
@@ -4090,6 +4109,21 @@ let sb = window.API;
           });
         } catch (e) { console.warn('[TNSVT music] debug failed', e); }
       }
+      // Aplica visibilidad de elementos UI que dependen de isAdmin
+      // Llamar después del login Y después del session restore
+      function applyAdminFeatures(isAdmin) {
+        const adminBtn = document.getElementById('adminSidebarBtn');
+        if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
+        const chartBtn = document.getElementById('chartSidebarBtn');
+        if (chartBtn) chartBtn.style.display = isAdmin ? 'block' : 'none';
+        // También actualizar window.TNSVT_USER.isAdmin
+        if (window.TNSVT_USER) {
+          window.TNSVT_USER.isAdmin = !!isAdmin;
+        }
+        console.log('[admin] applyAdminFeatures(isAdmin=' + isAdmin + ')');
+      }
+      window.applyAdminFeatures = applyAdminFeatures;
+
       function musicShowBar() {
         const bar = document.getElementById('musicPlayerBar');
         document.body.classList.add('music-bar-active');
@@ -4926,20 +4960,46 @@ let sb = window.API;
       // Si el SW no está registrado, el navegador no cachea ni recibe push.
       // Se registra apenas carga la app, sin esperar al opt-in de notificaciones.
       (function registerSW() {
-        if (!('serviceWorker' in navigator)) return;
-        // En file:// (caso raro), no se puede registrar
-        if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+        if (!('serviceWorker' in navigator)) {
+          console.warn('[PWA] serviceWorker no soportado');
+          return;
+        }
+        if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+          console.warn('[PWA] protocolo no soportado:', location.protocol);
+          return;
+        }
+        console.log('[PWA] registrando sw.js desde', location.origin);
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
           .then(reg => {
-            console.log('[PWA] sw.js registrado, scope:', reg.scope);
+            console.log('[PWA] sw.js registrado OK, scope:', reg.scope, 'state:', reg.active?.state || 'installing');
             // Forzar update del SW si hay uno nuevo esperando
             if (reg.waiting) {
               reg.waiting.postMessage({ type: 'SKIP_WAITING' });
             }
+            // Refrescar el panel admin si existe
+            if (typeof loadSystemStatus === 'function') {
+              setTimeout(() => loadSystemStatus(), 800);
+            }
           })
-          .catch(err => console.warn('[PWA] sw.js no se pudo registrar:', err));
-        // Escuchar cambios de SW y forzar reload cuando hay uno nuevo
+          .catch(err => {
+            console.error('[PWA] sw.js ERROR:', err.message);
+            if (typeof loadSystemStatus === 'function') loadSystemStatus();
+          });
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // El SW nuevo tomó control; opcional: location.reload()
+          console.log('[PWA] controller changed, reload recomendado');
         });
+        // Exponer función global para consultar el estado del SW
+        window.getSWInfo = async () => {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            return {
+              supported: true,
+              controller: !!navigator.serviceWorker.controller,
+              count: regs.length,
+              registrations: regs.map(r => ({ scope: r.scope, active: r.active?.scriptURL || '' })),
+            };
+          } catch (e) {
+            return { supported: false, error: e.message };
+          }
+        };
       })();

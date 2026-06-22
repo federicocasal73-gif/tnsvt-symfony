@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.5">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.5.1">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=3.4"></script>
-    <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
-    <script src="{{ asset('chart.js') }}?v=3.4"></script>
+    <script src="{{ asset('api.js') }}?v=3.5"></script>
+    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
+    <script src="{{ asset('chart.js') }}?v=3.5"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -488,9 +488,33 @@
         </select>
       </div>
     </div>
+
+    <!-- PRICE HEADER -->
+    <div id="chart-price-header" style="display:flex;align-items:baseline;gap:14px;padding:10px 14px;background:linear-gradient(135deg,rgba(13,8,24,0.9),rgba(9,5,18,0.7));border:1px solid rgba(212,175,55,0.18);border-radius:10px;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:baseline;gap:6px;">
+        <span id="chart-ph-symbol" style="font-family:'Orbitron',sans-serif;font-size:0.7rem;color:#a499b8;letter-spacing:1px;">—</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <span id="chart-ph-price" style="font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:700;color:#fff;line-height:1;">—</span>
+        <span id="chart-ph-arrow" style="font-size:1rem;color:#a499b8;">·</span>
+        <span id="chart-ph-change" style="font-family:'Orbitron',sans-serif;font-size:0.9rem;font-weight:600;color:#a499b8;">—</span>
+        <span id="chart-ph-change-pct" style="font-family:'Orbitron',sans-serif;font-size:0.8rem;color:#a499b8;">—</span>
+      </div>
+      <div style="display:flex;gap:14px;margin-left:auto;flex-wrap:wrap;">
+        <div style="text-align:right;"><div style="font-size:0.55rem;color:#645a78;text-transform:uppercase;letter-spacing:1px;">24h High</div><div id="chart-ph-high" style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:#34c759;">—</div></div>
+        <div style="text-align:right;"><div style="font-size:0.55rem;color:#645a78;text-transform:uppercase;letter-spacing:1px;">24h Low</div><div id="chart-ph-low" style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:#ff7066;">—</div></div>
+        <div style="text-align:right;"><div style="font-size:0.55rem;color:#645a78;text-transform:uppercase;letter-spacing:1px;">24h Vol</div><div id="chart-ph-vol" style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:#c4a0ff;">—</div></div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:10px;">
       <div id="chart-container" style="flex:1;height:500px;border-radius:12px;overflow:hidden;background:var(--bg-base);border:1px solid var(--border);position:relative;">
-        <div id="chart-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#a499b8;font-size:0.9rem;background:var(--bg-base);z-index:2;">Cargando chart…</div>
+        <div id="chart-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#a499b8;font-size:0.9rem;background:var(--bg-base);z-index:2;">
+          <div style="text-align:center;">
+            <div style="font-size:1.6rem;margin-bottom:8px;animation:spin 2s linear infinite;">⛧</div>
+            <div>Cargando mercado...</div>
+          </div>
+        </div>
         <canvas id="chart-overlay" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;cursor:crosshair;"></canvas>
         <button id="chart-fullscreen-btn" style="position:absolute;top:8px;right:8px;z-index:3;background:rgba(138,60,255,.15);border:1px solid rgba(138,60,255,.3);border-radius:6px;color:#c4a0ff;cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:1rem;">⛶</button>
       </div>

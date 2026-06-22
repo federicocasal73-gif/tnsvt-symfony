@@ -98,6 +98,8 @@
       if (loading) loading.style.display = 'none';
       cachedCandles = result.candles;
       applyCandles(cachedCandles);
+      updatePriceHeader(cachedCandles);
+      updateLastPriceLine(cachedCandles);
     } catch (e) {
       console.warn('[chart] refresh:', e);
       if (loading) { loading.textContent = 'Error al cargar'; loading.style.display = 'flex'; }
@@ -110,6 +112,102 @@
     candleSeries.setData(mapped);
     updateVolumeSeries(candles);
     renderDrawings();
+  }
+
+  // === PRICE HEADER ===
+  function formatPrice(p) {
+    if (p == null || isNaN(p)) return '—';
+    if (p >= 1000) return p.toFixed(2);
+    if (p >= 1) return p.toFixed(4);
+    return p.toFixed(8);
+  }
+  function formatVol(v) {
+    if (v == null || isNaN(v)) return '—';
+    if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+    if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+    if (v >= 1e3) return (v / 1e3).toFixed(2) + 'K';
+    return v.toFixed(2);
+  }
+
+  function updatePriceHeader(candles) {
+    if (!candles || candles.length < 2) return;
+    const last = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+    const change = last.c - prev.c;
+    const changePct = (change / prev.c) * 100;
+    const isUp = change >= 0;
+    const color = isUp ? '#34c759' : '#ff7066';
+    const arrow = isUp ? '▲' : '▼';
+
+    // Last 24h stats: usar las últimas N velas según interval
+    const last24 = candles.slice(-Math.min(96, candles.length));
+    const high24 = Math.max(...last24.map(c => c.h));
+    const low24 = Math.min(...last24.map(c => c.l));
+    const vol24 = last24.reduce((s, c) => s + (c.v || 0), 0);
+
+    const symbolEl = document.getElementById('chart-ph-symbol');
+    const priceEl = document.getElementById('chart-ph-price');
+    const arrowEl = document.getElementById('chart-ph-arrow');
+    const changeEl = document.getElementById('chart-ph-change');
+    const changePctEl = document.getElementById('chart-ph-change-pct');
+    const highEl = document.getElementById('chart-ph-high');
+    const lowEl = document.getElementById('chart-ph-low');
+    const volEl = document.getElementById('chart-ph-vol');
+
+    const { exchange, symbol } = getState();
+    if (symbolEl) symbolEl.textContent = (exchange || '').toUpperCase() + ' · ' + (symbol || '').replace('USDT', '/USDT').replace('USD', '/USD');
+    if (priceEl) {
+      priceEl.textContent = formatPrice(last.c);
+      priceEl.style.color = color;
+      // Animación de flash al cambiar
+      priceEl.style.transition = 'color 0.2s';
+      priceEl.style.transform = 'scale(1.04)';
+      setTimeout(() => { priceEl.style.transform = 'scale(1)'; }, 250);
+    }
+    if (arrowEl) { arrowEl.textContent = arrow; arrowEl.style.color = color; }
+    if (changeEl) { changeEl.textContent = (change >= 0 ? '+' : '') + formatPrice(change); changeEl.style.color = color; }
+    if (changePctEl) { changePctEl.textContent = (changePct >= 0 ? '+' : '') + changePct.toFixed(2) + '%'; changePctEl.style.color = color; }
+    if (highEl) highEl.textContent = formatPrice(high24);
+    if (lowEl) lowEl.textContent = formatPrice(low24);
+    if (volEl) volEl.textContent = formatVol(vol24);
+  }
+
+  // === LAST PRICE LINE ===
+  let lastPriceLine = null;
+  function updateLastPriceLine(candles) {
+    if (!chart || !candles || !candles.length) return;
+    const last = candles[candles.length - 1];
+    try {
+      if (lastPriceLine) {
+        try { chart.removePriceLine(lastPriceLine); } catch (e) {}
+      }
+      lastPriceLine = chart.createPriceLine({
+        price: last.c,
+        color: last.c >= candles[candles.length - 2].c ? '#34c759' : '#ff7066',
+        lineWidth: 1,
+        lineStyle: 2, // dashed
+        axisLabelVisible: true,
+        title: 'last',
+      });
+    } catch (e) { console.warn('[chart] price line:', e); }
+  }
+
+  // === CROSSHAIR LEGEND ===
+  function setupCrosshair() {
+    if (!chart) return;
+    chart.subscribeCrosshairMove((param) => {
+      if (!param || !param.time || !cachedCandles || !cachedCandles.length) return;
+      const t = typeof param.time === 'number' ? param.time : Math.floor(new Date(param.time).getTime() / 1000);
+      const candle = cachedCandles.find(c => Math.floor(c.t / 1000) === t) || cachedCandles[param.logical ? 0 : cachedCandles.length - 1];
+      if (!candle) return;
+      const priceEl = document.getElementById('chart-ph-price');
+      if (priceEl) {
+        priceEl.textContent = formatPrice(candle.c);
+        // Determinar color según si subió o bajó en esa vela
+        const color = candle.c >= candle.o ? '#34c759' : '#ff7066';
+        priceEl.style.color = color;
+      }
+    });
   }
 
   function resizeOverlay() {
@@ -452,6 +550,7 @@
     if (loading) loading.style.display = 'none';
     initOverlay();
     loadDrawings();
+    setupCrosshair();
 
     document.getElementById('chart-fullscreen-btn')?.addEventListener('click', toggleFullscreen);
   }
