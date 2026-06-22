@@ -190,6 +190,8 @@ let sb = window.API;
           // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
           const adminBtn = document.getElementById('adminSidebarBtn');
           if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
+          const chartBtn = document.getElementById('chartSidebarBtn');
+          if (chartBtn) chartBtn.style.display = isAdmin ? 'block' : 'none';
         } catch (e) {
           showLoginError("❌ Error de conexión: " + (e.message || 'intentá de nuevo'));
         } finally {
@@ -351,10 +353,13 @@ let sb = window.API;
         const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
         if (btn) btn.classList.add('active');
         if (tabId === 'tab-admin' && typeof adminRefreshList === 'function') adminRefreshList();
-        if (tabId === 'tab-academia') {
-          if (typeof fetchLiveChart === 'function' && document.getElementById('liveChartCanvas')) {
-            fetchLiveChart();
+        if (tabId === 'tab-chart') {
+          if (typeof window.initChartTab === 'function') {
+            window.initChartTab();
           }
+        }
+        if (tabId === 'tab-leaderboard') {
+          if (typeof lbRefresh === 'function') lbRefresh();
         }
       }
       function switchTradingTab(tabId) { switchTab(tabId); }
@@ -410,9 +415,11 @@ let sb = window.API;
               roleEl.innerText = isAdmin ? '👑 Administrador' : '🎓 Conexión Divina';
               roleEl.style.color = isAdmin ? 'var(--gold)' : '';
             }
-            // Mostrar el botón ⚙️ Admin inmediatamente al restaurar sesión
+            // Mostrar botones Admin y Chart al restaurar sesión
             const adminBtn = document.getElementById('adminSidebarBtn');
             if (adminBtn) adminBtn.style.display = (!!activeUserSession.isAdmin) ? 'block' : 'none';
+            const chartBtn = document.getElementById('chartSidebarBtn');
+            if (chartBtn) chartBtn.style.display = (!!activeUserSession.isAdmin) ? 'block' : 'none';
             window.TNSVT_USER = {
               code: activeUserSession.token,
               name: activeUserSession.codename || 'Trader',
@@ -851,13 +858,13 @@ let sb = window.API;
           const img = new Image();
           img.onload = function() {
             const canvas = document.createElement('canvas');
-            const maxW = 900;
+            const maxW = 800;
             const scale = Math.min(1, maxW / img.width);
             canvas.width = img.width * scale;
             canvas.height = img.height * scale;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            const compressed = canvas.toDataURL('image/jpeg', 0.6);
             tjPhotoData[idx] = compressed;
             const slot = document.getElementById('tj-photo-' + idx);
             if (slot) {
@@ -927,7 +934,7 @@ let sb = window.API;
             if (idx > -1) tjTrades[idx] = { ...tjTrades[idx], ...trade };
           } else {
             const result = await sb.createTrade(trade);
-            trade.id = result.id || Date.now();
+            trade.id = result.id;
             tjTrades.unshift(trade);
           }
         } catch(e) {
@@ -949,7 +956,9 @@ let sb = window.API;
 
       async function tjDeleteTrade(id) {
         if (!confirm('¿Eliminar este trade? No se puede deshacer.')) return;
-        try { await sb.deleteTrade(id); } catch(e) { console.warn('[journal] deleteTrade:', e); }
+        if (typeof id === 'number' && id < 1000000) {
+          try { await sb.deleteTrade(id); } catch(e) { console.warn('[journal] backend delete:', e); }
+        }
         tjTrades = tjTrades.filter(t => t.id !== id);
         tjRefresh();
       }
@@ -1041,6 +1050,106 @@ let sb = window.API;
           return '<div class="tj-bar-row"><span class="tj-bar-label">'+days[wd]+'</span><div class="tj-bar-track"><div class="tj-bar-fill" style="width:'+pct+'%;background:'+color+';">'+d.n+'t</div></div><span class="tj-bar-pnl" style="color:'+color+';">$'+(d.pnl>=0?'+':'')+d.pnl.toFixed(0)+'</span></div>';
         }).join('');
       }
+
+      function tjRenderMonthly() {
+        const svg = document.getElementById('tj-monthly-svg');
+        if (!svg) return;
+        const barsG = document.getElementById('mbar-bars');
+        const wrLine = document.getElementById('mbar-wr-line');
+        const empty = document.getElementById('mbar-empty');
+        const tooltipBg = document.getElementById('mbar-tooltip-bg');
+        const tooltipTitle = document.getElementById('mbar-tooltip-title');
+        const tooltipPnl = document.getElementById('mbar-tooltip-pnl');
+        const tooltipSub = document.getElementById('mbar-tooltip-sub');
+        if (!barsG || !wrLine) return;
+
+        if (tjTrades.length === 0) {
+          if (empty) empty.style.display = 'block';
+          barsG.innerHTML = '';
+          wrLine.setAttribute('points', '');
+          return;
+        }
+        if (empty) empty.style.display = 'none';
+
+        // Group by month
+        const byMonth = {};
+        tjTrades.forEach(t => {
+          const m = t.date.slice(0, 7);
+          if (!byMonth[m]) byMonth[m] = { pnl: 0, n: 0, w: 0 };
+          byMonth[m].pnl += t.pnl;
+          byMonth[m].n++;
+          if (t.result === 'WIN') byMonth[m].w++;
+        });
+
+        const months = Object.keys(byMonth).sort();
+        if (months.length < 1) { barsG.innerHTML = ''; wrLine.setAttribute('points', ''); return; }
+
+        const cL = 50, cR = 585, cT = 25, cB = 170;
+        const halfSpace = 4;
+        const totalSpace = cR - cL;
+        const barW = Math.min(40, (totalSpace / months.length) - halfSpace * 2);
+        const gap = barW + halfSpace * 2;
+
+        const allPnl = months.map(m => byMonth[m].pnl);
+        const maxPnl = Math.max(...allPnl, 1);
+        const minPnl = Math.min(...allPnl, -1);
+        const maxAbs = Math.max(Math.abs(maxPnl), Math.abs(minPnl), 1);
+        const zeroY = cB - (0 - (-maxAbs)) / (maxAbs - (-maxAbs)) * (cB - cT);
+
+        // Y labels
+        const yT = document.getElementById('mbar-y-top');
+        const yM = document.getElementById('mbar-y-mid');
+        const yB = document.getElementById('mbar-y-bot');
+        const fmt = v => '$' + (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(0));
+        if (yT) yT.textContent = fmt(maxAbs);
+        if (yM) yM.textContent = fmt(0);
+        if (yB) yB.textContent = fmt(-maxAbs);
+
+        let barsHtml = '';
+        const wrPts = [];
+        months.forEach((m, i) => {
+          const d = byMonth[m];
+          const x = cL + i * gap + halfSpace;
+          const barH = Math.abs(d.pnl) / maxAbs * (cB - cT) * 0.9;
+          const isPos = d.pnl >= 0;
+          const y = isPos ? zeroY - barH : zeroY;
+          const color = isPos ? 'url(#barGradPos)' : 'url(#barGradNeg)';
+          const wr = (d.w / d.n * 100).toFixed(0);
+          const shortLabel = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(m.slice(5)) - 1];
+          barsHtml += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 1)}" fill="${color}" rx="3" filter="url(#barShadow)">`
+            + `<title>${shortLabel} ${m.slice(0,4)}: $${d.pnl >= 0 ? '+' : ''}${d.pnl.toFixed(2)} · ${d.w}W / ${d.n - d.w}L · ${wr}%</title></rect>`;
+          // X label
+          barsHtml += `<text x="${x + barW / 2}" y="${cB + 12}" fill="#645a78" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle">${shortLabel}</text>`;
+          // Win rate dot
+          const wrX = x + barW / 2;
+          const wrY = cT + (100 - wr) / 100 * (cB - cT - 10);
+          wrPts.push(wrX + ',' + wrY);
+          barsHtml += `<circle cx="${wrX}" cy="${wrY}" r="2.5" fill="#8a3cff" opacity="0.8"><title>${wr}% win rate</title></circle>`;
+        });
+
+        barsG.innerHTML = barsHtml;
+        wrLine.setAttribute('points', wrPts.join(' '));
+
+        // Hover tooltips using SVG title (already in rect titles)
+      }
+
+      function tjExportCSV() {
+        if (tjTrades.length === 0) return showToast('No hay trades para exportar');
+        const code = window.TNSVT_USER?.code;
+        if (!code) return showToast('No hay sesión');
+        window.open('/api/journal/export?user_code=' + encodeURIComponent(code) + '&format=csv');
+        showToast('Descargando CSV…');
+      }
+      window.tjExportCSV = tjExportCSV;
+
+      function tjExportHTML() {
+        if (tjTrades.length === 0) return showToast('No hay trades para exportar');
+        const code = window.TNSVT_USER?.code;
+        if (!code) return showToast('No hay sesión');
+        window.open('/api/journal/export?user_code=' + encodeURIComponent(code) + '&format=html');
+        showToast('Abriendo reporte HTML…');
+      }
+      window.tjExportHTML = tjExportHTML;
 
       function tjExport() {
         if (tjTrades.length === 0) return showToast('No hay trades para exportar');
@@ -1189,7 +1298,7 @@ let sb = window.API;
                 +'<div class="tj-trade-pnl" style="color:'+pnlColor+';">'+(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+'</div>'
                 +'<div style="display:flex;flex-direction:column;gap:2px;">'
                   +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️</button>'
-                  +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar">🗑</button>'
+                  +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑</button>'
                 +'</div>'
               +'</div>';
             }).join('');
@@ -1201,6 +1310,7 @@ let sb = window.API;
 
         tjRenderStats();
         tjRenderCal();
+        tjRenderMonthly();
       }
 
       function tjCalNav(dir) {
@@ -1248,7 +1358,20 @@ let sb = window.API;
 
       function openTjDay(dateStr) {
         const dayTrades = tjTrades.filter(t => t.date.slice(0, 10) === dateStr);
-        if (!dayTrades.length) return;
+        if (!dayTrades.length) {
+          const modal = document.getElementById('tjDayModal');
+          if (!modal) return;
+          const [y, m, d] = dateStr.split('-');
+          const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+          const titleEl = document.getElementById('tjDayTitle');
+          if(titleEl) titleEl.textContent = parseInt(d)+' de '+months[parseInt(m)-1]+' '+y;
+          const summaryEl = document.getElementById('tjDaySummary');
+          if(summaryEl) summaryEl.innerHTML = 'Sin trades este día';
+          const tradesEl = document.getElementById('tjDayTrades');
+          if(tradesEl) tradesEl.innerHTML = '<div style="text-align:center;padding:20px;color:#645a78;font-size:0.85rem;">📭 No hay trades registrados para esta fecha.</div>';
+          modal.classList.add('vis');
+          return;
+        }
         const modal = document.getElementById('tjDayModal');
         if (!modal) return;
         const [y, m, d] = dateStr.split('-');
@@ -1281,6 +1404,10 @@ let sb = window.API;
             +'</div>'
             +(t.notes?'<div class="tj-day-notes">📝 '+t.notes.replace(/</g,'&lt;')+'</div>':'')
             +photosHtml
+            +'<div style="display:flex;gap:6px;margin-top:8px;">'
+              +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️ Editar</button>'
+              +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑 Eliminar</button>'
+            +'</div>'
           +'</div>';
         }).join('');
         modal.classList.add('vis');
@@ -1719,241 +1846,10 @@ let sb = window.API;
       // 10 segundos con datos reales de Binance public API. Si Binance
       // no responde, usa el endpoint /api/market/candles que tiene fallback
       // a velas simuladas.
-      let liveChartState = {
-        symbol: 'BTCUSDT',
-        interval: '15m',
-        candles: [],
-        lastPrice: 0,
-        lastChange: 0,
-        lastVol: 0,
-        lastHigh: 0,
-        lastLow: 0,
-        source: 'simulated',
-        pollTimer: null,
-      };
-
-      async function initTradingViewWeb(){
-        const canvas = document.getElementById('liveChartCanvas');
-        const container = document.getElementById('tradingview-web-chart');
-        if (!canvas || !container) return;
-        // Leer symbol/interval de los selects
-        const symSel = document.getElementById('tv-symbol');
-        const intSel = document.getElementById('tv-interval');
-        if (symSel && !symSel.dataset.bound) {
-          symSel.dataset.bound = '1';
-          symSel.addEventListener('change', () => { liveChartState.symbol = symSel.value; fetchLiveChart(); });
-        }
-        if (intSel && !intSel.dataset.bound) {
-          intSel.dataset.bound = '1';
-          intSel.addEventListener('change', () => { liveChartState.interval = intSel.value; fetchLiveChart(); });
-        }
-        liveChartState.symbol = symSel ? symSel.value : 'BTCUSDT';
-        liveChartState.interval = intSel ? intSel.value : '15m';
-        // Resize handler
-        if (!canvas.dataset.resizeBound) {
-          canvas.dataset.resizeBound = '1';
-          window.addEventListener('resize', () => renderLiveChart());
-        }
-        await fetchLiveChart();
-        if (liveChartState.pollTimer) clearInterval(liveChartState.pollTimer);
-        liveChartState.pollTimer = setInterval(fetchLiveChart, 10000);
-      }
-      window.initTradingViewWeb = initTradingViewWeb;
-
-      async function fetchLiveChart(){
-        try {
-          const data = await API.getMarketCandles(liveChartState.symbol, liveChartState.interval, 80);
-          if (!data || !data.candles) return;
-          liveChartState.candles = data.candles;
-          liveChartState.source = data.source;
-          const last = data.candles[data.candles.length - 1];
-          if (last) {
-            liveChartState.lastPrice = last.c;
-            liveChartState.lastVol = last.v;
-          }
-          // Calcular cambio % vs la primera vela
-          const first = data.candles[0];
-          if (first && last) {
-            liveChartState.lastChange = ((last.c - first.o) / first.o) * 100;
-            const highs = data.candles.map(c => c.h);
-            const lows = data.candles.map(c => c.l);
-            liveChartState.lastHigh = Math.max(...highs);
-            liveChartState.lastLow = Math.min(...lows);
-          }
-          updateLiveChartHeader();
-          renderLiveChart();
-        } catch (e) {
-          console.warn('[liveChart] fetch:', e.message);
-        }
-      }
-      window.fetchLiveChart = fetchLiveChart;
-
-      function updateLiveChartHeader(){
-        const fmt = (n, d=2) => {
-          if(n === undefined || n === null || isNaN(n)) return '—';
-          if(Math.abs(n) >= 1000) return n.toLocaleString('en-US', {maximumFractionDigits: 0});
-          return n.toLocaleString('en-US', {maximumFractionDigits: d});
-        };
-        const price = document.getElementById('liveChartPrice');
-        const chg = document.getElementById('liveChartChange');
-        const high = document.getElementById('liveChartHigh');
-        const low = document.getElementById('liveChartLow');
-        const vol = document.getElementById('liveChartVol');
-        const src = document.getElementById('liveChartSource');
-        if (price) price.textContent = fmt(liveChartState.lastPrice, 4);
-        if (chg) {
-          const c = liveChartState.lastChange;
-          const sign = c >= 0 ? '+' : '';
-          chg.textContent = `${sign}${c.toFixed(2)}%`;
-          chg.style.color = c >= 0 ? '#4ade80' : '#f87171';
-          chg.style.background = c >= 0 ? 'rgba(74,222,128,.12)' : 'rgba(248,113,113,.12)';
-        }
-        if (high) high.textContent = fmt(liveChartState.lastHigh, 4);
-        if (low) low.textContent = fmt(liveChartState.lastLow, 4);
-        if (vol) {
-          const v = liveChartState.lastVol;
-          if (v >= 1e6) vol.textContent = (v/1e6).toFixed(2) + 'M';
-          else if (v >= 1e3) vol.textContent = (v/1e3).toFixed(2) + 'K';
-          else vol.textContent = v.toFixed(0);
-        }
-        if (src) {
-          src.textContent = liveChartState.source === 'binance' ? '● Binance' : '● Simulado';
-          src.style.color = liveChartState.source === 'binance' ? '#4ade80' : '#f0c060';
-        }
-      }
-      window.updateLiveChartHeader = updateLiveChartHeader;
-
-      function renderLiveChart(){
-        const canvas = document.getElementById('liveChartCanvas');
-        if (!canvas) return;
-        const container = document.getElementById('tradingview-web-chart');
-        if (!container) return;
-        // Set canvas size to actual pixel size
-        const rect = container.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        const cssW = rect.width;
-        const cssH = rect.height - 44; // restar header
-        canvas.width = Math.floor(cssW * dpr);
-        canvas.height = Math.floor(cssH * dpr);
-        canvas.style.width = cssW + 'px';
-        canvas.style.height = cssH + 'px';
-        const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-        ctx.clearRect(0, 0, cssW, cssH);
-        const candles = liveChartState.candles;
-        if (!candles || !candles.length) {
-          ctx.fillStyle = '#a499b8';
-          ctx.font = '14px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('Cargando velas…', cssW/2, cssH/2);
-          return;
-        }
-        // Calcular rango
-        let minP = Infinity, maxP = -Infinity, maxV = 0;
-        candles.forEach(c => {
-          if (c.l < minP) minP = c.l;
-          if (c.h > maxP) maxP = c.h;
-          if (c.v > maxV) maxV = c.v;
-        });
-        const padP = (maxP - minP) * 0.05 || 1;
-        minP -= padP; maxP += padP;
-        const priceRange = maxP - minP;
-        const volAreaH = 50; // area de volumen abajo
-        const priceAreaH = cssH - volAreaH - 8;
-        const padL = 50, padR = 8;
-        const chartW = cssW - padL - padR;
-        // Calcular ancho de vela
-        const n = candles.length;
-        const candleW = Math.max(2, Math.floor(chartW / n) * 0.7);
-        const slotW = chartW / n;
-        const yFromPrice = (p) => priceAreaH - ((p - minP) / priceRange) * priceAreaH;
-        // Grid horizontal
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-          const y = (i / 4) * priceAreaH;
-          ctx.beginPath();
-          ctx.moveTo(padL, y);
-          ctx.lineTo(cssW - padR, y);
-          ctx.stroke();
-          // Labels de precio
-          const p = maxP - (i / 4) * priceRange;
-          ctx.fillStyle = '#645a78';
-          ctx.font = '10px JetBrains Mono, monospace';
-          ctx.textAlign = 'right';
-          ctx.fillText(formatPrice(p), padL - 4, y + 3);
-        }
-        // Velas + volumen
-        for (let i = 0; i < n; i++) {
-          const c = candles[i];
-          const x = padL + i * slotW + slotW/2;
-          const yO = yFromPrice(c.o);
-          const yC = yFromPrice(c.c);
-          const yH = yFromPrice(c.h);
-          const yL = yFromPrice(c.l);
-          const isUp = c.c >= c.o;
-          const color = isUp ? '#4ade80' : '#f87171';
-          // Cuerpo
-          ctx.fillStyle = color;
-          const bodyTop = Math.min(yO, yC);
-          const bodyH = Math.max(1, Math.abs(yC - yO));
-          ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH);
-          // Wick
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x, yH);
-          ctx.lineTo(x, yL);
-          ctx.stroke();
-          // Volumen
-          const volH = (c.v / maxV) * (volAreaH - 4);
-          const volY = cssH - volH;
-          ctx.fillStyle = isUp ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)';
-          ctx.fillRect(x - candleW/2, volY, candleW, volH);
-        }
-        // Ultima vela: highlight
-        const last = candles[n - 1];
-        const lastX = padL + (n - 1) * slotW + slotW/2;
-        const lastY = yFromPrice(last.c);
-        ctx.strokeStyle = '#f0c060';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(lastX, 0);
-        ctx.lineTo(lastX, priceAreaH);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        // Etiqueta de precio de la ultima vela
-        const labelY = Math.max(14, Math.min(priceAreaH - 4, lastY));
-        ctx.fillStyle = '#f0c060';
-        ctx.fillRect(cssW - 60, labelY - 8, 56, 16);
-        ctx.fillStyle = '#000';
-        ctx.font = '10px JetBrains Mono, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(formatPrice(last.c), cssW - 32, labelY + 4);
-      }
-      window.renderLiveChart = renderLiveChart;
-
-      function formatPrice(p){
-        if (p === undefined || p === null || isNaN(p)) return '—';
-        const abs = Math.abs(p);
-        if (abs >= 1000) return p.toFixed(0);
-        if (abs >= 100) return p.toFixed(1);
-        if (abs >= 10) return p.toFixed(2);
-        if (abs >= 1) return p.toFixed(3);
-        return p.toFixed(5);
-      }
-      window.formatPrice = formatPrice;
-
       async function renderAcademia() {
         const grid = document.getElementById('acad-grid');
         if (!grid) return;
         grid.innerHTML = '<div class="acad-loading">Cargando cursos...</div>';
-        // Inicializar chart en vivo si el canvas existe
-        if (typeof window.initTradingViewWeb === 'function' && document.getElementById('liveChartCanvas')) {
-          // Llamar async (no await) para que no bloquee el render de cursos
-          window.initTradingViewWeb().catch(e => console.warn('[acad] liveChart:', e));
-        }
         try {
           const data = await sb.getAcademia();
           acadCoursesCache = data || [];
@@ -2349,18 +2245,16 @@ let sb = window.API;
         const walletBtn = document.getElementById('adminSubtabWallet');
         const torneosBtn = document.getElementById('adminSubtabTorneos');
         const monitorBtn = document.getElementById('adminSubtabMonitor');
-        const diagBtn = document.getElementById('adminSubtabDiag');
         const usersContent = document.getElementById('adminSubtabContentUsers');
         const tasksContent = document.getElementById('adminSubtabContentTasks');
         const musicContent = document.getElementById('adminSubtabContentMusic');
         const walletContent = document.getElementById('adminSubtabContentWallet');
         const torneosContent = document.getElementById('adminSubtabContentTorneos');
         const monitorContent = document.getElementById('adminSubtabContentMonitor');
-        const diagContent = document.getElementById('adminSubtabContentDiagnostics');
         const resetBtn = (btn) => { if (!btn) return; btn.style.color = '#645a78'; btn.style.borderBottomColor = 'transparent'; };
         const activateBtn = (btn) => { if (!btn) return; btn.style.color = 'var(--gold-bright)'; btn.style.borderBottomColor = 'var(--gold)'; };
-        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn, diagBtn];
-        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent, diagContent];
+        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn];
+        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent];
         const resetAll = () => allBtns.forEach(resetBtn);
         if (tab === 'tasks') {
           resetAll(); activateBtn(tasksBtn);
@@ -2388,11 +2282,7 @@ let sb = window.API;
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
           if (monitorContent) monitorContent.style.display = 'block';
           loadMonitorLogs();
-        } else if (tab === 'diagnostics') {
-          resetAll(); activateBtn(diagBtn);
-          allContent.forEach(c => { if (c) c.style.display = 'none'; });
-          if (diagContent) diagContent.style.display = 'block';
-          adminLoadDiagnostics();
+          if (typeof loadSystemStatus === 'function') loadSystemStatus();
         } else {
           resetAll(); activateBtn(usersBtn);
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
@@ -2403,136 +2293,6 @@ let sb = window.API;
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
       var adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
       window.adminPlaylistData = adminPlaylistData; // necesario para los onmouseover inline del HTML
-
-      // ==================== ADMIN DIAGNÓSTICOS ====================
-      async function adminLoadDiagnostics() {
-        const el = document.getElementById('adminDiagnosticsContent');
-        if (!el) {
-          console.warn('[diagnostics] #adminDiagnosticsContent no existe en el DOM');
-          return;
-        }
-        el.innerHTML = '<p style="color:#645a78; font-size:0.85rem;">⏳ Consultando…</p>';
-
-        // Watchdog: si despues de 5s sigue mostrando "Consultando..." sin
-        // haber avanzado, mostrar error inline (asi el usuario ve que pasa
-        // sin tener que abrir DevTools).
-        const watchdog = setTimeout(() => {
-          if (el && /Consultando/.test(el.innerHTML)) {
-            el.innerHTML = `<div style="padding:16px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.35);border-radius:8px;color:#f87171;font-size:0.85rem">
-              <div style="font-weight:700;margin-bottom:6px">⚠ El diagnostico esta tardando mas de 5s</div>
-              <div style="color:#a499b8;font-size:0.78rem;line-height:1.6">
-                Posibles causas:<br>
-                • El Service Worker del navegador esta cacheando un bundle viejo (hard refresh: Ctrl+Shift+R)<br>
-                • El endpoint /api/diagnostics no responde (revisar logs del server)<br>
-                • No hay sesion iniciada (TNSVT_USER.code undefined)<br>
-                <br>
-                <button class="post-btn" style="padding:6px 14px;font-size:0.75rem" onclick="adminLoadDiagnostics()">🔄 Reintentar</button>
-                <button class="back-btn" style="padding:6px 14px;font-size:0.75rem;margin-left:6px" onclick="document.getElementById('adminDiagnosticsContent').innerHTML='<p style=color:#a499b8;font-size:0.85rem>Manual: abre DevTools → Network → /api/diagnostics</p>'">📋 Como diagnosticarlo</button>
-              </div>
-            </div>`;
-          }
-        }, 5000);
-
-        // 1) Estado del SW (cliente)
-        let sw = { supported: false, controllers: 0, count: 0, registrations: [] };
-        try {
-          sw = await API.getSWStatus();
-        } catch (e) {
-          console.warn('[diagnostics] API.getSWStatus:', e);
-        }
-
-        // 2) Estado del backend
-        let backend = { error: 'No se pudo consultar /api/diagnostics' };
-        try {
-          backend = await API.getDiagnostics(window.TNSVT_USER?.code || 'DEMO');
-          if(!backend || !backend.timestamp) backend = { error: 'Respuesta inválida del backend' };
-        } catch (e) {
-          console.warn('[diagnostics] API.getDiagnostics:', e);
-          backend = { error: (e && e.message) || 'Excepción desconocida' };
-        }
-        clearTimeout(watchdog);
-
-        // Render
-        const swStatus = sw.supported
-          ? (sw.controllers > 0 ? '<span style="color:#4ade80">● ACTIVO</span>' : '<span style="color:#f0c060">● Cargando…</span>')
-          : '<span style="color:#f87171">● No soportado</span>';
-
-        const swHtml = sw.registrations?.map(r => `
-          <div style="display:flex; justify-content:space-between; padding:6px 10px; background:rgba(138,60,255,.08); border-radius:6px; margin-bottom:4px; font-size:0.78rem;">
-            <span style="color:#a499b8;">${escapeHtml(r.scope)}</span>
-            <span style="color:#4ade80;">${escapeHtml((r.active||'').split('/').pop() || 'sw')}</span>
-          </div>
-        `).join('') || '<p style="color:#645a78; font-size:0.78rem;">Ningún SW registrado</p>';
-
-        const hintHtml = (backend.hints || []).map(h => {
-          const colors = { ok:'#4ade80', warning:'#f0c060', error:'#f87171', info:'#60a5fa' };
-          const icons  = { ok:'✓', warning:'⚠', error:'✗', info:'ⓘ' };
-          return `<div style="display:flex; gap:8px; padding:10px 12px; background:rgba(0,0,0,.3); border-left:3px solid ${colors[h.level]||'#645a78'}; border-radius:6px; margin-bottom:6px;">
-            <span style="color:${colors[h.level]||'#645a78'}; font-weight:700;">${icons[h.level]||'•'}</span>
-            <span style="font-size:0.82rem; color:#e2dcf0;">${escapeHtml(h.msg)}</span>
-          </div>`;
-        }).join('');
-
-        const fbOk = backend.firebase?.web_configured;
-        const swFileOk = backend.service_workers_files?.['sw.js']?.exists;
-        const fcmFileOk = backend.service_workers_files?.['firebase-messaging-sw.js']?.exists;
-        const saOk = backend.firebase?.service_account_exists;
-
-        el.innerHTML = `
-          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:16px;">
-            <div class="monitor-stat-card">
-              <div class="mon-stat-label">Service Worker</div>
-              <div class="mon-stat-value" style="font-size:1.05rem;">${swStatus}</div>
-              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${sw.count} registrado(s)</div>
-            </div>
-            <div class="monitor-stat-card">
-              <div class="mon-stat-label">Firebase Web</div>
-              <div class="mon-stat-value" style="font-size:1.05rem; color:${fbOk?'#4ade80':'#f87171'}">${fbOk?'✓ OK':'✗ Falta'}</div>
-              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">FIREBASE_WEB_*</div>
-            </div>
-            <div class="monitor-stat-card">
-              <div class="mon-stat-label">FCM Service Account</div>
-              <div class="mon-stat-value" style="font-size:1.05rem; color:${saOk?'#4ade80':'#f0c060'}">${saOk?'✓ OK':'⚠ Falta'}</div>
-              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${saOk?'Push nativo funciona':'Push web OK, native no'}</div>
-            </div>
-            <div class="monitor-stat-card">
-              <div class="mon-stat-label">Notificaciones</div>
-              <div class="mon-stat-value" style="font-size:1.05rem;">${backend.notifications?.total ?? '—'}</div>
-              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${backend.notifications?.unread ?? 0} sin leer</div>
-            </div>
-            <div class="monitor-stat-card">
-              <div class="mon-stat-label">Devices</div>
-              <div class="mon-stat-value" style="font-size:1.05rem;">${backend.devices?.total ?? '—'}</div>
-              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">${Object.entries(backend.devices?.by_platform||{}).map(([k,v])=>`${k}:${v}`).join(', ')||'—'}</div>
-            </div>
-            <div class="monitor-stat-card">
-              <div class="mon-stat-label">Usuarios</div>
-              <div class="mon-stat-value" style="font-size:1.05rem;">${backend.users?.total ?? '—'}</div>
-              <div style="font-size:0.7rem; color:#645a78; margin-top:4px;">PHP ${backend.php ?? '—'} · Symfony ${backend.symfony ?? '—'}</div>
-            </div>
-          </div>
-
-          <h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1rem; margin:16px 0 8px;">📦 Archivos Service Worker</h3>
-          <div style="margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(0,0,0,.3); border-radius:6px; margin-bottom:4px;">
-              <span style="font-size:0.85rem;">public/sw.js</span>
-              <span style="font-size:0.78rem; color:${swFileOk?'#4ade80':'#f87171'};">${swFileOk?'✓ ' + backend.service_workers_files['sw.js'].size_kb + ' KB · ' + (backend.service_workers_files['sw.js'].version||'sin versión'):'✗ No existe'}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(0,0,0,.3); border-radius:6px;">
-              <span style="font-size:0.85rem;">public/firebase-messaging-sw.js</span>
-              <span style="font-size:0.78rem; color:${fcmFileOk?'#4ade80':'#f87171'};">${fcmFileOk?'✓ ' + backend.service_workers_files['firebase-messaging-sw.js'].size_kb + ' KB':'✗ No existe'}</span>
-            </div>
-          </div>
-
-          <h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1rem; margin:16px 0 8px;">🌐 SW Activos en el Navegador</h3>
-          <div style="margin-bottom:16px;">${swHtml}</div>
-
-          ${hintHtml ? `<h3 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1rem; margin:16px 0 8px;">💡 Recomendaciones</h3>${hintHtml}` : ''}
-
-          <p style="font-size:0.7rem; color:#645a78; margin-top:16px; text-align:right;">Actualizado: ${escapeHtml(backend.timestamp || '—')}</p>
-        `;
-      }
-      window.adminLoadDiagnostics = adminLoadDiagnostics;
 
       // ==================== ADMIN MONITORING (logs de errores) ====================
       async function loadMonitorLogs() {
@@ -2605,6 +2365,58 @@ let sb = window.API;
         }
       }
       window.testMonitorError = testMonitorError;
+
+      async function loadSystemStatus() {
+        const el = document.getElementById('monSystemStatus');
+        if (!el) return;
+        el.innerHTML = '<p style="color:#645a78;font-size:0.85rem;">⏳ Consultando…</p>';
+        let swHtml = '<span style="color:#f87171">● No soportado</span>';
+        let swCount = 0, swRegs = '';
+        try {
+          const sw = await API.getSWStatus();
+          if (sw.supported) {
+            if (sw.controllers > 0) {
+              swHtml = '<span style="color:#4ade80">● Activo</span>';
+            } else if (sw.count > 0) {
+              swHtml = '<span style="color:#f0c060">● Registrado (recargá para activar)</span>';
+            } else {
+              swHtml = '<span style="color:#f0c060">● Cargando…</span>';
+            }
+            swCount = sw.count;
+            swRegs = (sw.registrations||[]).map(r =>
+              `<div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(138,60,255,.08);border-radius:6px;margin-bottom:4px;font-size:0.78rem;">
+                <span style="color:#a499b8;">${escapeHtml(r.scope)}</span>
+                <span style="color:#4ade80;">${escapeHtml((r.active||'').split('/').pop()||'sw')}</span>
+              </div>`
+            ).join('');
+          }
+        } catch(e) { console.warn('[sysStatus] SW:', e); }
+        const fbKey = window.FIREBASE_CONFIG?.apiKey && window.FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY'
+          ? '✓ Configurada'
+          : '⚠ No configurada';
+        el.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;">
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Service Worker</div>
+              <div class="mon-stat-value" style="font-size:1.05rem;">${swHtml}</div>
+              <div style="font-size:0.7rem;color:#645a78;margin-top:4px;">${swCount} registro(s)</div>
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Firebase Web</div>
+              <div class="mon-stat-value" style="font-size:1.05rem;color:${fbKey.includes('✓')?'#4ade80':'#f87171'}">${fbKey}</div>
+              ${fbKey.includes('⚠') ? '<div style="font-size:0.7rem;color:#645a78;margin-top:4px;">Configurar FIREBASE_WEB_* en .env</div>' : ''}
+            </div>
+            <div class="monitor-stat-card">
+              <div class="mon-stat-label">Usuario</div>
+              <div class="mon-stat-value" style="font-size:1rem;">${escapeHtml(window.TNSVT_USER?.code || '—')}</div>
+              <div style="font-size:0.7rem;color:#645a78;margin-top:4px;">${escapeHtml(window.TNSVT_USER?.name || '—')}</div>
+            </div>
+          </div>
+          ${swRegs ? `<div style="margin-top:8px;"><div style="font-size:0.78rem;color:var(--gold);margin-bottom:4px;">Registros activos:</div>${swRegs}</div>` : ''}
+          <p style="font-size:0.7rem;color:#645a78;margin-top:8px;text-align:right;">${new Date().toLocaleString()}</p>
+        `;
+      }
+      window.loadSystemStatus = loadSystemStatus;
 
       // ==================== AVATAR UPLOAD ====================
       async function uploadAvatar(inputEl) {
@@ -2697,6 +2509,8 @@ let sb = window.API;
             }
           });
         }
+        // Actualizar el botón de notificaciones del menú
+        if (typeof updateAvatarNotifBtn === 'function') updateAvatarNotifBtn();
       }
       window.bindAvatarEvents = bindAvatarEvents;
 
@@ -3610,6 +3424,121 @@ let sb = window.API;
         } catch(e) { console.warn('[journal] loadJournalFromApi:', e); }
         tjRefresh();
       }
+
+      // ========== LEADERBOARD ==========
+      let lbData = [];
+      let lbSortField = 'total_pnl';
+      let lbSortDir = -1;
+
+      async function lbRefresh() {
+        const loading = document.getElementById('lb-loading');
+        const empty = document.getElementById('lb-empty');
+        const grid = document.getElementById('lb-grid');
+        // Timeout safety: hide loading after 8s no matter what
+        let loadingTimer = setTimeout(() => { if (loading) loading.style.display = 'none'; }, 8000);
+        const signalsEl = document.getElementById('lb-signals');
+        if (loading) loading.style.display = 'block';
+        if (empty) empty.style.display = 'none';
+        if (grid) grid.style.display = 'none';
+        try {
+          const [rankings, signals] = await Promise.all([
+            API.getLeaderboard(),
+            API._resolve && fetch(API._resolve('/api/feed?category=se%C3%B1ales')).then(r => r.json()).catch(() => [])
+          ]);
+          lbData = rankings || [];
+          if (grid) {
+            if (lbData.length === 0) {
+              if (empty) empty.style.display = 'block';
+              grid.style.display = 'none';
+            } else {
+              grid.style.display = 'block';
+              lbRenderGrid();
+            }
+          }
+          if (signalsEl) {
+            if (signals && signals.length > 0) {
+              signalsEl.innerHTML = signals.slice(0, 10).map(s => {
+                const text = (s.text || '').substring(0, 120);
+                const signal = s.signal || {};
+                const sigInfo = signal.asset ? `<span style="color:var(--gold-bright);font-size:0.78rem;">${signal.asset} ${signal.dir || ''} ${signal.entry || ''}</span>` : '';
+                return `<div style="background:rgba(9,5,18,0.7);border:1px solid rgba(212,175,55,0.12);border-radius:8px;padding:10px 14px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong style="color:#fff;font-size:0.82rem;">${escapeHtml(s.author_name || '')}</strong>
+                      <span style="color:#645a78;font-size:0.7rem;margin-left:8px;">${s.created_at ? new Date(s.created_at).toLocaleString('es') : ''}</span>
+                    </div>
+                    <button class="post-btn" style="font-size:0.65rem;padding:4px 10px;" onclick="lbCopySignal('${escapeHtml(signal.asset || '')}','${escapeHtml(signal.dir || 'BUY')}','${escapeHtml(signal.entry || '')}')">📋 Copiar</button>
+                  </div>
+                  <div style="margin-top:4px;color:#e2dcf0;font-size:0.78rem;">${escapeHtml(text)}</div>
+                  ${sigInfo ? `<div style="margin-top:4px;">${sigInfo}</div>` : ''}
+                </div>`;
+              }).join('');
+            } else {
+              signalsEl.innerHTML = '<div style="text-align:center;padding:20px;color:#645a78;">No hay señales públicas recientes.</div>';
+            }
+          }
+        } catch(e) { console.warn('[leaderboard] error:', e); }
+        clearTimeout(loadingTimer);
+        if (loading) loading.style.display = 'none';
+      }
+
+      function lbRenderGrid() {
+        const grid = document.getElementById('lb-grid');
+        if (!grid) return;
+        const userCode = window.TNSVT_USER?.code;
+        const sorted = [...lbData].sort((a, b) => {
+          const va = a[lbSortField] ?? 0;
+          const vb = b[lbSortField] ?? 0;
+          return (va < vb ? -1 : va > vb ? 1 : 0) * lbSortDir;
+        });
+        const headers = [
+          { key: 'total_pnl', label: 'PNL' },
+          { key: 'win_rate', label: 'WR%' },
+          { key: 'profit_factor', label: 'PF' },
+          { key: 'total_trades', label: 'Trades' },
+        ];
+        grid.innerHTML = `<div style="background:rgba(13,8,24,0.7);border:1px solid rgba(212,175,55,0.15);border-radius:12px;overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+            <thead><tr style="background:rgba(212,175,55,0.08);">
+              <th style="padding:10px 12px;text-align:left;color:var(--gold);font-size:0.6rem;letter-spacing:1px;">#</th>
+              <th style="padding:10px 12px;text-align:left;color:var(--gold);font-size:0.6rem;letter-spacing:1px;">Trader</th>
+              ${headers.map(h => `<th style="padding:10px 8px;text-align:right;color:var(--gold);font-size:0.6rem;letter-spacing:1px;cursor:pointer;" onclick="lbSort('${h.key}')">${h.label} ${lbSortField === h.key ? (lbSortDir === -1 ? '▼' : '▲') : ''}</th>`).join('')}
+            </tr></thead>
+            <tbody>${sorted.map((t, i) => {
+              const isMe = t.code === userCode;
+              const rank = i + 1;
+              const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank + '';
+              const pnlColor = t.total_pnl >= 0 ? '#34c759' : 'var(--red-impact)';
+              return `<tr style="${isMe ? 'background:rgba(138,60,255,0.08);' : ''}border-bottom:1px solid rgba(212,175,55,0.06);">
+                <td style="padding:10px 12px;color:#645a78;font-size:0.7rem;">${medal}</td>
+                <td style="padding:10px 12px;"><strong style="color:${isMe ? 'var(--gold-bright)' : '#fff'};">${escapeHtml(t.name || t.code)}</strong></td>
+                <td style="padding:10px 8px;text-align:right;color:${pnlColor};font-weight:600;">${t.total_pnl >= 0 ? '+' : ''}$${(t.total_pnl).toLocaleString('en', {minimumFractionDigits: 2})}</td>
+                <td style="padding:10px 8px;text-align:right;color:#e2dcf0;">${t.win_rate}%</td>
+                <td style="padding:10px 8px;text-align:right;color:#e2dcf0;">${t.profit_factor === 999 ? '∞' : t.profit_factor.toFixed(2)}</td>
+                <td style="padding:10px 8px;text-align:right;color:#645a78;">${t.total_trades} (${t.wins}W / ${t.losses}L)</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>`;
+      }
+
+      function lbSort(field) {
+        if (lbSortField === field) lbSortDir *= -1;
+        else { lbSortField = field; lbSortDir = -1; }
+        lbRenderGrid();
+      }
+      window.lbSort = lbSort;
+
+      function lbCopySignal(asset, dir, entry) {
+        if (!asset) return showToast('Señal sin activo');
+        document.getElementById('tj-f-asset').value = asset;
+        document.getElementById('tj-f-dir').value = dir || 'BUY';
+        if (entry) document.getElementById('tj-f-entry').value = entry;
+        switchTab('tab-journal');
+        tjTab('tj-log', document.querySelector('.tj-tab:nth-child(2)'));
+        showToast('✅ Señal copiada al journal — revisá los datos y registrá');
+      }
+      window.lbCopySignal = lbCopySignal;
+      window.lbRefresh = lbRefresh;
 
       // Asegurar que todas las funciones estén disponibles globalmente
       window.verifyGateKey = verifyGateKey;
@@ -4616,6 +4545,7 @@ let sb = window.API;
                     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⛧</text></svg>'
                   });
                 } catch (e) { /* algunos navegadores bloquean la primer notif */ }
+                if (typeof updateAvatarNotifBtn === 'function') updateAvatarNotifBtn();
               } else {
                 showToast('⚠️ Permiso OK pero Firebase no se inicializó. Revisá la consola.');
               }
@@ -4623,6 +4553,7 @@ let sb = window.API;
           } else {
             showToast('Permisos denegados. Activá desde el navegador manualmente.');
             dismissPushBar();
+            if (typeof updateAvatarNotifBtn === 'function') updateAvatarNotifBtn();
           }
         });
       }
@@ -4740,6 +4671,43 @@ let sb = window.API;
         document.getElementById('pushPermBar')?.classList.remove('show');
         localStorage.setItem('tnsvt_push_dismissed', '1');
       }
+
+      // Actualizar el botón del menú del avatar según el estado de notificaciones
+      function updateAvatarNotifBtn() {
+        const btn = document.getElementById('avatarNotifBtn');
+        const icon = document.getElementById('avatarNotifIcon');
+        const label = document.getElementById('avatarNotifLabel');
+        if (!btn || !icon || !label) return;
+        const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'default';
+        if (perm === 'granted' && pushPermGranted) {
+          icon.textContent = '🔔';
+          label.textContent = 'Notificaciones activas';
+          btn.style.color = '#34c759';
+        } else if (perm === 'denied') {
+          icon.textContent = '🔕';
+          label.textContent = 'Notificaciones bloqueadas';
+          btn.style.color = '#f87171';
+        } else {
+          icon.textContent = '🔔';
+          label.textContent = 'Activar notificaciones';
+          btn.style.color = '#e2dcf0';
+        }
+      }
+      window.updateAvatarNotifBtn = updateAvatarNotifBtn;
+
+      function toggleNotificationsFromMenu() {
+        const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'default';
+        if (perm === 'denied') {
+          showToast('🔕 Permiso bloqueado desde el navegador. Cambialo en los ajustes del sitio.');
+          return;
+        }
+        if (perm === 'granted' && pushPermGranted) {
+          showToast('✓ Notificaciones ya activas. Para desactivarlas usá los ajustes del navegador.');
+          return;
+        }
+        requestPushPermission();
+      }
+      window.toggleNotificationsFromMenu = toggleNotificationsFromMenu;
 
       // Calendario económico — los filtros se manejan en setupCalFilters()
 

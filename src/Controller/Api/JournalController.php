@@ -120,6 +120,62 @@ class JournalController extends AbstractController
         return $this->json(['success' => true]);
     }
 
+    #[Route('/export', name: 'api_journal_export', methods: ['GET'])]
+    public function export(Request $request): Response
+    {
+        $userCode = $request->query->get('user_code');
+        $format = $request->query->get('format', 'csv');
+
+        if (!$userCode) {
+            return new Response('Usuario requerido', 400);
+        }
+
+        $user = $this->userRepository->findByCode($userCode);
+        if (!$user) {
+            return new Response('Usuario inválido', 401);
+        }
+
+        $trades = $this->tradeRepository->findByUser($user);
+
+        if ($format === 'html') {
+            $html = $this->renderView('export/journal.html.twig', [
+                'user' => $user,
+                'trades' => $trades,
+                'generated' => new \DateTimeImmutable(),
+            ]);
+            return new Response($html, 200, [
+                'Content-Type' => 'text/html; charset=utf-8',
+                'Content-Disposition' => 'inline; filename="journal-' . $user->getCode() . '.html"',
+            ]);
+        }
+
+        // Default: CSV
+        $handle = fopen('php://memory', 'r+');
+        fputcsv($handle, ['Date', 'Asset', 'Direction', 'Entry', 'SL', 'TP', 'Result', 'PNL', 'Ratio', 'Notes']);
+        foreach ($trades as $t) {
+            fputcsv($handle, [
+                $t->getDate()?->format('Y-m-d H:i'),
+                $t->getAsset(),
+                $t->getDirection(),
+                $t->getEntry(),
+                $t->getSl(),
+                $t->getTp(),
+                $t->getResult(),
+                $t->getPnl(),
+                $t->getRatio(),
+                $t->getNotes(),
+            ]);
+        }
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return new Response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="journal-' . $user->getCode() . '.csv"',
+        ]);
+    }
+
     #[Route('/{id}', name: 'api_journal_delete', methods: ['DELETE'])]
     public function delete(int $id): JsonResponse
     {

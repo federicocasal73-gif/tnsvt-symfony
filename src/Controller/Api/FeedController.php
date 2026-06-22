@@ -84,6 +84,13 @@ class FeedController extends AbstractController
         $this->em->persist($post);
         $this->em->flush();
 
+        $isSignal = !empty($data['signal']);
+        $type = $isSignal ? 'signal' : 'post';
+        $content = $isSignal
+            ? sprintf('%s publicó una señal: %s', $user->getName() ?? 'Trader', mb_substr($data['text'] ?? '', 0, 80))
+            : sprintf('%s publicó: %s', $user->getName() ?? 'Trader', mb_substr($data['text'] ?? '', 0, 80));
+        $this->pushService->broadcast($type, $content, ['post_id' => (string) $post->getId()], link: 'feed');
+
         return $this->json(['success' => true, 'id' => $post->getId()], Response::HTTP_CREATED);
     }
 
@@ -172,7 +179,8 @@ class FeedController extends AbstractController
                 $post->getAuthor(),
                 'comment',
                 sprintf('%s comentó tu publicación: %s', $authorName, $preview !== '' ? $preview : '[foto]'),
-                ['post_id' => (string) $post->getId(), 'from_code' => $authorCode]
+                ['post_id' => (string) $post->getId(), 'from_code' => $authorCode],
+                link: 'feed'
             );
             $notifiedCodes[$post->getAuthor()->getCode()] = true;
         }
@@ -187,7 +195,8 @@ class FeedController extends AbstractController
                         $mentioned,
                         'mention',
                         sprintf('%s te mencionó: %s', $authorName, $preview !== '' ? $preview : '[foto]'),
-                        ['post_id' => (string) $post->getId(), 'from_code' => $authorCode]
+                        ['post_id' => (string) $post->getId(), 'from_code' => $authorCode],
+                        link: 'feed'
                     );
                     $notifiedCodes[$code] = true;
                 }

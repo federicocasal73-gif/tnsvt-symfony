@@ -75,7 +75,8 @@ class TaskController extends AbstractController
         $this->pushService->broadcast(
             'task',
             sprintf('Nueva tarea operativa: %s', $task->getTitle()),
-            ['task_id' => (string) $task->getId()]
+            ['task_id' => (string) $task->getId()],
+            link: 'tasks'
         );
 
         return $this->json([
@@ -108,11 +109,12 @@ class TaskController extends AbstractController
 
         $this->em->flush();
 
-        $this->pushService->broadcast(
-            'task',
-            sprintf('Tarea actualizada: %s', $task->getTitle()),
-            ['task_id' => (string) $task->getId()]
-        );
+                $this->pushService->broadcast(
+                    'task',
+                    sprintf('Tarea actualizada: %s', $task->getTitle()),
+                    ['task_id' => (string) $task->getId()],
+                    link: 'tasks'
+                );
 
         return $this->json(['success' => true]);
     }
@@ -154,7 +156,8 @@ class TaskController extends AbstractController
             $this->pushService->broadcast(
                 'task',
                 sprintf('Tarea activada: %s', $task->getTitle()),
-                ['task_id' => (string) $task->getId()]
+                ['task_id' => (string) $task->getId()],
+                link: 'tasks'
             );
         }
 

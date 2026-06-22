@@ -46,6 +46,10 @@ self.addEventListener('message', (event) => {
         .then(() => self.clients.claim())
     );
   }
+  // Compatibilidad con firebase-messaging-sw.js que delega al SW principal
+  if (event.data && event.data.type === 'fcm-background' && self.firebaseMessaging) {
+    self.firebaseMessaging.onBackgroundMessage(event.data.payload);
+  }
 });
 
 self.addEventListener('fetch', (event) => {
@@ -114,11 +118,44 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Handle FCM background messages (delegate to Firebase Messaging)
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'fcm-background') {
-    if (self.firebaseMessaging) {
-      self.firebaseMessaging.onBackgroundMessage(event.data.payload);
-    }
+// Handle FCM background messages (delegate to Firebase Messaging via postMessage desde firebase-messaging-sw.js)
+self.addEventListener('push', (event) => {
+  // Si firebase-messaging-sw.js está activo y manejó el push, no hacer nada.
+  // Si NO hay firebase-messaging-sw.js o falla, mostrar notificación genérica.
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    payload = { notification: { title: 'T.N.S.V.T', body: event.data.text() } };
   }
+  const notif = payload.notification || {};
+  const title = notif.title || 'T.N.S.V.T';
+  const body = notif.body || '';
+  const data = payload.data || {};
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url || '/', ...data },
+      tag: data.tag || 'tnsvt-push',
+      renotify: true,
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// Click en la notificación nativa → abre la URL
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const urlToOpen = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === urlToOpen && 'focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(urlToOpen);
+    })
+  );
 });

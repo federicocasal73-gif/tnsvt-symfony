@@ -23,5 +23,16 @@ services:
         arguments:
             $firebaseCredentialsPath: '%app.firebase.credentials_path%'
 
+    App\Service\RealtimePublisher:
+        arguments:
+            $mercureUrl: '%mercure.url%'
+            $jwtSecret: '%mercure.jwt_secret%'
+
+    App\Service\MercureSubscriberService:
+        arguments:
+            $mercureUrl: '%mercure.url%'
+            $mercurePublicUrl: '%mercure.public_url%'
+            $jwtSecret: '%mercure.jwt_secret%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

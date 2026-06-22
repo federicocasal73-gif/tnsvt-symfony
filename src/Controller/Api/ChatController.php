@@ -199,7 +199,8 @@ class ChatController extends AbstractController
                         $other,
                         'dm',
                         sprintf('%s: %s', $me->getName(), $preview),
-                        ['conversation_id' => (string) $conv->getId(), 'sender_code' => (string) $me->getCode()]
+                        ['conversation_id' => (string) $conv->getId(), 'sender_code' => (string) $me->getCode()],
+                        link: 'chat'
                     );
                 }
             }

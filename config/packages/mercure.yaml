@@ -1,0 +1,4 @@
+parameters:
+    mercure.url: '%env(MERCURE_URL)%'
+    mercure.public_url: '%env(MERCURE_PUBLIC_URL)%'
+    mercure.jwt_secret: '%env(MERCURE_JWT_SECRET)%'

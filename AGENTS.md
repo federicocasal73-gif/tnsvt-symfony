@@ -63,3 +63,15 @@
 - **APK web v1.6.0**: `public/downloads/tnsvt-app.apk` (134 MB) + `public/apk/tnsvt-v1.6.0.apk`
 - **APK game v1.2.0**: `public/downloads/tnsvt-market-instinct.apk` (5.22 MB)
 - Firebase project: `juego-app-store-trading`
+
+## Fase 4 — Mercure Tiempo Real (2026-06-21)
+- **MercureStreamCommand**: `mercure:stream-candles` — daemon que cada 3s fetch + publica velas 15m a Mercure
+- **RealtimePublisher**: servicio que envía updates al hub Mercure via POST
+- **MercureSubscriberService**: genera JWT de suscriptor + cookie `mercureAuthorization`
+- **MercureController**: `GET /api/mercure/subscribe?exchange=X&symbol=Y` devuelve URL + setea cookie
+- **chart.js**: conecta EventSource a Mercure, recibe velas en tiempo real, polling cae a 15s y a 5s si Mercure no conecta
+- **Drawing toolbar funcional** con trendline, hline, vline, fib, rect, text, undo, clear
+- **Docker**: `docker-compose.yml` para levantar Mercure hub local
+- **Script**: `.\run-mercure.ps1` inicia/para el hub
+- **Cache**: bump a v=2.5
+- Para arrancar todo: `cd C:\Users\HP 240 inch G9\tnsvt-symfony && php -S 192.168.1.2:8000 -t public` + `.\run-mercure.ps1` (otra terminal)

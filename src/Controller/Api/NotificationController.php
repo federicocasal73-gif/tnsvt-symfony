@@ -8,12 +8,22 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/notifications')]
 class NotificationController extends AbstractController
 {
+    private const RELATED_URLS = [
+        'comment' => 'feed',
+        'like' => 'feed',
+        'post' => 'feed',
+        'mention' => 'feed',
+        'signal' => 'signals',
+        'dm' => 'chat',
+        'academia' => 'academia',
+        'task' => 'tasks',
+    ];
+
     public function __construct(
         private EntityManagerInterface $em,
         private NotificationRepository $notificationRepository,
@@ -42,6 +52,8 @@ class NotificationController extends AbstractController
                 'text' => $n->getContent(),
                 'ts' => $n->getCreatedAt()?->format('c'),
                 'read' => $n->isRead(),
+                'related_url' => self::RELATED_URLS[$n->getType()] ?? 'feed',
+                'link' => $n->getLink(),
             ];
         }, $notifs);
 
@@ -92,5 +104,17 @@ class NotificationController extends AbstractController
         }
 
         return $this->json(['count' => $this->notificationRepository->countUnread($user)]);
+    }
+
+    #[Route('/{id}', name: 'api_notif_delete', methods: ['DELETE'])]
+    public function delete(int $id): JsonResponse
+    {
+        $notif = $this->notificationRepository->find($id);
+        if ($notif) {
+            $this->em->remove($notif);
+            $this->em->flush();
+        }
+
+        return $this->json(['success' => true]);
     }
 }

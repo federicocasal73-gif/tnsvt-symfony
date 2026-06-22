@@ -97,6 +97,9 @@ const API = {
   async getJournal(userCode) {
     return this.get(`/api/journal?user_code=${userCode}`);
   },
+  async getLeaderboard() {
+    return this.get('/api/leaderboard');
+  },
 
   async createTrade(data) {
     return this.post('/api/journal', data);
@@ -206,9 +209,6 @@ async getNotifCount(userCode) {
   },
 
   // Diagnostics (admin)
-  async getDiagnostics(userCode) {
-    return this.get(`/api/diagnostics?user_code=${encodeURIComponent(userCode)}`);
-  },
   async getSWStatus() {
     if (!('serviceWorker' in navigator)) return { supported: false };
     const regs = await navigator.serviceWorker.getRegistrations();
@@ -243,11 +243,12 @@ async getNotifCount(userCode) {
   },
 
   // Market data (Academia - live chart)
-  async getMarketCandles(symbol, interval, limit = 100) {
+  async getMarketCandles(symbol, interval, limit = 100, exchange = 'binance') {
     const params = new URLSearchParams();
     params.set('symbol', symbol);
     params.set('interval', interval);
     params.set('limit', limit);
+    params.set('exchange', exchange);
     return this.get(`/api/market/candles?${params.toString()}`);
   },
   async getMarketSymbols() {

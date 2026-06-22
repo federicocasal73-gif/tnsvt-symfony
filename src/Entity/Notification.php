@@ -25,6 +25,9 @@ class Notification
     #[ORM\Column(type: Types::TEXT)]
     private ?string $content = null;
 
+    #[ORM\Column(type: Types::STRING, length: 500, nullable: true)]
+    private ?string $link = null;
+
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
     private bool $isRead = false;
 
@@ -37,6 +40,9 @@ class Notification
     }
 
     public function getId(): ?int { return $this->id; }
+
+    public function getLink(): ?string { return $this->link; }
+    public function setLink(?string $link): static { $this->link = $link; return $this; }
 
     public function getUser(): ?User { return $this->user; }
     public function setUser(?User $user): static { $this->user = $user; return $this; }

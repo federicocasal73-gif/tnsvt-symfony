@@ -15,9 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=2.2">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.4">
   {% endblock %}
-   <script src="{{ asset('api.js') }}?v=2.2"></script>
+    <script src="{{ asset('api.js') }}?v=3.4"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="{{ asset('chart.js') }}?v=3.4"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -28,7 +30,7 @@
        if (!imap) return;
        try {
          var data = JSON.parse(imap.textContent);
-          var v = 'v=2.2';
+           var v = 'v=2.7';
          Object.keys(data.imports || {}).forEach(function(k){
            var p = data.imports[k];
            if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
@@ -186,6 +188,19 @@
   /* Cuando la barra está visible, el main-content debe dejarle espacio al fondo */
   body.music-bar-active .app-container { padding-bottom: 64px; }
   @media (max-width: 760px) { body.music-bar-active .app-container { padding-bottom: 58px; } }
+
+  /* ===== CHART SELECTS ===== */
+  .chart-select { background:var(--bg-deep);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem; }
+  .chart-select:focus { border-color:var(--gold);outline:none; }
+  .draw-btn { width:32px;height:32px;background:rgba(138,60,255,.08);border:1px solid rgba(138,60,255,.2);border-radius:6px;color:#c4a0ff;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;transition:all .2s; }
+  .draw-btn:hover { background:rgba(138,60,255,.2);border-color:rgba(138,60,255,.4); }
+  .draw-btn.active { background:rgba(212,175,55,.15);border-color:var(--gold);color:var(--gold-bright); }
+  .wl-row:hover { background:rgba(138,60,255,.12) !important; }
+  .wl-up span:last-child { color:#4ade80; }
+  .wl-down span:last-child { color:#f87171; }
+  #chart-watchlist::-webkit-scrollbar { width:4px; }
+  #chart-watchlist::-webkit-scrollbar-track { background:transparent; }
+  #chart-watchlist::-webkit-scrollbar-thumb { background:rgba(138,60,255,.3);border-radius:4px; }
   </style>
 </head>
 <body>
@@ -276,6 +291,9 @@
               <span style="font-size:1rem;">🗑️</span> Quitar foto
             </button>
             <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="uploadAvatar(this)">
+            <button id="avatarNotifBtn" onclick="toggleNotificationsFromMenu()" style="display:flex;width:100%;padding:10px 12px;background:transparent;border:none;color:#e2dcf0;font-size:0.82rem;text-align:left;cursor:pointer;border-radius:6px;font-family:inherit;align-items:center;gap:8px;" onmouseover="this.style.background='rgba(138,60,255,0.12)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:1rem;" id="avatarNotifIcon">🔔</span> <span id="avatarNotifLabel">Activar notificaciones</span>
+            </button>
             <div style="height:1px;background:rgba(212,175,55,0.15);margin:6px 0;"></div>
             <button onclick="logout()" style="display:flex;width:100%;padding:10px 12px;background:transparent;border:none;color:#f87171;font-size:0.82rem;text-align:left;cursor:pointer;border-radius:6px;font-family:inherit;align-items:center;gap:8px;" onmouseover="this.style.background='rgba(248,113,113,0.12)'" onmouseout="this.style.background='transparent'">
               <span style="font-size:1rem;">🚪</span> Desconectar
@@ -337,11 +355,13 @@
         <div class="trading-layout">
           <div class="trading-sidebar">
             <button class="sidebar-btn active" onclick="switchTab('tab-posts')">📰 Manuscrito &amp; Comunidad</button>
+            <button class="sidebar-btn" id="chartSidebarBtn" style="display:none;" onclick="switchTab('tab-chart')">📈 Chart en Vivo</button>
             <button class="sidebar-btn" onclick="switchTab('tab-macro')">🌐 Macroeconomía Avanzada</button>
             <button class="sidebar-btn" onclick="switchTab('tab-2steps-adv')">⚡ Metodología 2 Steps <span class="lock-badge" id="badge-2step-lock" style="background:rgba(52,199,89,0.15); border-color:#34c759;">⚡ Activo</span></button>
             <button class="sidebar-btn" onclick="switchTab('tab-tasks')">✍️ Tareas Operativas <span id="task-counter" style="font-size:0.8rem; color:var(--gold-bright);"></span></button>
             <button class="sidebar-btn" onclick="switchTab('tab-calendar')">📅 Calendario Económico</button>
             <button class="sidebar-btn" onclick="switchTab('tab-journal')">📊 Trading Journal</button>
+            <button class="sidebar-btn" onclick="switchTab('tab-leaderboard')">🏆 Leaderboard</button>
             <button class="sidebar-btn" onclick="switchTab('tab-academia')">🎓 Academia</button>
             <button class="sidebar-btn" onclick="switchTab('tab-chat')">💬 Chat de Ejecutores</button>
             <button class="sidebar-btn" onclick="window.open('/download/tnsvt-market','_blank')" style="background:linear-gradient(135deg,rgba(240,192,96,.15),rgba(147,83,255,.1));border:1px solid var(--gold);color:var(--gold);">🎮 Descargar T.N.S.V.T Market <span style="font-size:0.6rem;background:rgba(240,192,96,.2);padding:1px 6px;border-radius:8px;color:var(--gold);margin-left:4px;">APK</span></button>
@@ -444,6 +464,53 @@
                 </div>
               </div>
               <div id="postsFeed" class="feed-container"></div>
+            </div>
+
+            <!-- TAB CHART (Lightweight Charts) -->
+            <div id="tab-chart" class="tab-content">
+  <div class="acad-section" style="margin:20px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+      <h4 style="font-family:'Cinzel';color:var(--gold-bright);margin:0;">📈 Chart</h4>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <select id="chart-exchange" class="chart-select">
+          <option value="binance">Binance</option>
+          <option value="bybit">Bybit</option>
+          <option value="kraken">Kraken</option>
+        </select>
+        <select id="chart-symbol" class="chart-select"></select>
+        <select id="chart-interval" class="chart-select">
+          <option value="1m">1m</option>
+          <option value="5m">5m</option>
+          <option value="15m" selected>15m</option>
+          <option value="1h">1h</option>
+          <option value="4h">4h</option>
+          <option value="1d">1D</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div id="chart-container" style="flex:1;height:500px;border-radius:12px;overflow:hidden;background:var(--bg-base);border:1px solid var(--border);position:relative;">
+        <div id="chart-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#a499b8;font-size:0.9rem;background:var(--bg-base);z-index:2;">Cargando chart…</div>
+        <canvas id="chart-overlay" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;cursor:crosshair;"></canvas>
+        <button id="chart-fullscreen-btn" style="position:absolute;top:8px;right:8px;z-index:3;background:rgba(138,60,255,.15);border:1px solid rgba(138,60,255,.3);border-radius:6px;color:#c4a0ff;cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:1rem;">⛶</button>
+      </div>
+      <div id="chart-watchlist" style="width:200px;flex-shrink:0;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:12px;padding:8px;overflow-y:auto;font-size:0.75rem;max-height:500px;"></div>
+    </div>
+  </div>
+  <!-- Drawing Toolbar -->
+  <div id="drawing-toolbar" style="display:none;gap:4px;flex-wrap:wrap;margin-top:10px;padding:8px 12px;background:rgba(0,0,0,.3);border-radius:8px;border:1px solid var(--border);align-items:center;">
+    <span style="color:var(--gold);font-size:0.7rem;font-family:'Orbitron',sans-serif;margin-right:6px;">DIBUJO</span>
+    <button class="draw-btn" data-tool="cursor" title="Cursor">↖</button>
+    <button class="draw-btn" data-tool="trend" title="Trendline">╱</button>
+    <button class="draw-btn" data-tool="hline" title="Horizontal">━</button>
+    <button class="draw-btn" data-tool="vline" title="Vertical">┃</button>
+    <button class="draw-btn" data-tool="fib" title="Fibonacci">Fib</button>
+    <button class="draw-btn" data-tool="rect" title="Rect">▬</button>
+    <button class="draw-btn" data-tool="text" title="Texto">T</button>
+    <span style="width:1px;height:20px;background:var(--border);margin:0 6px;"></span>
+    <button class="draw-btn" data-tool="undo" title="Deshacer">↩</button>
+    <button class="draw-btn" data-tool="clear" title="Borrar todo">🗑</button>
+  </div>
             </div>
 
             <!-- TAB 1: MACROECONOMÍA AVANZADA -->
@@ -2460,7 +2527,9 @@
 
             <!-- BACKUP TOOLS -->
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px;flex-wrap:wrap;">
-              <button class="tj-tool-btn" onclick="tjExport()">⬇️ Exportar</button>
+              <button class="tj-tool-btn" onclick="tjExportCSV()">⬇️ CSV</button>
+              <button class="tj-tool-btn" onclick="tjExportHTML()">📄 HTML</button>
+              <button class="tj-tool-btn" onclick="tjExport()">💾 JSON</button>
               <label class="tj-tool-btn" style="cursor:pointer;">⬆️ Importar<input type="file" accept="application/json" style="display:none;" onchange="tjImport(this)"></label>
             </div>
 
@@ -2524,6 +2593,52 @@
                 <div style="display:flex;justify-content:space-between;margin-top:6px;padding:0 40px 0 50px;">
                   <span id="eq-x-start" style="font-family:'Orbitron',sans-serif;font-size:0.5rem;color:#645a78;"></span>
                   <span id="eq-x-end" style="font-family:'Orbitron',sans-serif;font-size:0.5rem;color:#645a78;"></span>
+                </div>
+              </div>
+
+              <!-- MONTHLY P&L HISTOGRAM -->
+              <div class="tj-equity" style="margin-top:16px;">
+                <div class="tj-equity-header">
+                  <div class="tj-equity-title">📊 P&L Mensual</div>
+                </div>
+                <div style="position:relative;">
+                  <svg id="tj-monthly-svg" viewBox="0 0 600 180" style="width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <linearGradient id="barGradPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#34c759" stop-opacity="0.9"/>
+                        <stop offset="100%" stop-color="#34c759" stop-opacity="0.5"/>
+                      </linearGradient>
+                      <linearGradient id="barGradNeg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#ff3b30" stop-opacity="0.9"/>
+                        <stop offset="100%" stop-color="#ff3b30" stop-opacity="0.5"/>
+                      </linearGradient>
+                      <filter id="barShadow">
+                        <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.3"/>
+                      </filter>
+                    </defs>
+                    <!-- Grid -->
+                    <line x1="45" y1="20" x2="595" y2="20" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <line x1="45" y1="60" x2="595" y2="60" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <line x1="45" y1="100" x2="595" y2="100" stroke="rgba(212,175,55,0.08)" stroke-width="0.5"/>
+                    <line x1="45" y1="140" x2="595" y2="140" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <!-- Zero line -->
+                    <line id="mbar-zero" x1="45" y1="100" x2="595" y2="100" stroke="rgba(212,175,55,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+                    <!-- Y labels -->
+                    <text id="mbar-y-top" x="40" y="24" fill="#645a78" font-size="8" font-family="Orbitron,sans-serif" text-anchor="end"></text>
+                    <text id="mbar-y-mid" x="40" y="64" fill="#645a78" font-size="8" font-family="Orbitron,sans-serif" text-anchor="end"></text>
+                    <text id="mbar-y-bot" x="40" y="144" fill="#645a78" font-size="8" font-family="Orbitron,sans-serif" text-anchor="end"></text>
+                    <!-- Bars container -->
+                    <g id="mbar-bars"></g>
+                    <!-- Win rate line -->
+                    <polyline id="mbar-wr-line" fill="none" stroke="#8a3cff" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7" points=""/>
+                    <!-- Empty state -->
+                    <text id="mbar-empty" x="320" y="100" fill="#645a78" font-size="11" font-family="Space Grotesk,sans-serif" text-anchor="middle">Registrá trades en varios meses para ver tu histograma</text>
+                    <!-- Tooltip -->
+                    <rect id="mbar-tooltip-bg" x="0" y="0" width="150" height="50" rx="6" fill="rgba(13,8,24,0.95)" stroke="rgba(212,175,55,0.3)" stroke-width="1" opacity="0"/>
+                    <text id="mbar-tooltip-title" x="0" y="0" fill="var(--gold-bright)" font-size="9" font-family="Orbitron,sans-serif" font-weight="700" opacity="0"></text>
+                    <text id="mbar-tooltip-pnl" x="0" y="0" fill="#fff" font-size="10" font-family="Space Grotesk,sans-serif" font-weight="600" opacity="0"></text>
+                    <text id="mbar-tooltip-sub" x="0" y="0" fill="#645a78" font-size="8" font-family="Space Grotesk,sans-serif" opacity="0"></text>
+                  </svg>
                 </div>
               </div>
 
@@ -2653,6 +2768,30 @@
             </div>
           </div>
 
+<!-- ==================== LEADERBOARD ==================== -->
+<div id="tab-leaderboard" class="tab-content">
+  <div class="lb-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;color:var(--gold-bright);">🏆 Leaderboard</div>
+      <div style="font-size:0.78rem;color:#645a78;margin-top:4px;">Top traders rankeados por P&L acumulado</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="post-btn" style="font-size:0.7rem;padding:6px 14px;" onclick="lbRefresh()">🔄 Refrescar</button>
+    </div>
+  </div>
+
+  <div id="lb-loading" style="text-align:center;padding:40px;color:#645a78;">Cargando leaderboard…</div>
+  <div id="lb-empty" style="display:none;text-align:center;padding:40px;color:#645a78;">No hay datos suficientes. Los traders necesitan registrar trades para aparecer.</div>
+  <div id="lb-grid" style="display:none;"></div>
+
+  <div style="margin-top:24px;">
+    <div style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:var(--gold);margin-bottom:12px;">📡 Señales Públicas Recientes</div>
+    <div id="lb-signals" style="display:flex;flex-direction:column;gap:8px;">
+      <div style="text-align:center;padding:20px;color:#645a78;">Cargando señales…</div>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== PESTAÑA ACADEMIA ==================== -->
 <div id="tab-academia" class="tab-content">
 
@@ -2663,48 +2802,6 @@
       <p style="color:#a499b8;font-size:0.82rem;">Seleccioná un curso para comenzar.</p>
     </div>
     <button class="acad-admin-btn" onclick="openAdminPanel()">⚙️ Admin</button>
-  </div>
-
-  <!-- TRADINGVIEW CHART -->
-  <div class="acad-section" style="margin:20px 0;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
-      <h4 style="font-family:'Cinzel';color:var(--gold-bright);margin:0;">📈 Chart en Vivo</h4>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <label style="color:#a499b8;font-size:0.75rem;">Par:</label>
-        <select id="tv-symbol" style="background:var(--bg-deep);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">
-          <option value="EURUSDT">EUR/USD</option>
-          <option value="GBPUSD">GBP/USD</option>
-          <option value="USDJPY">USD/JPY</option>
-          <option value="XAUUSD">XAU/USD (Oro)</option>
-          <option value="BTCUSDT">BTC/USDT</option>
-          <option value="ETHUSDT">ETH/USDT</option>
-        </select>
-        <label style="color:#a499b8;font-size:0.75rem;">TF:</label>
-        <select id="tv-interval" style="background:var(--bg-deep);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">
-          <option value="1m">1m</option>
-          <option value="5m">5m</option>
-          <option value="15m" selected>15m</option>
-          <option value="1h">1h</option>
-          <option value="4h">4h</option>
-          <option value="1d">1D</option>
-        </select>
-      </div>
-    </div>
-    <div id="tradingview-web-chart" style="width:100%;height:500px;border-radius:12px;overflow:hidden;background:var(--bg-base);border:1px solid var(--border);position:relative;">
-      <div id="liveChartHeader" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);font-size:0.82rem">
-        <div style="display:flex;gap:14px;align-items:center">
-          <span id="liveChartPrice" style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:700;color:#fff">—</span>
-          <span id="liveChartChange" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.05)">—</span>
-        </div>
-        <div style="display:flex;gap:14px;align-items:center;color:#a499b8;font-size:0.72rem">
-          <span>Alto: <span id="liveChartHigh" style="color:#4ade80">—</span></span>
-          <span>Bajo: <span id="liveChartLow" style="color:#f87171">—</span></span>
-          <span>Vol: <span id="liveChartVol" style="color:#f0c060">—</span></span>
-          <span id="liveChartSource" style="color:#9353ff">●</span>
-        </div>
-      </div>
-      <canvas id="liveChartCanvas" style="display:block;width:100%;height:calc(100% - 44px)"></canvas>
-    </div>
   </div>
 
   <!-- GRID DE CURSOS -->
@@ -2840,7 +2937,6 @@
     <button class="admin-subtab-btn" id="adminSubtabTasks" onclick="adminShowSubtab('tasks')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">📋 Tareas Operativas</button>
     <button class="admin-subtab-btn" id="adminSubtabMusic" onclick="adminShowSubtab('music')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🎵 Música</button>
     <button class="admin-subtab-btn" id="adminSubtabMonitor" onclick="adminShowSubtab('monitor')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🛡️ Monitoring</button>
-    <button class="admin-subtab-btn" id="adminSubtabDiag" onclick="adminShowSubtab('diagnostics')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🔍 Diagnóstico</button>
   </div>
 
   <!-- SUB-PESTAÑA: ALUMNOS -->
@@ -2991,16 +3087,6 @@
       <p id="adminMusicFeedback" style="font-size:0.82rem; margin-top:12px; min-height:1.2em;"></p>
     </div>
 
-  <!-- SUB-PESTAÑA: DIAGNÓSTICO -->
-  <div id="adminSubtabContentDiagnostics" style="display:none;">
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center;">
-      <button class="post-btn" onclick="adminLoadDiagnostics()">🔄 Refrescar diagnóstico</button>
-      <span style="font-size:0.75rem; color:#645a78;">Se auto-ejecuta al abrir esta pestaña.</span>
-    </div>
-    <div id="adminDiagnosticsContent">
-      <p style="color:#645a78; font-size:0.85rem;">⏳ Cargando…</p>
-    </div>
-  </div>
   </div>
 
   <!-- SUB-PESTAÑA: MONITORING -->
@@ -3036,6 +3122,16 @@
     </div>
 
     <div id="monitorLogsList" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+    <hr style="border:none;border-top:1px solid rgba(212,175,55,0.15);margin:20px 0;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h3 style="font-family:'Cinzel',serif;color:var(--gold-bright);font-size:1rem;margin:0;">🔍 Estado del Sistema</h3>
+      <button class="post-btn" onclick="loadSystemStatus()" style="padding:6px 14px;font-size:0.75rem">🔄 Refrescar</button>
+    </div>
+    <div id="monSystemStatus">
+      <p style="color:#645a78;font-size:0.85rem;">⏳ Cargando…</p>
+    </div>
   </div>
 </div>
   </div>

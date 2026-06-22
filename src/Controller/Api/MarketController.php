@@ -8,26 +8,59 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Market data: velas (candles) en vivo para el chart de Academia.
+ * Market data: velas (candles) en vivo para el chart.
  *
- * Usa Binance public API (gratis, sin auth) para datos reales.
- * Si Binance no responde (offline, rate limit, etc), genera velas
- * simuladas con random walk para que el chart siempre tenga algo que mostrar.
+ * Soportados: binance, bybit, kraken.
+ * Binance como source primario (public API gratis).
+ * Si falla, genera velas simuladas.
  *
- * - GET /api/market/candles?symbol=BTCUSDT&interval=15m&limit=100
- * - GET /api/market/symbols
+ * - GET /api/market/candles?symbol=BTCUSDT&exchange=binance&interval=15m&limit=100
+ * - GET /api/market/symbols?exchange=binance
  */
 #[Route('/api/market')]
 class MarketController extends AbstractController
 {
+    private const EXCHANGES = ['binance', 'bybit', 'kraken'];
+
+    // Symbols por exchange: [symbol => [binance_symbol, base_price, vol]]
     private const SYMBOLS = [
-        'BTCUSDT' => ['binance' => 'BTCUSDT', 'name' => 'BTC/USDT', 'base' => 60000, 'vol' => 'high'],
-        'ETHUSDT' => ['binance' => 'ETHUSDT', 'name' => 'ETH/USDT', 'base' => 3000, 'vol' => 'high'],
-        'EURUSDT' => ['binance' => 'EURUSDT', 'name' => 'EUR/USD', 'base' => 1.08, 'vol' => 'low'],
-        'GBPUSD'  => ['binance' => 'GBPUSDT', 'name' => 'GBP/USD', 'base' => 1.27, 'vol' => 'low'],
-        'USDJPY'  => ['binance' => 'USDJPY', 'name' => 'USD/JPY', 'base' => 155.0, 'vol' => 'low'],
-        'XAUUSD'  => ['binance' => 'PAXGUSDT', 'name' => 'XAU/USD (Oro)', 'base' => 2350, 'vol' => 'med'],
+        'binance' => [
+            'BTCUSDT' => ['binance' => 'BTCUSDT', 'name' => 'BTC/USDT', 'base' => 60000, 'vol' => 'high'],
+            'ETHUSDT' => ['binance' => 'ETHUSDT', 'name' => 'ETH/USDT', 'base' => 3000, 'vol' => 'high'],
+            'EURUSDT' => ['binance' => 'EURUSDT', 'name' => 'EUR/USD', 'base' => 1.08, 'vol' => 'low'],
+            'GBPUSDT' => ['binance' => 'GBPUSDT', 'name' => 'GBP/USD', 'base' => 1.27, 'vol' => 'low'],
+            'USDJPY'  => ['binance' => 'USDJPY', 'name' => 'USD/JPY', 'base' => 155.0, 'vol' => 'low'],
+            'XAUUSD'  => ['binance' => 'PAXGUSDT', 'name' => 'XAU/USD (Oro)', 'base' => 2350, 'vol' => 'med'],
+            'SOLUSDT' => ['binance' => 'SOLUSDT', 'name' => 'SOL/USDT', 'base' => 140, 'vol' => 'high'],
+            'ADAUSDT' => ['binance' => 'ADAUSDT', 'name' => 'ADA/USDT', 'base' => 0.35, 'vol' => 'high'],
+        ],
+        'bybit' => [
+            'BTCUSDT' => ['binance' => 'BTCUSDT', 'name' => 'BTC/USDT', 'base' => 60000, 'vol' => 'high'],
+            'ETHUSDT' => ['binance' => 'ETHUSDT', 'name' => 'ETH/USDT', 'base' => 3000, 'vol' => 'high'],
+            'SOLUSDT' => ['binance' => 'SOLUSDT', 'name' => 'SOL/USDT', 'base' => 140, 'vol' => 'high'],
+            'XRPUSDT' => ['binance' => 'XRPUSDT', 'name' => 'XRP/USDT', 'base' => 0.50, 'vol' => 'high'],
+            'DOGEUSDT'=> ['binance' => 'DOGEUSDT', 'name' => 'DOGE/USDT', 'base' => 0.12, 'vol' => 'high'],
+            'AVAXUSDT'=> ['binance' => 'AVAXUSDT', 'name' => 'AVAX/USDT', 'base' => 25, 'vol' => 'high'],
+            'LINKUSDT'=> ['binance' => 'LINKUSDT', 'name' => 'LINK/USDT', 'base' => 14, 'vol' => 'med'],
+            'DOTUSDT' => ['binance' => 'DOTUSDT', 'name' => 'DOT/USDT', 'base' => 7, 'vol' => 'med'],
+        ],
+        'kraken' => [
+            'XBTUSD'  => ['binance' => 'BTCUSDT', 'name' => 'BTC/USD', 'base' => 60000, 'vol' => 'high'],
+            'ETHUSD'  => ['binance' => 'ETHUSDT', 'name' => 'ETH/USD', 'base' => 3000, 'vol' => 'high'],
+            'SOLUSD'  => ['binance' => 'SOLUSDT', 'name' => 'SOL/USD', 'base' => 140, 'vol' => 'high'],
+            'XRPUSD'  => ['binance' => 'XRPUSDT', 'name' => 'XRP/USD', 'base' => 0.50, 'vol' => 'high'],
+            'ADAUSD'  => ['binance' => 'ADAUSDT', 'name' => 'ADA/USD', 'base' => 0.35, 'vol' => 'high'],
+            'DOTUSD'  => ['binance' => 'DOTUSDT', 'name' => 'DOT/USD', 'base' => 7, 'vol' => 'med'],
+            'LINKUSD' => ['binance' => 'LINKUSDT', 'name' => 'LINK/USD', 'base' => 14, 'vol' => 'med'],
+            'MATICUSD'=> ['binance' => 'MATICUSDT', 'name' => 'MATIC/USD', 'base' => 0.55, 'vol' => 'med'],
+        ],
     ];
+
+    #[Route('/exchanges', name: 'api_market_exchanges', methods: ['GET'])]
+    public function exchanges(): JsonResponse
+    {
+        return $this->json(['exchanges' => self::EXCHANGES]);
+    }
 
     private const INTERVALS = [
         '1m' => '1m', '5m' => '5m', '15m' => '15m', '30m' => '30m',
@@ -35,32 +68,40 @@ class MarketController extends AbstractController
     ];
 
     #[Route('/symbols', name: 'api_market_symbols', methods: ['GET'])]
-    public function symbols(): JsonResponse
+    public function symbols(Request $request): JsonResponse
     {
-        $out = [];
-        foreach (self::SYMBOLS as $key => $info) {
-            $out[] = ['key' => $key, 'name' => $info['name'], 'binance' => $info['binance']];
+        $exchange = strtolower($request->query->get('exchange', 'binance'));
+        if (!isset(self::SYMBOLS[$exchange])) {
+            $exchange = 'binance';
         }
-        return new JsonResponse(['symbols' => $out]);
+        $out = [];
+        foreach (self::SYMBOLS[$exchange] as $key => $info) {
+            $out[] = ['key' => $key, 'name' => $info['name']];
+        }
+        return new JsonResponse(['exchange' => $exchange, 'symbols' => $out]);
     }
 
     #[Route('/candles', name: 'api_market_candles', methods: ['GET'])]
     public function candles(Request $request): JsonResponse
     {
+        $exchange = strtolower($request->query->get('exchange', 'binance'));
+        if (!isset(self::SYMBOLS[$exchange])) {
+            $exchange = 'binance';
+        }
         $symbol = strtoupper($request->query->get('symbol', 'BTCUSDT'));
         $interval = strtolower($request->query->get('interval', '15m'));
         $limit = min(500, max(10, (int) $request->query->get('limit', 100)));
 
-        if (!isset(self::SYMBOLS[$symbol])) {
+        if (!isset(self::SYMBOLS[$exchange][$symbol])) {
             return new JsonResponse(['error' => 'symbol no soportado'], 400);
         }
         if (!isset(self::INTERVALS[$interval])) {
             return new JsonResponse(['error' => 'interval no soportado'], 400);
         }
 
-        $binanceSymbol = self::SYMBOLS[$symbol]['binance'];
+        $info = self::SYMBOLS[$exchange][$symbol];
+        $binanceSymbol = $info['binance'];
         $binanceInterval = self::INTERVALS[$interval];
-        $cacheKey = "market.candles.{$symbol}.{$interval}.{$limit}";
 
         // 1) Intentar Binance public API
         try {
@@ -73,6 +114,7 @@ class MarketController extends AbstractController
                     $candles = $this->parseBinance($data, $interval);
                     return new JsonResponse([
                         'source' => 'binance',
+                        'exchange' => $exchange,
                         'symbol' => $symbol,
                         'interval' => $interval,
                         'candles' => $candles,
@@ -81,13 +123,13 @@ class MarketController extends AbstractController
                 }
             }
         } catch (\Throwable $e) {
-            // Binance fallo, fallback abajo
         }
 
-        // 2) Fallback: velas simuladas con random walk
-        $candles = $this->simulateCandles(self::SYMBOLS[$symbol], $interval, $limit);
+        // 2) Fallback: velas simuladas
+        $candles = $this->simulateCandles($info, $interval, $limit);
         return new JsonResponse([
             'source' => 'simulated',
+            'exchange' => $exchange,
             'symbol' => $symbol,
             'interval' => $interval,
             'candles' => $candles,

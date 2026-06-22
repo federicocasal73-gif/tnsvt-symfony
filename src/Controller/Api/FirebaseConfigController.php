@@ -37,10 +37,22 @@ class FirebaseConfigController extends AbstractController
     #[Route('', name: 'api_firebase_config', methods: ['GET'])]
     public function __invoke(): JsonResponse
     {
-        if (empty($this->apiKey) || empty($this->projectId)) {
+        // Detectar placeholders o valores vacíos
+        $placeholders = ['YOUR_', 'REEMPLAZAR', 'PLACEHOLDER'];
+        $isPlaceholder = fn(string $v) => $v === '' || array_filter($placeholders, fn($p) => str_contains($v, $p)) !== [];
+
+        if ($isPlaceholder($this->apiKey) || $isPlaceholder($this->projectId)
+            || $isPlaceholder($this->appId) || $isPlaceholder($this->messagingSenderId)
+            || $isPlaceholder($this->vapidKey)) {
             return new JsonResponse([
                 'configured' => false,
-                'error' => 'Firebase Web no esta configurado. Ver FIREBASE_WEB_* en .env.local',
+                'error' => 'Firebase Web no esta configurado. Reemplazar placeholders en .env con las claves reales de Firebase Console.',
+                'missing' => array_filter([
+                    $isPlaceholder($this->apiKey) ? 'FIREBASE_WEB_API_KEY' : null,
+                    $isPlaceholder($this->messagingSenderId) ? 'FIREBASE_MESSAGING_SENDER_ID' : null,
+                    $isPlaceholder($this->appId) ? 'FIREBASE_APP_ID' : null,
+                    $isPlaceholder($this->vapidKey) ? 'FIREBASE_WEB_PUSH_VAPID_KEY' : null,
+                ]),
             ], 503, ['Cache-Control' => 'no-store']);
         }
         return new JsonResponse([

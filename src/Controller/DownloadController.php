@@ -23,7 +23,7 @@ class DownloadController extends AbstractController
     public function tnsvtMarket(): Response
     {
         $gamePath = $this->projectDir . '/public/downloads/tnsvt-market-instinct.apk';
-        $webPath = $this->projectDir . '/public/apk/tnsvt-v1.3.0.apk';
+        $webPath = $this->projectDir . '/public/apk/tnsvt-v1.3.1.apk';
         $gameExists = file_exists($gamePath);
         $webExists = file_exists($webPath);
         $gameSize = $gameExists ? filesize($gamePath) : 0;

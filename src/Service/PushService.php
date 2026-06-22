@@ -44,12 +44,13 @@ class PushService
         return $this->firebaseAvailable;
     }
 
-    public function notify(User $user, string $type, string $content, array $data = []): ?Notification
+    public function notify(User $user, string $type, string $content, array $data = [], ?string $link = null): ?Notification
     {
         $notif = new Notification();
         $notif->setUser($user);
         $notif->setType($type);
         $notif->setContent($content);
+        $notif->setLink($link);
         $this->em->persist($notif);
         $this->em->flush();
 
@@ -58,7 +59,7 @@ class PushService
         return $notif;
     }
 
-    public function broadcast(string $type, string $content, array $data = [], ?callable $userFilter = null): int
+    public function broadcast(string $type, string $content, array $data = [], ?callable $userFilter = null, ?string $link = null): int
     {
         $users = $this->userRepository->findBy(['active' => true]);
         $count = 0;
@@ -66,7 +67,7 @@ class PushService
             if ($userFilter && !$userFilter($user)) {
                 continue;
             }
-            $this->notify($user, $type, $content, $data);
+            $this->notify($user, $type, $content, $data, $link);
             $count++;
         }
         return $count;
@@ -125,6 +126,8 @@ class PushService
             'comment', 'mention' => 'Actividad en el feed',
             'task' => 'Tareas operativas',
             'academia' => 'Nuevo curso en Academia',
+            'signal' => '📊 Nueva señal',
+            'post' => '📢 Nueva publicación',
             default => 'TNSVT',
         };
     }

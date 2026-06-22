@@ -62,7 +62,8 @@ class AcademiaController extends AbstractController
         $this->pushService->broadcast(
             'academia',
             sprintf('%s Nuevo curso en Academia: %s', $course->getEmoji() ?: '📚', $course->getTitle()),
-            ['course_id' => (string) $course->getId()]
+            ['course_id' => (string) $course->getId()],
+            link: 'academia'
         );
 
         return $this->json(['success' => true, 'id' => $course->getId()], Response::HTTP_CREATED);
@@ -90,7 +91,8 @@ class AcademiaController extends AbstractController
         $this->pushService->broadcast(
             'academia',
             sprintf('Curso actualizado: %s', $course->getTitle()),
-            ['course_id' => (string) $course->getId()]
+            ['course_id' => (string) $course->getId()],
+            link: 'academia'
         );
 
         return $this->json(['success' => true]);

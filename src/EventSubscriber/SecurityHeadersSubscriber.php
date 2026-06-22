@@ -45,8 +45,9 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
         //   permite CSS inline y Google Fonts
         // - img-src 'self' data: blob: https: http://192.168.*:
         //   permite imagenes, data URIs, y HTTP local (para tests)
-        // - connect-src 'self' https://fcm.googleapis.com https://fcmregistrations.googleapis.com wss: http://192.168.*:
-        //   permite FCM push, WebSockets, y HTTP local
+        // - connect-src 'self' https://fcm.googleapis.com https://fcmregistrations.googleapis.com
+        //   https://firebaseinstallations.googleapis.com wss: http://192.168.*:
+        //   permite FCM push, WebSockets, Firebase Installations, y HTTP local
         // - font-src 'self' data: https://fonts.gstatic.com:
         //   permite Google Fonts
         // - media-src 'self' https: http://192.168.*: blob::
@@ -58,7 +59,7 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
         // - manifest-src 'self':
         //   permite manifest.json
         $csp = "default-src 'self';"
-            . " script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com;"
+            . " script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://unpkg.com;"
             . " style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;"
             . " img-src 'self' data: blob: https: http:;"
             . " font-src 'self' data: https://fonts.gstatic.com;"
