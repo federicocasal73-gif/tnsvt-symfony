@@ -4,7 +4,7 @@
   "webDir": "public",
   "server": {
     "androidScheme": "https",
-    "url": "http://100.122.8.48:8000",
+    "url": "https://fede-aspirev3112p.tailf43f87.ts.net",
     "cleartext": true,
     "errorPath": "error.html"
   },

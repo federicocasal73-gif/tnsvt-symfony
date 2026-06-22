@@ -17,7 +17,7 @@ const API = {
       // Si el origin es el scheme interno de Capacitor (https://localhost),
       // forzamos la URL del server.
       if (loc.hostname === 'localhost' && loc.protocol === 'https:') {
-        return 'http://100.122.8.48:8000';
+        return 'https://fede-aspirev3112p.tailf43f87.ts.net';
       }
     } catch (_) {}
     return '';

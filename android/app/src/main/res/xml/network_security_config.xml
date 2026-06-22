@@ -7,6 +7,7 @@
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">fede-aspirev3112p.tailf43f87.ts.net</domain>
         <domain includeSubdomains="true">100.122.8.48</domain>
         <domain includeSubdomains="true">192.168.0.170</domain>
         <domain includeSubdomains="true">localhost</domain>

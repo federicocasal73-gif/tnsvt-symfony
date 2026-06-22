@@ -1,5 +1,8 @@
 # TNSVT Session Summary
 
+## Documentación
+- `docs/arquitectura.md` / `docs/arquitectura.pdf` — Arquitectura técnica completa y guía de hosting (Jun 2026, 17 secciones, ~42 páginas).
+
 ## Commands
 - **Start server**: `cd C:\Users\HP 240 inch G9\tnsvt-symfony && php -S 192.168.1.2:8000 -t public`
 - **Build game APK**: `cd game-app\android && gradlew.bat assembleDebug`
