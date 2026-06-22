@@ -3453,17 +3453,19 @@ let sb = window.API;
         const loading = document.getElementById('lb-loading');
         const empty = document.getElementById('lb-empty');
         const grid = document.getElementById('lb-grid');
-        // Timeout safety: hide loading after 8s no matter what
-        let loadingTimer = setTimeout(() => { if (loading) loading.style.display = 'none'; }, 8000);
         const signalsEl = document.getElementById('lb-signals');
+        console.log('[LB] lbRefresh called, loading?', !!loading, 'grid?', !!grid);
+        let loadingTimer = setTimeout(() => { if (loading) loading.style.display = 'none'; }, 8000);
         if (loading) loading.style.display = 'block';
         if (empty) empty.style.display = 'none';
         if (grid) grid.style.display = 'none';
         try {
+          // Fetch directo con credentials para que use la sesión
           const [rankings, signals] = await Promise.all([
-            API.getLeaderboard(),
-            API._resolve && fetch(API._resolve('/api/feed?category=se%C3%B1ales')).then(r => r.json()).catch(() => [])
+            fetch('/api/leaderboard', { credentials: 'include' }).then(r => r.json()).catch((e) => { console.warn('[LB] leaderboard error:', e); return []; }),
+            fetch('/api/feed?category=' + encodeURIComponent('señales'), { credentials: 'include' }).then(r => r.json()).catch((e) => { console.warn('[LB] signals error:', e); return []; })
           ]);
+          console.log('[LB] rankings:', rankings, 'signals:', signals);
           lbData = rankings || [];
           if (grid) {
             if (lbData.length === 0) {

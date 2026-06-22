@@ -1,7 +1,7 @@
 // TNSVT Service Worker - PWA + Offline fallback
 // v32: aggressive cache cleanup + skipWaiting + clients.claim para forzar update
-const CACHE_NAME = 'tnsvt-v35';
-const RUNTIME_CACHE = 'tnsvt-runtime-v35';
+const CACHE_NAME = 'tnsvt-v36';
+const RUNTIME_CACHE = 'tnsvt-runtime-v36';
 
 // IMPORTANTE: NO incluir app-XYZ.js ni api-XYZ.js aqui porque cambian de hash.
 // Se cachean via runtime cache cuando el usuario los pide.
