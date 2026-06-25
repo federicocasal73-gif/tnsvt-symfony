@@ -22,6 +22,31 @@ class MarketController extends AbstractController
 {
     private const EXCHANGES = ['binance', 'bybit', 'kraken'];
 
+    // Mapping de activos del game al symbol de Binance
+    private const BINANCE_ASSETS = [
+        'BTC' => 'BTCUSDT',
+        'ETH' => 'ETHUSDT',
+        'SOL' => 'SOLUSDT',
+        'BNB' => 'BNBUSDT',
+        'XRP' => 'XRPUSDT',
+        'GOLD' => 'PAXGUSDT',
+    ];
+
+    // Activos via Yahoo Finance
+    private const YAHOO_ASSETS = [
+        'EURUSD' => 'EURUSD=X',
+        'SP500'  => '^GSPC',
+        'NASDAQ' => '^IXIC',
+        'WTI'    => 'CL=F',
+    ];
+
+    // Precios base de respaldo
+    private const FALLBACK_PRICES = [
+        'BTC' => 65000, 'ETH' => 3500, 'SOL' => 140,
+        'BNB' => 600, 'XRP' => 0.50, 'GOLD' => 2330,
+        'EURUSD' => 1.04, 'SP500' => 5430, 'NASDAQ' => 19500, 'WTI' => 82,
+    ];
+
     // Symbols por exchange: [symbol => [binance_symbol, base_price, vol]]
     private const SYMBOLS = [
         'binance' => [
@@ -55,6 +80,42 @@ class MarketController extends AbstractController
             'MATICUSD'=> ['binance' => 'MATICUSDT', 'name' => 'MATIC/USD', 'base' => 0.55, 'vol' => 'med'],
         ],
     ];
+
+    #[Route('/prices', name: 'api_market_prices', methods: ['GET'])]
+    public function prices(): JsonResponse
+    {
+        $cacheKey = 'prices';
+        $cached = $this->getCache($cacheKey);
+        if ($cached !== null) {
+            return $this->json($cached);
+        }
+
+        $prices = [];
+        $sources = [];
+
+        // 1) Binance batch
+        $binancePrices = $this->fetchBinanceTickers();
+        foreach (self::BINANCE_ASSETS as $asset => $symbol) {
+            $prices[$asset] = $binancePrices[$symbol] ?? self::FALLBACK_PRICES[$asset];
+            $sources[$asset] = isset($binancePrices[$symbol]) ? 'binance' : 'fallback';
+        }
+
+        // 2) Yahoo Finance batch
+        foreach (self::YAHOO_ASSETS as $asset => $yahooSymbol) {
+            $yahooPrice = $this->fetchYahooPrice($yahooSymbol);
+            $prices[$asset] = $yahooPrice ?? self::FALLBACK_PRICES[$asset];
+            $sources[$asset] = $yahooPrice !== null ? 'yahoo' : 'fallback';
+        }
+
+        $result = [
+            'prices' => $prices,
+            'sources' => $sources,
+            'updated_at' => date('c'),
+        ];
+
+        $this->setCache($cacheKey, $result, 8);
+        return $this->json($result);
+    }
 
     #[Route('/exchanges', name: 'api_market_exchanges', methods: ['GET'])]
     public function exchanges(): JsonResponse
@@ -135,6 +196,82 @@ class MarketController extends AbstractController
             'candles' => $candles,
             'updated_at' => date('c'),
         ]);
+    }
+
+    // ── Cache helpers (file-based, funciona en php -S) ─────────
+    private function getCache(string $key): mixed
+    {
+        $path = $this->getCachePath($key);
+        if (!file_exists($path)) return null;
+        $entry = @json_decode(file_get_contents($path), true);
+        if (!$entry || !isset($entry['expires'], $entry['data'])) return null;
+        if ($entry['expires'] > time()) return $entry['data'];
+        @unlink($path);
+        return null;
+    }
+
+    private function setCache(string $key, mixed $data, int $ttl): void
+    {
+        $path = $this->getCachePath($key);
+        $dir = dirname($path);
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+        file_put_contents($path, json_encode([
+            'data' => $data,
+            'expires' => time() + $ttl,
+        ]), LOCK_EX);
+    }
+
+    private function getCachePath(string $key): string
+    {
+        return sys_get_temp_dir() . '/tnsvt_cache_' . md5($key) . '.json';
+    }
+
+    // ── Binance batch ticker ──────────────────────────────────
+    private function fetchBinanceTickers(): array
+    {
+        $symbols = array_values(self::BINANCE_ASSETS);
+        $json = json_encode($symbols);
+        $url = 'https://api.binance.com/api/v3/ticker/price?symbols=' . urlencode($json);
+        try {
+            $ctx = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
+            $raw = @file_get_contents($url, false, $ctx);
+            if ($raw === false || $raw === '') return [];
+            $data = json_decode($raw, true);
+            if (!is_array($data)) return [];
+            $result = [];
+            foreach ($data as $item) {
+                if (isset($item['symbol'], $item['price'])) {
+                    $result[$item['symbol']] = (float) $item['price'];
+                }
+            }
+            return $result;
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    // ── Yahoo Finance price ───────────────────────────────────
+    private function fetchYahooPrice(string $symbol): ?float
+    {
+        $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1d";
+        try {
+            $ctx = stream_context_create([
+                'http' => [
+                    'timeout' => 5,
+                    'ignore_errors' => true,
+                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n",
+                ],
+            ]);
+            $raw = @file_get_contents($url, false, $ctx);
+            if ($raw === false || $raw === '') return null;
+            $data = json_decode($raw, true);
+            if (!is_array($data)) return null;
+            $meta = $data['chart']['result'][0]['meta'] ?? null;
+            if (!$meta) return null;
+            return isset($meta['regularMarketPrice']) ? (float) $meta['regularMarketPrice'] : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
