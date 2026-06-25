@@ -32,12 +32,19 @@ class MarketController extends AbstractController
         'GOLD' => 'PAXGUSDT',
     ];
 
-    // Activos via Yahoo Finance
-    private const YAHOO_ASSETS = [
+    // Forex / indices via Yahoo Finance
+    private const YAHOO_FX_INDICES = [
         'EURUSD' => 'EURUSD=X',
         'SP500'  => '^GSPC',
         'NASDAQ' => '^IXIC',
         'WTI'    => 'CL=F',
+    ];
+
+    // Stocks via Yahoo Finance (batch quote endpoint)
+    private const YAHOO_STOCKS = [
+        'AMD' => 'AMD', 'MSFT' => 'MSFT', 'NVDA' => 'NVDA',
+        'AAPL' => 'AAPL', 'TSLA' => 'TSLA', 'GOOGL' => 'GOOGL',
+        'AMZN' => 'AMZN', 'META' => 'META',
     ];
 
     // Precios base de respaldo
@@ -45,6 +52,9 @@ class MarketController extends AbstractController
         'BTC' => 65000, 'ETH' => 3500, 'SOL' => 140,
         'BNB' => 600, 'XRP' => 0.50, 'GOLD' => 2330,
         'EURUSD' => 1.04, 'SP500' => 5430, 'NASDAQ' => 19500, 'WTI' => 82,
+        'AMD' => 160, 'MSFT' => 490, 'NVDA' => 130,
+        'AAPL' => 230, 'TSLA' => 250, 'GOOGL' => 185,
+        'AMZN' => 220, 'META' => 550,
     ];
 
     // Symbols por exchange: [symbol => [binance_symbol, base_price, vol]]
@@ -100,11 +110,18 @@ class MarketController extends AbstractController
             $sources[$asset] = isset($binancePrices[$symbol]) ? 'binance' : 'fallback';
         }
 
-        // 2) Yahoo Finance batch
-        foreach (self::YAHOO_ASSETS as $asset => $yahooSymbol) {
+        // 2) Yahoo Finance — forex / indices (individual chart endpoint)
+        foreach (self::YAHOO_FX_INDICES as $asset => $yahooSymbol) {
             $yahooPrice = $this->fetchYahooPrice($yahooSymbol);
             $prices[$asset] = $yahooPrice ?? self::FALLBACK_PRICES[$asset];
             $sources[$asset] = $yahooPrice !== null ? 'yahoo' : 'fallback';
+        }
+
+        // 3) Yahoo Finance — stocks (batch quote endpoint)
+        $stockPrices = $this->fetchYahooStockQuotes();
+        foreach (self::YAHOO_STOCKS as $asset => $yahooSymbol) {
+            $prices[$asset] = $stockPrices[$yahooSymbol] ?? self::FALLBACK_PRICES[$asset];
+            $sources[$asset] = isset($stockPrices[$yahooSymbol]) ? 'yahoo' : 'fallback';
         }
 
         $result = [
@@ -271,6 +288,35 @@ class MarketController extends AbstractController
             return isset($meta['regularMarketPrice']) ? (float) $meta['regularMarketPrice'] : null;
         } catch (\Throwable) {
             return null;
+        }
+    }
+
+    // ── Yahoo batch stock quotes ──────────────────────────────
+    private function fetchYahooStockQuotes(): array
+    {
+        $symbols = implode(',', array_values(self::YAHOO_STOCKS));
+        $url = "https://query1.finance.yahoo.com/v7/finance/quote?symbols={$symbols}";
+        try {
+            $ctx = stream_context_create([
+                'http' => [
+                    'timeout' => 8,
+                    'ignore_errors' => true,
+                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n",
+                ],
+            ]);
+            $raw = @file_get_contents($url, false, $ctx);
+            if ($raw === false || $raw === '') return [];
+            $data = json_decode($raw, true);
+            if (!is_array($data)) return [];
+            $result = [];
+            foreach ($data['quoteResponse']['result'] ?? [] as $item) {
+                if (isset($item['symbol'], $item['regularMarketPrice']) && $item['regularMarketPrice'] !== null) {
+                    $result[$item['symbol']] = (float) $item['regularMarketPrice'];
+                }
+            }
+            return $result;
+        } catch (\Throwable) {
+            return [];
         }
     }
 
