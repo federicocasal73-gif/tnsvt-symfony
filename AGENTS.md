@@ -10,28 +10,28 @@
 - **Install via ADB**: `adb install -r path\to\app-debug.apk`
 - **Sync capacitor**: `npx cap sync android` (needs PATH with nodejs)
 
-## This Session (2026-06-24/25)
-### Commits
-- (pending) 1v1 Duel mode: Duel + DuelRound entities, DuelController, WalletTransaction duel constants
+## Session 2026-06-24/25 — 1v1 Duel Backend + Game App fixes
+### Commits (Symfony)
+- `c350902` → `bff87cf` (rebased) — 1v1 Duel mode: entities, controller, API, wallet constants, migration
 
-### What was done
-- Created `Duel` entity (`src/Entity/Duel.php`) with fields: code, player1, player2, winner, entryFee, prizePool, totalRounds, currentRound, player1Pnl, player2Pnl, startingPrice, status, timestamps, rounds OneToMany
-- Created `DuelRound` entity (`src/Entity/DuelRound.php`) with fields: roundNumber, player1Move, player2Move, open/close/high/low prices, player1Pnl, player2Pnl, computed `computePnl()` and `isBothPlayed()` helpers
-- Created `DuelRepository` and `DuelRoundRepository`
-- Added WalletTransaction constants: `TYPE_DUEL_ENTRY`, `TYPE_DUEL_WIN`, `TYPE_DUEL_REFUND`
-- Created `DuelController` (`src/Controller/Api/DuelController.php`) with routes:
-  - `GET /api/duels` — list waiting duels + my active duels
-  - `POST /api/duels/create` — create a duel (host sets entry_fee, total_rounds)
-  - `POST /api/duels/join` — join a waiting duel by code
-  - `GET /api/duels/{id}` — get duel details + rounds (players only)
-  - `POST /api/duels/{id}/next-round` — host creates a new candle for current round
-  - `POST /api/duels/{id}/play` — player submits move (long/short/skip)
-  - `POST /api/duels/{id}/cancel` — host cancels a waiting duel
-- Auth via `X-Game-Code` header (same as other game endpoints)
-- PnL computed per round: `(close-open)/open * 100 * direction`
-- Winner receives prize pool; ties split equally
-- Migration `Version20260625021044` creates `duels` and `duel_rounds` tables
-- Full flow tested end-to-end: create → join → next-round (3x) → play → finish → winner declared
+### Commits (Game App)
+- `0e2705b` — Resume torneo button + removed bounty system + active flag
+
+### Backend: 1v1 Duel Mode
+- `Duel` entity: code, player1, player2, winner, entryFee, prizePool, totalRounds, currentRound, player1Pnl, player2Pnl, startingPrice, status, timestamps, rounds OneToMany
+- `DuelRound` entity: roundNumber, player1Move, player2Move, OHLC prices, player1Pnl, player2Pnl, `computePnl()`, `isBothPlayed()`
+- `DuelController` with 7 endpoints (list, create, join, get, next-round, play, cancel)
+- Auth via `X-Game-Code` header
+- PnL = `(close-open)/open * 100 * direction`, winner gets prize pool, ties split
+- WalletTransaction constants: `TYPE_DUEL_ENTRY`, `TYPE_DUEL_WIN`, `TYPE_DUEL_REFUND`
+- Migration `Version20260625021044` creates both tables
+- **Tested end-to-end:** create → join → 3 rounds → PnL correcto → winner declared → finished status
+
+### Game App Changes
+- **Reanudar Torneo**: resume button in lobby, conditional on `torneoState.active`, `resumeTorneo()` restores game panel
+- **Bounty removed**: deleted HTML row, `setBounty()`, `populateBountyTargets()`, bounty fields from state
+- **LB button**: moved from bounty row to direction buttons area
+- **active flag**: `torneoState.active = true` on `startTorneo()`, used to show resume button
 
 ### What was done
 - MercadoPago Service + Controller + Webhook
