@@ -291,33 +291,17 @@ class MarketController extends AbstractController
         }
     }
 
-    // ── Yahoo batch stock quotes ──────────────────────────────
+    // ── Yahoo stock quotes (individual chart calls) ──────────
     private function fetchYahooStockQuotes(): array
     {
-        $symbols = implode(',', array_values(self::YAHOO_STOCKS));
-        $url = "https://query1.finance.yahoo.com/v7/finance/quote?symbols={$symbols}";
-        try {
-            $ctx = stream_context_create([
-                'http' => [
-                    'timeout' => 8,
-                    'ignore_errors' => true,
-                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n",
-                ],
-            ]);
-            $raw = @file_get_contents($url, false, $ctx);
-            if ($raw === false || $raw === '') return [];
-            $data = json_decode($raw, true);
-            if (!is_array($data)) return [];
-            $result = [];
-            foreach ($data['quoteResponse']['result'] ?? [] as $item) {
-                if (isset($item['symbol'], $item['regularMarketPrice']) && $item['regularMarketPrice'] !== null) {
-                    $result[$item['symbol']] = (float) $item['regularMarketPrice'];
-                }
+        $result = [];
+        foreach (self::YAHOO_STOCKS as $asset => $yahooSymbol) {
+            $price = $this->fetchYahooPrice($yahooSymbol);
+            if ($price !== null) {
+                $result[$yahooSymbol] = $price;
             }
-            return $result;
-        } catch (\Throwable) {
-            return [];
         }
+        return $result;
     }
 
     /**
