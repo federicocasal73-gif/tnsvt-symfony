@@ -33,6 +33,14 @@
 - **LB button**: moved from bounty row to direction buttons area
 - **active flag**: `torneoState.active = true` on `startTorneo()`, used to show resume button
 
+### Game App — Torneo Trading Panel Integral (2026-06-25)
+- Panel de trading del torneo reemplazado por el diseño completo del portfolio:
+  asset selector, price card, size USD/%/unidades, leverage slider 1x-25x,
+  SL/TP multímode, trailing stop, order preview con R:R
+- SL/TP/trailing ahora se chequean contra **cada vela generada**, no solo contra el close final
+- Asset seleccionable por el usuario (antes random)
+- Commit: `934f8ae`
+
 ### What was done
 - MercadoPago Service + Controller + Webhook
 - Binance Pay Service + Controller + Webhook
