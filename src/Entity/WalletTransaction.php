@@ -24,6 +24,9 @@ class WalletTransaction
     public const TYPE_PAYOUT    = 'payout';      // user recibe premio de torneo
     public const TYPE_REFUND    = 'refund';      // devolucion (torneo cancelado)
     public const TYPE_WITHDRAW  = 'withdraw';    // user retira USD (pendiente)
+    public const TYPE_DUEL_ENTRY = 'duel_entry';  // entrada a duelo 1v1
+    public const TYPE_DUEL_WIN   = 'duel_win';    // premio de duelo 1v1
+    public const TYPE_DUEL_REFUND = 'duel_refund'; // devolucion de duelo cancelado/empate
 
     public const STATUS_PENDING   = 'pending';
     public const STATUS_CONFIRMED  = 'confirmed';
