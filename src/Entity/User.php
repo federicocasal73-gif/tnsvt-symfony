@@ -43,16 +43,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, options: ['default' => '0.00'])]
     private string $walletBalance = '0.00';
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $diarySetupToken = null;
+
+    #[ORM\Column(length: 48, nullable: true)]
+    private ?string $diarySetupIv = null;
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: WalletTransaction::class)]
     private Collection $walletTransactions;
 
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: TournamentEntry::class)]
     private Collection $tournamentEntries;
 
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: DiaryEntry::class)]
+    private Collection $diaryEntries;
+
     public function __construct()
     {
         $this->walletTransactions = new ArrayCollection();
         $this->tournamentEntries = new ArrayCollection();
+        $this->diaryEntries = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -81,6 +91,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getWalletBalance(): string { return $this->walletBalance; }
     public function setWalletBalance(string $b): static { $this->walletBalance = $b; return $this; }
 
+    public function getDiarySetupToken(): ?string { return $this->diarySetupToken; }
+    public function setDiarySetupToken(?string $token): static { $this->diarySetupToken = $token; return $this; }
+
+    public function getDiarySetupIv(): ?string { return $this->diarySetupIv; }
+    public function setDiarySetupIv(?string $iv): static { $this->diarySetupIv = $iv; return $this; }
+
     public function getWalletBalanceFloat(): float { return (float) $this->walletBalance; }
     public function hasBalance(float $min): bool { return $this->getWalletBalanceFloat() >= $min; }
     public function addToWallet(float $amount): static
@@ -96,6 +112,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getWalletTransactions(): Collection { return $this->walletTransactions; }
     public function getTournamentEntries(): Collection { return $this->tournamentEntries; }
+    public function getDiaryEntries(): Collection { return $this->diaryEntries; }
 
     public function getUserIdentifier(): string { return $this->code ?? ''; }
     public function eraseCredentials(): void {}

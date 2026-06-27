@@ -358,6 +358,9 @@ let sb = window.API;
         if (tabId === 'tab-leaderboard') {
           if (typeof lbRefresh === 'function') lbRefresh();
         }
+        if (tabId === 'tab-diary') {
+          if (typeof Diary !== 'undefined' && Diary.init) Diary.init();
+        }
       }
       function switchTradingTab(tabId) { switchTab(tabId); }
 
@@ -5236,3 +5239,293 @@ let sb = window.API;
           }
         };
       })();
+
+/* ===================================================================================
+   DIARIO PERSONAL — Módulo de cifrado AES-256-GCM del lado del cliente
+   ===================================================================================
+   La contraseña NUNCA se envía al servidor. Todo el cifrado/descifrado ocurre
+   en el navegador usando la Web Crypto API. El servidor solo almacena bytes
+   cifrados que son ilegibles incluso para el admin con acceso directo a la DB.
+   =================================================================================== */
+window.Diary = (() => {
+  const STORAGE_PW_KEY = 'tnsvt_diary_pw';
+  const VERIFY_PLAINTEXT = 'TNSVT-DIARY-VERIFIED';
+  const SALT_PREFIX = 'TNSVT-DIARY-';
+
+  let _key = null;
+  let _currentEntryId = null;
+  let _isNew = true;
+  let _setupDone = false;
+
+  function el(id) { return document.getElementById(id); }
+
+  function _pw() {
+    return sessionStorage.getItem(STORAGE_PW_KEY);
+  }
+
+  function _setPw(pw) {
+    sessionStorage.setItem(STORAGE_PW_KEY, pw);
+  }
+
+  function _clearPw() {
+    sessionStorage.removeItem(STORAGE_PW_KEY);
+    _key = null;
+  }
+
+  function _show(id) {
+    ['dp-locked','dp-list','dp-editor','dp-reader'].forEach(s => { const e=el(s); if(e) e.style.display = s===id?'flex':'none'; });
+  }
+
+  function _showError(msg) {
+    const err = el('dp-error');
+    if (!err) return;
+    err.textContent = msg;
+    err.style.display = 'block';
+    setTimeout(() => err.style.display = 'none', 4000);
+  }
+
+  async function _deriveKey(password) {
+    const enc = new TextEncoder();
+    const userCode = (window.TNSVT_USER && window.TNSVT_USER.code) || 'user';
+    const salt = enc.encode(SALT_PREFIX + userCode);
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  async function _encrypt(plaintext) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const pt = new TextEncoder().encode(plaintext);
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, _key, pt);
+    const combined = new Uint8Array(iv.length + ct.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(ct), iv.length);
+    return btoa(String.fromCharCode(...combined));
+  }
+
+  async function _decrypt(payload) {
+    const raw = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
+    const iv = raw.slice(0, 12);
+    const ct = raw.slice(12);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, _key, ct);
+    return new TextDecoder().decode(pt);
+  }
+
+  function _api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const code = (window.TNSVT_USER && window.TNSVT_USER.code);
+    if (code) opts.headers['X-Game-Code'] = code;
+    return fetch(path.startsWith('http') ? path : API.baseURL + path, opts).then(r => r.json());
+  }
+
+  // ── Public API ──
+
+  async function setupPassword(password) {
+    if (!password || password.length < 4) { _showError('La contraseña debe tener al menos 4 caracteres'); return; }
+    try {
+      _key = await _deriveKey(password);
+      const encrypted = await _encrypt(VERIFY_PLAINTEXT);
+      const res = await _api('POST', '/api/diary/setup', { setup_token: encrypted, setup_iv: '' });
+      if (res.success) {
+        _setPw(password);
+        _setupDone = true;
+        _loadList();
+      } else {
+        _showError('Error al guardar configuración');
+      }
+    } catch(e) {
+      _showError('Error: ' + e.message);
+    }
+  }
+
+  async function unlock() {
+    const pw = el('dp-password-input').value.trim();
+    if (!pw) { _showError('Ingresá tu contraseña'); return; }
+    try {
+      _key = await _deriveKey(pw);
+      const res = await _api('GET', '/api/diary/setup');
+      if (!res.success || !res.setup_token) {
+        _showError('No hay configuración de diario. Creá una contraseña primero.');
+        return;
+      }
+      const decrypted = await _decrypt(res.setup_token);
+      if (decrypted === VERIFY_PLAINTEXT) {
+        _setPw(pw);
+        _loadList();
+      } else {
+        _showError('Contraseña incorrecta');
+        _key = null;
+      }
+    } catch(e) {
+      _showError('Contraseña incorrecta');
+      _key = null;
+    }
+  }
+
+  async function init() {
+    const pw = _pw();
+    if (pw) {
+      try {
+        _key = await _deriveKey(pw);
+        const res = await _api('GET', '/api/diary/setup');
+        if (res.success && res.setup_token) {
+          const decrypted = await _decrypt(res.setup_token);
+          if (decrypted === VERIFY_PLAINTEXT) {
+            _loadList();
+            return;
+          }
+        }
+      } catch(e) {}
+      _clearPw();
+    }
+    const res = await _api('GET', '/api/diary/setup');
+    if (res.success && res.setup_token) {
+      el('dp-setup-btn').style.display = 'none';
+      el('dp-unlock-btn').textContent = '🔓 Desbloquear';
+      _show('dp-locked');
+    } else {
+      el('dp-setup-btn').style.display = 'inline-block';
+      el('dp-unlock-btn').style.display = 'none';
+      _show('dp-locked');
+    }
+  }
+
+  function showSetup() {
+    const pw = el('dp-password-input').value.trim();
+    setupPassword(pw);
+  }
+
+  async function _loadList() {
+    _show('dp-list');
+    el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#645a78;padding:20px;">Cargando...</div>';
+    try {
+      const res = await _api('GET', '/api/diary');
+      if (!res.success) { el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#ff4444;padding:20px;">Error al cargar</div>'; return; }
+      if (!res.entries || res.entries.length === 0) {
+        el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#645a78;padding:30px;">📓 No hay entradas todavía. Creá la primera.</div>';
+        return;
+      }
+      let html = '';
+      for (const e of res.entries) {
+        let title = '(sin título)';
+        try {
+          const decrypted = await _decrypt(e.encrypted_data);
+          const parsed = JSON.parse(decrypted);
+          if (parsed.title) title = parsed.title;
+        } catch(_) {}
+        const date = new Date(e.created_at);
+        const dateStr = date.toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' }) + ' ' + date.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+        html += `<div class="diary-entry-item" onclick="Diary.openReader(${e.id})" style="cursor:pointer;background:rgba(20,12,40,0.6);border:1px solid rgba(147,83,255,0.2);border-radius:10px;padding:12px 14px;transition:all 0.2s;">
+          <div style="font-size:0.85rem;color:var(--gold-bright);margin-bottom:3px;">${Diary._esc(title)}</div>
+          <div style="font-size:0.7rem;color:#645a78;">${dateStr}</div>
+        </div>`;
+      }
+      el('dp-entries-list').innerHTML = html;
+    } catch(e) {
+      el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#ff4444;padding:20px;">Error: ' + e.message + '</div>';
+    }
+  }
+
+  function openEditor() {
+    _currentEntryId = null;
+    _isNew = true;
+    el('dp-edit-title').value = '';
+    el('dp-edit-body').value = '';
+    el('dp-editor').querySelector('span').textContent = '✏️ Nueva Entrada';
+    _show('dp-editor');
+  }
+
+  function cancelEditor() {
+    _currentEntryId = null;
+    _show('dp-list');
+  }
+
+  async function saveEntry() {
+    const title = el('dp-edit-title').value.trim();
+    const body = el('dp-edit-body').value.trim();
+    if (!title && !body) { _showError('Escribí algo antes de guardar'); return; }
+    try {
+      const plaintext = JSON.stringify({ title, body });
+      const payload = await _encrypt(plaintext);
+      if (_currentEntryId) {
+        const res = await _api('PUT', '/api/diary/' + _currentEntryId, { encrypted_data: payload, iv: '' });
+        if (!res.success) { _showError('Error al actualizar'); return; }
+      } else {
+        const res = await _api('POST', '/api/diary', { encrypted_data: payload, iv: '' });
+        if (!res.success) { _showError('Error al guardar'); return; }
+      }
+      _currentEntryId = null;
+      _loadList();
+    } catch(e) {
+      _showError('Error: ' + e.message);
+    }
+  }
+
+  async function openReader(id) {
+    const res = await _api('GET', '/api/diary');
+    if (!res.entries) return;
+    const entry = res.entries.find(e => e.id === id);
+    if (!entry) { _showError('Entrada no encontrada'); return; }
+    try {
+      const decrypted = await _decrypt(entry.encrypted_data);
+      const parsed = JSON.parse(decrypted);
+      _currentEntryId = id;
+      el('dp-reader-title').textContent = parsed.title || '(sin título)';
+      el('dp-reader-body').textContent = parsed.body || '';
+      const date = new Date(entry.created_at);
+      el('dp-reader-date').textContent = '📅 ' + date.toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      _show('dp-reader');
+    } catch(e) {
+      _showError('Error al descifrar: ' + e.message);
+    }
+  }
+
+  function editEntry() {
+    if (!_currentEntryId) return;
+    const title = el('dp-reader-title').textContent;
+    const body = el('dp-reader-body').textContent;
+    el('dp-edit-title').value = title === '(sin título)' ? '' : title;
+    el('dp-edit-body').value = body;
+    el('dp-editor').querySelector('span').textContent = '✏️ Editar Entrada';
+    _isNew = false;
+    _show('dp-editor');
+  }
+
+  async function deleteEntry() {
+    if (!_currentEntryId) return;
+    if (!confirm('¿Borrar esta entrada? No se puede recuperar (está cifrada localmente).')) return;
+    try {
+      const res = await _api('DELETE', '/api/diary/' + _currentEntryId);
+      if (res.success) {
+        _currentEntryId = null;
+        _loadList();
+      } else {
+        _showError('Error al borrar');
+      }
+    } catch(e) {
+      _showError('Error: ' + e.message);
+    }
+  }
+
+  function backToList() {
+    _currentEntryId = null;
+    _loadList();
+  }
+
+  function _esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  return {
+    init, unlock, showSetup, openEditor, cancelEditor, saveEntry,
+    openReader, editEntry, deleteEntry, backToList, _esc
+  };
+})();
