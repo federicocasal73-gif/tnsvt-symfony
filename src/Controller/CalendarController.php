@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -104,6 +105,28 @@ class CalendarController extends AbstractController
             'countries' => $countriesFilter,
             'impact' => $impactFilter,
         ]);
+    }
+
+    #[Route('/api/calendar/events', name: 'app_calendar_api_events', methods: ['GET'])]
+    public function apiEvents(\Symfony\Component\HttpFoundation\Request $request): JsonResponse
+    {
+        $cacheFile = sys_get_temp_dir() . '/tnsvt_calendar_cache.json';
+        $cacheTtl = 900;
+
+        $countriesFilter = $this->parseCountriesFilter($request->query->get('countries'));
+        $impactFilter = $this->parseImpactFilter($request->query->get('impact'));
+
+        $events = $this->loadFromCache($cacheFile, $cacheTtl);
+        if ($events === null) {
+            $events = $this->fetchFromTradingView();
+            if ($events !== null && count($events) > 0) {
+                $this->saveToCache($cacheFile, $events);
+            }
+        }
+
+        $filtered = $this->applyFilters($events ?? [], $countriesFilter, $impactFilter);
+
+        return new JsonResponse(['events' => $filtered]);
     }
 
     private function parseCountriesFilter(?string $raw): array

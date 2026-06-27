@@ -4813,36 +4813,249 @@ let sb = window.API;
       window.checkPushPermission = checkPushPermission;
       window.initFirebasePush = initFirebasePush;
       window.loadScript = loadScript;
-      function setupCalFilters() {
-        const countries = document.querySelectorAll('.cal-country-btn');
-        const impacts = document.querySelectorAll('.cal-impact-btn');
-        const iframe = document.getElementById('cal-iframe');
-        if (!iframe) return;
-
-        function applyFilters() {
-          const selCountries = [...countries].filter(b => b.classList.contains('active'))
-            .map(b => b.getAttribute('data-country'));
-          const selImpacts = [...impacts].filter(b => b.classList.contains('active'))
-            .map(b => b.getAttribute('data-impact'));
-          const url = '/calendar/widget?countries=' + (selCountries.join(',') || 'USD') + '&impact=' + (selImpacts.join(',') || '1,2,3');
-          iframe.src = url;
+      // ============================================================
+      // ⛧ CALENDARIO ECONÓMICO — Timeline místico (glow-up v3.6)
+      // ============================================================
+      const CAL_LS_FILTERS = 'tnsvt:cal:filters';
+      const CAL_LS_REMINDERS = 'tnsvt:cal:reminders';
+      const CAL_CURRENCY_PAIRS = {
+        USD: ['XAUUSD','EURUSD','GBPUSD','NAS100','BTCUSDT','USDJPY'],
+        EUR: ['EURUSD','EURGBP','EURJPY','DAX','EURCHF'],
+        GBP: ['GBPUSD','EURGBP','GBPJPY','UK100'],
+        JPY: ['USDJPY','EURJPY','GBPJPY','NIKKEI'],
+        CAD: ['USDCAD','CADJPY'],
+        AUD: ['AUDUSD','AUDJPY','AUDNZD'],
+        CHF: ['USDCHF','EURCHF','CHFJPY'],
+        CNY: ['USDCNH'],
+      };
+      const CAL_FLAG = { US:'\uD83C\uDDFA\uD83C\uDDF8', EU:'\uD83C\uDDEA\uD83C\uDDFA', GB:'\uD83C\uDDEC\uD83C\uDDE7', JP:'\uD83C\uDDEF\uD83C\uDDF5', CA:'\uD83C\uDDE8\uD83C\uDDE6', AU:'\uD83C\uDDE6\uD83C\uDDFA', CH:'\uD83C\uDDE8\uD83C\uDDED', CN:'\uD83C\uDDE8\uD83C\uDDF3', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9', ES:'\uD83C\uDDEA\uD83C\uDDF8' };
+      let _calEvents = [];
+      let _calCountdownTimer = null;
+      let _calRefreshTimer = null;
+      let _calNowTimer = null;
+      function _calLoadFilters() {
+        try {
+          const raw = localStorage.getItem(CAL_LS_FILTERS);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.countries) && Array.isArray(parsed.impact)) return parsed;
+        } catch (e) {}
+        return null;
+      }
+      function _calSaveFilters(countries, impact) {
+        try { localStorage.setItem(CAL_LS_FILTERS, JSON.stringify({ countries, impact })); } catch (e) {}
+      }
+      function _calGetSelected() {
+        const countries = [...document.querySelectorAll('.cal-country-btn.active')].map(b => b.getAttribute('data-country'));
+        const impact = [...document.querySelectorAll('.cal-impact-btn.active')].map(b => b.getAttribute('data-impact'));
+        return { countries, impact };
+      }
+      async function _calFetch() {
+        const { countries, impact } = _calGetSelected();
+        _calSaveFilters(countries, impact);
+        const url = '/api/calendar/events?countries=' + (countries.join(',') || 'USD') + '&impact=' + (impact.join(',') || '1,2,3');
+        const tl = document.getElementById('cal-timeline');
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          _calEvents = Array.isArray(data.events) ? data.events : [];
+          _calRender();
+        } catch (e) {
+          if (tl) tl.innerHTML = '<div class="cal-loading" style="color:#ff8a00;">No se pudo cargar el calendario. Reintentando…</div>';
+          console.warn('[cal] fetch failed', e);
         }
-
-        [...countries, ...impacts].forEach(btn => {
-          btn.addEventListener('click', () => {
-            btn.classList.toggle('active');
-            if (btn.classList.contains('active')) {
-              btn.style.background = 'var(--gold)';
-              btn.style.color = '#000';
-              btn.style.border = 'none';
-            } else {
-              btn.style.background = 'transparent';
-              btn.style.color = '#a499b8';
-              btn.style.border = '1px solid rgba(212,175,55,0.3)';
-            }
-            applyFilters();
+      }
+      function _calNowAr() {
+        const now = new Date();
+        const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+        return new Date(utcMs - 3 * 3600 * 1000);
+      }
+      function _calEventDate(e) {
+        const [y, m, d] = e.date.split('-').map(Number);
+        const [hh, mm] = e.time.split(':').map(Number);
+        return new Date(Date.UTC(y, m - 1, d, hh + 3, mm));
+      }
+      function _calFmtCountdown(ms) {
+        if (ms <= 0) return 'EN CURSO';
+        const s = Math.floor(ms / 1000);
+        const d = Math.floor(s / 86400);
+        const h = Math.floor((s % 86400) / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        if (d > 0) return d + 'd ' + h + 'h';
+        if (h > 0) return h + 'h ' + m + 'm';
+        if (m > 0) return m + 'm ' + sec + 's';
+        return sec + 's';
+      }
+      function _calGroupByDay(events) {
+        const groups = {};
+        events.forEach(e => { if (!groups[e.date]) groups[e.date] = []; groups[e.date].push(e); });
+        return groups;
+      }
+      function _calDayLabel(dateStr) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d, 12, 0));
+        const nowAr = _calNowAr();
+        const todayStr = nowAr.toISOString().slice(0, 10);
+        const tomorrow = new Date(nowAr); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+        const dayNames = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+        const monthNames = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+        let suffix = dayNames[dt.getUTCDay()];
+        if (dateStr === todayStr) suffix = 'HOY';
+        else if (dateStr === tomorrowStr) suffix = 'MAÑANA';
+        return { day: d, label: monthNames[m - 1] + ' · ' + suffix, isToday: dateStr === todayStr };
+      }
+      function _calEscape(s) {
+        return String(s == null ? '' : s).replace(/[&<>"\']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+      function _calNowMarkerHtml(nowAr) {
+        const hm = nowAr.getUTCHours().toString().padStart(2,'0') + ':' + nowAr.getUTCMinutes().toString().padStart(2,'0');
+        return '<div class="cal-now-row"><div class="cal-now-time">' + hm + '</div><div class="cal-now-dot-col"><span class="cal-now-dot"></span></div><div class="cal-now-bar"><span class="cal-now-label">⛧ AHORA · ART ⛧</span></div></div>';
+      }
+      function _calFindNextCritical(nowAr) {
+        for (const e of _calEvents) {
+          if (e.importance !== 3) continue;
+          if (_calEventDate(e) > nowAr) return e;
+        }
+        return null;
+      }
+      function _calRender() {
+        const tl = document.getElementById('cal-timeline');
+        if (!tl) return;
+        if (_calEvents.length === 0) {
+          tl.innerHTML = '<div class="cal-loading" style="color:#a499b8;">No hay eventos para estos filtros.</div>';
+          _calRenderCritical(null);
+          return;
+        }
+        const nowAr = _calNowAr();
+        const groups = _calGroupByDay(_calEvents);
+        const dayKeys = Object.keys(groups).sort();
+        let html = '<div class="cal-thread"></div>';
+        let nowInserted = false;
+        const todayStr = nowAr.toISOString().slice(0, 10);
+        const nowHM = nowAr.getUTCHours().toString().padStart(2,'0') + ':' + nowAr.getUTCMinutes().toString().padStart(2,'0');
+        dayKeys.forEach(dateStr => {
+          const { day, label, isToday } = _calDayLabel(dateStr);
+          html += '<div class="cal-day-head"><div class="cal-day-num' + (isToday ? ' is-today' : '') + '">' + day + '</div><div class="cal-day-sub">' + label + '</div></div>';
+          const list = groups[dateStr];
+          list.forEach(e => {
+            if (isToday && !nowInserted && e.time >= nowHM) { html += _calNowMarkerHtml(nowAr); nowInserted = true; }
+            const evDate = _calEventDate(e);
+            const isPast = evDate < nowAr;
+            const isUpcoming = !isPast;
+            const impClass = e.importance === 3 ? 'high' : (e.importance === 2 ? 'med' : 'low');
+            const flag = CAL_FLAG[e.country_code] || '';
+            const diffMs = evDate - nowAr;
+            const countdown = isPast ? '' : _calFmtCountdown(diffMs);
+            html += '<div class="cal-row imp-' + impClass + (isPast ? ' is-past' : '') + (e.importance === 3 && isUpcoming ? ' is-critical' : '') + '">' +
+              '<div class="cal-row-time">' + _calEscape(e.time) + '</div>' +
+              '<div class="cal-row-dot-col"><span class="cal-row-dot"></span></div>' +
+              '<div class="cal-row-card">' +
+                '<div class="cal-row-flag">' + flag + ' ' + _calEscape(e.currency || '') + '</div>' +
+                '<div class="cal-row-body">' +
+                  '<div class="cal-row-title">' + _calEscape(e.title) + '</div>' +
+                  (e.importance === 3 ? '<div class="cal-row-tag">⚠ ALTO IMPACTO · NO OPERAR</div>' : '') +
+                '</div>' +
+                '<div class="cal-row-val cal-row-actual">' + _calEscape(e.actual) + '</div>' +
+                '<div class="cal-row-val cal-row-forecast">' + _calEscape(e.forecast) + '</div>' +
+                '<div class="cal-row-val cal-row-previous">' + _calEscape(e.previous) + '</div>' +
+                '<div class="cal-row-cd">' + countdown + '</div>' +
+              '</div>' +
+            '</div>';
           });
         });
+        if (!nowInserted && groups[todayStr]) html += _calNowMarkerHtml(nowAr);
+        tl.innerHTML = html;
+        _calRenderCritical(_calFindNextCritical(nowAr));
+      }
+      function _calRenderCritical(e) {
+        const box = document.getElementById('cal-next-critical');
+        if (!box) return;
+        if (!e) { box.innerHTML = '<div class="cal-critical-empty">Sin eventos críticos próximos.</div>'; return; }
+        const evDate = _calEventDate(e);
+        const diffMs = evDate - _calNowAr();
+        const countdown = _calFmtCountdown(diffMs);
+        const flag = CAL_FLAG[e.country_code] || '';
+        const ccy = e.currency || '';
+        const pairs = CAL_CURRENCY_PAIRS[ccy] || [];
+        const windowStart = new Date(evDate.getTime() - 15 * 60000);
+        const windowEnd = new Date(evDate.getTime() + 15 * 60000);
+        const fmtHm = d => d.getUTCHours().toString().padStart(2,'0') + ':' + d.getUTCMinutes().toString().padStart(2,'0');
+        const pairsHtml = pairs.map((p, i) => {
+          const intensity = Math.max(40, 95 - i * 12);
+          const color = i < 2 ? '#ff3b30' : (i < 4 ? '#ff8a00' : '#d4af37');
+          return '<div class="cal-pair-row"><span class="cal-pair-name">' + _calEscape(p) + '</span><span class="cal-pair-bar" style="color:' + color + ';">●●●●● ' + intensity + '%</span></div>';
+        }).join('');
+        box.innerHTML =
+          '<div class="cal-critical-head">⚠ PRÓXIMO CRÍTICO</div>' +
+          '<div class="cal-critical-title">' + _calEscape(e.title) + '</div>' +
+          '<div class="cal-critical-meta">' + flag + ' ' + _calEscape(ccy) + ' · ' + _calEscape(e.date) + ' ' + _calEscape(e.time) + ' ART · EN <span id="cal-critical-cd">' + countdown + '</span></div>' +
+          '<div class="cal-critical-vals">' +
+            '<div class="cal-critical-v"><div class="cal-critical-v-l">ACTUAL</div><div class="cal-critical-v-n cal-c-muted">' + _calEscape(e.actual) + '</div></div>' +
+            '<div class="cal-critical-v"><div class="cal-critical-v-l">PREVISIÓN</div><div class="cal-critical-v-n cal-c-gold">' + _calEscape(e.forecast) + '</div></div>' +
+            '<div class="cal-critical-v"><div class="cal-critical-v-l">ANTERIOR</div><div class="cal-critical-v-n">' + _calEscape(e.previous) + '</div></div>' +
+          '</div>' +
+          '<div class="cal-critical-window">' +
+            '<div class="cal-cw-head">⚠ <span>VENTANA DE NO-OPERAR</span></div>' +
+            '<div class="cal-cw-body">' + fmtHm(windowStart) + ' → ' + fmtHm(windowEnd) + ' ART<br><span class="cal-cw-sub">Volatilidad esperada: EXTREMA en ' + _calEscape(ccy) + ' y pares cruzados.</span></div>' +
+          '</div>' +
+          (pairs.length ? '<div class="cal-critical-subhead">PARES MÁS AFECTADOS</div><div class="cal-pairs-list">' + pairsHtml + '</div>' : '') +
+          '<button id="cal-remind-btn" class="cal-remind-btn" onclick="calScheduleReminder()">\uD83D\uDD14 RECORDARME 15 ANTES</button>';
+      }
+      async function calScheduleReminder() {
+        const e = _calFindNextCritical(_calNowAr());
+        if (!e) return;
+        const btn = document.getElementById('cal-remind-btn');
+        let perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
+        if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch (err) { perm = 'denied'; } }
+        if (perm !== 'granted') { if (btn) { btn.textContent = '⚠ Permití notificaciones primero'; btn.style.borderColor = '#ff3b30'; } return; }
+        const evDate = _calEventDate(e);
+        const reminderAt = new Date(evDate.getTime() - 15 * 60000);
+        const delay = reminderAt - new Date();
+        if (delay <= 0) { new Notification('⚠ TNSVT — ' + e.title, { body: 'Ventana de no-operar inminente o en curso.', icon: '/icons/icon-192.png' }); if (btn) btn.textContent = '✓ NOTIFICADO AHORA'; return; }
+        try {
+          const raw = localStorage.getItem(CAL_LS_REMINDERS);
+          const arr = raw ? JSON.parse(raw) : [];
+          const key = e.date + 'T' + e.time + ':' + e.original_title;
+          if (!arr.find(r => r.key === key)) { arr.push({ key, at: reminderAt.toISOString(), title: e.title, ccy: e.currency }); localStorage.setItem(CAL_LS_REMINDERS, JSON.stringify(arr)); }
+        } catch (err) {}
+        setTimeout(() => { try { new Notification('⚠ TNSVT — ' + e.title + ' en 15 min', { body: 'Ventana de no-operar inminente. Cerrá posiciones de riesgo.', icon: '/icons/icon-192.png', tag: 'tnsvt-cal-' + e.date + e.time }); } catch (err) {} }, delay);
+        if (btn) {
+          const mins = Math.round(delay / 60000);
+          btn.textContent = '✓ RECORDATORIO EN ' + (mins >= 60 ? Math.floor(mins/60) + 'h ' + (mins%60) + 'm' : mins + 'm');
+          btn.style.background = 'linear-gradient(180deg,rgba(52,199,89,0.25),rgba(52,199,89,0.08))';
+          btn.style.borderColor = 'rgba(52,199,89,0.5)';
+          btn.style.color = '#34c759';
+        }
+      }
+      window.calScheduleReminder = calScheduleReminder;
+      function _calTickCountdown() {
+        const e = _calFindNextCritical(_calNowAr());
+        const span = document.getElementById('cal-critical-cd');
+        if (!e || !span) return;
+        const diffMs = _calEventDate(e) - _calNowAr();
+        span.textContent = _calFmtCountdown(diffMs);
+      }
+      function setupCalFilters() {
+        const tl = document.getElementById('cal-timeline');
+        if (!tl) return;
+        const saved = _calLoadFilters();
+        if (saved) {
+          document.querySelectorAll('.cal-country-btn').forEach(b => b.classList.toggle('active', saved.countries.includes(b.getAttribute('data-country'))));
+          document.querySelectorAll('.cal-impact-btn').forEach(b => b.classList.toggle('active', saved.impact.includes(b.getAttribute('data-impact'))));
+        }
+        document.querySelectorAll('.cal-country-btn, .cal-impact-btn').forEach(btn => {
+          btn.addEventListener('click', () => { btn.classList.toggle('active'); _calFetch(); });
+        });
+        _calFetch();
+        if (_calRefreshTimer) clearInterval(_calRefreshTimer);
+        if (_calCountdownTimer) clearInterval(_calCountdownTimer);
+        if (_calNowTimer) clearInterval(_calNowTimer);
+        _calRefreshTimer = setInterval(_calFetch, 60000);
+        _calCountdownTimer = setInterval(_calTickCountdown, 1000);
+        _calNowTimer = setInterval(() => { _calRender(); }, 5 * 60000);
       }
 
       window.setupCalFilters = setupCalFilters;
