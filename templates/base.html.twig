@@ -2456,10 +2456,15 @@
 <!-- ==================== PESTAÑA CALENDARIO ECONÓMICO ==================== -->
 <div id="tab-calendar" class="tab-content">
 
-  <!-- Header -->
-  <div style="margin-bottom:16px;">
-    <h3 style="font-family:'Cinzel';color:var(--gold-bright);margin-bottom:4px;">📅 Calendario Económico — En Vivo</h3>
-    <p style="color:#a499b8;font-size:0.8rem;">"Operar en el momento equivocado borra todos tus conocimientos."</p>
+  <!-- ⛧ HEADER MÍSTICO (glow-up v3.6) -->
+  <div class="cal-mystic-header">
+    <div class="cal-mystic-eyebrow">
+      <span class="cal-mystic-line"></span>
+      <span class="cal-mystic-mark">⛧ CALENDARIO ECONÓMICO ⛧</span>
+      <span class="cal-mystic-line"></span>
+    </div>
+    <h1 class="cal-mystic-title">El Pulso del Mercado</h1>
+    <p class="cal-mystic-quote">"Operar en el momento equivocado borra todos tus conocimientos."</p>
   </div>
 
   <!-- Regla TNSVT -->
@@ -2471,57 +2476,40 @@
     </div>
   </div>
 
+  <!-- PRÓXIMO CRÍTICO -->
+  <div id="cal-next-critical" style="margin-bottom:16px;"></div>
+
   <!-- Filtros del calendario -->
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
       <span style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:#a499b8;letter-spacing:1px;min-width:70px;">PAÍS:</span>
       <div id="cal-country-filters" style="display:flex;gap:4px;flex-wrap:wrap;">
-        <button data-country="USD" class="cal-country-btn active"
-          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">USD</button>
-        <button data-country="EUR" class="cal-country-btn active"
-          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">EUR</button>
-        <button data-country="GBP" class="cal-country-btn"
-          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">GBP</button>
-        <button data-country="JPY" class="cal-country-btn"
-          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">JPY</button>
-        <button data-country="CAD" class="cal-country-btn"
-          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">CAD</button>
-        <button data-country="AUD" class="cal-country-btn"
-          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">AUD</button>
-        <button data-country="CHF" class="cal-country-btn"
-          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">CHF</button>
-        <button data-country="CNY" class="cal-country-btn"
-          style="padding:5px 10px;background:transparent;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#a499b8;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">CNY</button>
+        <button data-country="USD" class="cal-country-btn active">USD</button>
+        <button data-country="EUR" class="cal-country-btn active">EUR</button>
+        <button data-country="GBP" class="cal-country-btn">GBP</button>
+        <button data-country="JPY" class="cal-country-btn">JPY</button>
+        <button data-country="CAD" class="cal-country-btn">CAD</button>
+        <button data-country="AUD" class="cal-country-btn">AUD</button>
+        <button data-country="CHF" class="cal-country-btn">CHF</button>
+        <button data-country="CNY" class="cal-country-btn">CNY</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
       <span style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:#a499b8;letter-spacing:1px;min-width:70px;">IMPACTO:</span>
       <div id="cal-impact-filters" style="display:flex;gap:4px;">
-        <button data-impact="1" class="cal-impact-btn active"
-          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">Bajo</button>
-        <button data-impact="2" class="cal-impact-btn active"
-          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">Medio</button>
-        <button data-impact="3" class="cal-impact-btn active"
-          style="padding:5px 10px;background:var(--gold);border:none;border-radius:6px;color:#000;font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;cursor:pointer;">Alto</button>
+        <button data-impact="1" class="cal-impact-btn cal-imp-low active">Bajo</button>
+        <button data-impact="2" class="cal-impact-btn cal-imp-med active">Medio</button>
+        <button data-impact="3" class="cal-impact-btn cal-imp-high active">Alto</button>
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:0.6rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:1px;">
         <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
-        TIEMPO REAL · Reuters
+        TIEMPO REAL · TradingView
       </div>
     </div>
   </div>
 
-  <!-- Calendario (Investing.com vía proxy server-side) -->
-  <div id="cal-source-investing" style="border-radius:12px;overflow:hidden;border:1px solid rgba(212,175,55,0.15);">
-    <iframe
-      id="cal-iframe"
-      src="{{ path('app_calendar_widget') }}?countries=USD,EUR&impact=1,2,3"
-      style="width:100%;height:600px;border:none;background:#0a0516;"
-      frameborder="0"
-      marginwidth="0"
-      marginheight="0">
-    </iframe>
-  </div>
+  <!-- Timeline de eventos -->
+  <div id="cal-timeline"></div>
 
   <!-- Leyenda de colores -->
   <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;">

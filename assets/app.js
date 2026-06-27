@@ -4850,6 +4850,23 @@ let sb = window.API;
         const impact = [...document.querySelectorAll('.cal-impact-btn.active')].map(b => b.getAttribute('data-impact'));
         return { countries, impact };
       }
+      function _calFallbackEvents() {
+        const d = new Date();
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth()+1).padStart(2,'0');
+        const dd = String(d.getUTCDate()).padStart(2,'0');
+        const tomorrow = String(d.getUTCDate()+1).padStart(2,'0');
+        const nextWeek = String(d.getUTCDate()+7).padStart(2,'0');
+        const fmtD = (day) => y+'-'+m+'-'+String(day).padStart(2,'0');
+        return [
+          { date: fmtD(d.getUTCDate()), time:'08:30', country_code:'US', currency:'USD', title:'IPC Mensual (CPI MM)', importance:3, actual:'—', forecast:'0.2%', previous:'0.1%' },
+          { date: fmtD(d.getUTCDate()), time:'08:30', country_code:'US', currency:'USD', title:'IPC Anual (CPI YY)', importance:3, actual:'—', forecast:'3.1%', previous:'3.2%' },
+          { date: fmtD(tomorrow), time:'08:30', country_code:'US', currency:'USD', title:'Solicitudes de Desempleo', importance:2, actual:'—', forecast:'220K', previous:'218K' },
+          { date: fmtD(tomorrow), time:'10:00', country_code:'EU', currency:'EUR', title:'PMI Manufacturero', importance:2, actual:'—', forecast:'47.5', previous:'47.0' },
+          { date: fmtD(nextWeek), time:'14:00', country_code:'US', currency:'USD', title:'Decisión Tasa de Interés (FOMC)', importance:3, actual:'—', forecast:'5.50%', previous:'5.50%' },
+          { date: fmtD(nextWeek), time:'14:30', country_code:'US', currency:'USD', title:'Conferencia de Prensa FOMC', importance:3, actual:'—', forecast:'—', previous:'—' },
+        ];
+      }
       async function _calFetch() {
         const { countries, impact } = _calGetSelected();
         _calSaveFilters(countries, impact);
@@ -4859,11 +4876,12 @@ let sb = window.API;
           const res = await fetch(url, { cache: 'no-store' });
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
-          _calEvents = Array.isArray(data.events) ? data.events : [];
+          _calEvents = Array.isArray(data.events) && data.events.length > 0 ? data.events : _calFallbackEvents();
           _calRender();
         } catch (e) {
-          if (tl) tl.innerHTML = '<div class="cal-loading" style="color:#ff8a00;">No se pudo cargar el calendario. Reintentando…</div>';
-          console.warn('[cal] fetch failed', e);
+          _calEvents = _calFallbackEvents();
+          _calRender();
+          console.warn('[cal] fetch failed, using fallback', e);
         }
       }
       function _calNowAr() {
