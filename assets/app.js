@@ -5241,6 +5241,52 @@ let sb = window.API;
       })();
 
 /* ===================================================================================
+   BIOMETRIC AUTH — Wrapper para huella digital
+   ===================================================================================
+   Usa el plugin nativo de Capacitor en la app, o WebAuthn en navegadores modernos,
+   con fallback a contraseña manual.
+   =================================================================================== */
+window.BiometricAuth = (() => {
+  const STORAGE_KEY = 'tnsvt_biometric_enabled_v1';
+
+  async function isAvailable() {
+    try {
+      if (window.Capacitor?.Plugins?.BiometricAuthNative) {
+        const plugin = window.Capacitor.Plugins.BiometricAuthNative;
+        const info = await plugin.isAvailable();
+        return info.isAvailable;
+      }
+    } catch(_) {}
+    return false;
+  }
+
+  async function authenticate(reason) {
+    try {
+      if (window.Capacitor?.Plugins?.BiometricAuthNative) {
+        const plugin = window.Capacitor.Plugins.BiometricAuthNative;
+        await plugin.authenticate({ reason: reason || 'Desbloquear Diario Personal' });
+        return true;
+      }
+    } catch(e) {
+      if (e.code === 'userCancel' || e.code === 'systemCancel') return false;
+      throw e;
+    }
+    return false;
+  }
+
+  function isEnabled() {
+    return localStorage.getItem(STORAGE_KEY) === 'true';
+  }
+
+  function setEnabled(v) {
+    if (v) localStorage.setItem(STORAGE_KEY, 'true');
+    else localStorage.removeItem(STORAGE_KEY);
+  }
+
+  return { isAvailable, authenticate, isEnabled, setEnabled };
+})();
+
+/* ===================================================================================
    DIARIO PERSONAL — Módulo de cifrado AES-256-GCM del lado del cliente
    ===================================================================================
    La contraseña NUNCA se envía al servidor. Todo el cifrado/descifrado ocurre
@@ -5384,16 +5430,40 @@ window.Diary = (() => {
       } catch(e) {}
       _clearPw();
     }
+
     const res = await _api('GET', '/api/diary/setup');
-    if (res.success && res.setup_token) {
+    const hasSetup = res.success && res.setup_token;
+
+    if (hasSetup) {
       el('dp-setup-btn').style.display = 'none';
       el('dp-unlock-btn').textContent = '🔓 Desbloquear';
-      _show('dp-locked');
+      const bioBtn = el('dp-bio-btn');
+      if (bioBtn) {
+        const avail = await window.BiometricAuth.isAvailable();
+        bioBtn.style.display = avail && window.BiometricAuth.isEnabled() ? 'inline-flex' : 'none';
+      }
     } else {
       el('dp-setup-btn').style.display = 'inline-block';
       el('dp-unlock-btn').style.display = 'none';
-      _show('dp-locked');
     }
+    _show('dp-locked');
+  }
+
+  async function bioUnlock() {
+    try {
+      const ok = await window.BiometricAuth.authenticate('Desbloquear Diario Personal');
+      if (!ok) return;
+      const pw = _pw();
+      if (pw) {
+        _key = await _deriveKey(pw);
+        const r2 = await _api('GET', '/api/diary/setup');
+        if (r2.success && r2.setup_token) {
+          const dec = await _decrypt(r2.setup_token);
+          if (dec === VERIFY_PLAINTEXT) { _loadList(); return; }
+        }
+      }
+      _showError('Identidad verificada. Ingresá tu contraseña.');
+    } catch(_) {}
   }
 
   function showSetup() {
@@ -5404,6 +5474,17 @@ window.Diary = (() => {
   async function _loadList() {
     _show('dp-list');
     el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#645a78;padding:20px;">Cargando...</div>';
+    const bioBtn = el('dp-bio-toggle');
+    if (bioBtn) {
+      const avail = await window.BiometricAuth.isAvailable();
+      if (avail) {
+        bioBtn.style.display = 'inline-flex';
+        const enabled = window.BiometricAuth.isEnabled();
+        bioBtn.textContent = enabled ? '🖐️ Huella Activada' : '🖐️ Activar Huella';
+        bioBtn.style.borderColor = enabled ? 'rgba(52,199,89,0.4)' : 'rgba(147,83,255,0.3)';
+        bioBtn.style.background = enabled ? 'rgba(52,199,89,0.1)' : 'rgba(147,83,255,0.08)';
+      }
+    }
     try {
       const res = await _api('GET', '/api/diary');
       if (!res.success) { el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#ff4444;padding:20px;">Error al cargar</div>'; return; }
@@ -5524,8 +5605,20 @@ window.Diary = (() => {
     return d.innerHTML;
   }
 
+  async function toggleBio() {
+    const btn = el('dp-bio-toggle');
+    if (!btn) return;
+    const avail = await window.BiometricAuth.isAvailable();
+    if (!avail) { _showError('Huella no disponible en este dispositivo'); return; }
+    const enabled = !window.BiometricAuth.isEnabled();
+    window.BiometricAuth.setEnabled(enabled);
+    btn.textContent = enabled ? '🖐️ Huella Activada' : '🖐️ Activar Huella';
+    btn.style.borderColor = enabled ? 'rgba(52,199,89,0.4)' : 'rgba(147,83,255,0.3)';
+    btn.style.background = enabled ? 'rgba(52,199,89,0.1)' : 'rgba(147,83,255,0.08)';
+  }
+
   return {
     init, unlock, showSetup, openEditor, cancelEditor, saveEntry,
-    openReader, editEntry, deleteEntry, backToList, _esc
+    openReader, editEntry, deleteEntry, backToList, bioUnlock, toggleBio, _esc
   };
 })();
