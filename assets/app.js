@@ -995,6 +995,13 @@ let sb = window.API;
         showToast('Editando trade — modificá y guardá');
       }
 
+      function tjCancelEdit() {
+        tjEditingId = null;
+        const submitBtn = document.getElementById('tj-submit-btn');
+        if (submitBtn) submitBtn.textContent = 'Registrar Trade';
+      }
+      window.tjCancelEdit = tjCancelEdit;
+
       function tjRenderStats() {
         const empty = document.getElementById('tj-stats-empty');
         const content = document.getElementById('tj-stats-content');
@@ -1218,6 +1225,7 @@ let sb = window.API;
         showToast('Abriendo reporte HTML…');
       }
       window.tjExportHTML = tjExportHTML;
+      window.tjSetPeriod = tjSetPeriod;
 
       function tjExport() {
         if (tjTrades.length === 0) return showToast('No hay trades para exportar');
@@ -1262,6 +1270,42 @@ let sb = window.API;
       }
 
       function tjRefresh() {
+        // Read-only mode when viewing another user's journal
+        const isReadOnly = !!window._journalViewingCode;
+
+        // Viewing banner
+        const bannerEl = document.getElementById('journalViewingBanner');
+        const nameEl = document.getElementById('journalViewingName');
+        const scopeEl = document.getElementById('journalViewingScope');
+        if (bannerEl) {
+          if (window._journalViewingCode) {
+            bannerEl.style.display = 'flex';
+            if (nameEl) nameEl.textContent = window._journalViewingName || window._journalViewingCode;
+            const scopeTxt = window._journalScope === 'public' ? '(vista pública)' : window._journalScope === 'connected' ? '(vista según permisos)' : '';
+            if (scopeEl) scopeEl.textContent = scopeTxt + ' · Solo lectura';
+          } else {
+            bannerEl.style.display = 'none';
+          }
+        }
+
+        // Hide modification affordances in read-only mode
+        const hideIfReadOnly = (sel) => {
+          const el = document.querySelector(sel);
+          if (el) el.style.display = isReadOnly ? 'none' : '';
+        };
+        // Tab "Registrar" (segundo tab del journal)
+        document.querySelectorAll('.tj-tab').forEach(tab => {
+          if (tab.textContent.includes('Registrar')) tab.style.display = isReadOnly ? 'none' : '';
+        });
+        // Botones de export
+        hideIfReadOnly('button[onclick="tjExportCSV()"]');
+        hideIfReadOnly('button[onclick="tjExportHTML()"]');
+        hideIfReadOnly('button[onclick="tjExport()"]');
+        // Botón Importar (label > input file)
+        document.querySelectorAll('label.tj-tool-btn').forEach(lbl => {
+          if (lbl.textContent.includes('Importar')) lbl.style.display = isReadOnly ? 'none' : '';
+        });
+
         const total = tjTrades.length;
         const wins = tjTrades.filter(t => t.result === 'WIN').length;
         const losses = tjTrades.filter(t => t.result === 'LOSS').length;
@@ -1364,10 +1408,10 @@ let sb = window.API;
                   +'</div>'
                 +'</div>'
                 +'<div class="tj-trade-pnl" style="color:'+pnlColor+';">'+(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+'</div>'
-                +'<div style="display:flex;flex-direction:column;gap:2px;">'
+                +(isReadOnly ? '' : '<div style="display:flex;flex-direction:column;gap:2px;">'
                   +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️</button>'
                   +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑</button>'
-                +'</div>'
+                +'</div>')
               +'</div>';
             }).join('');
           } else {
@@ -1476,10 +1520,10 @@ let sb = window.API;
             +'</div>'
             +(t.notes?'<div class="tj-day-notes">📝 '+t.notes.replace(/</g,'&lt;')+'</div>':'')
             +photosHtml
-            +'<div style="display:flex;gap:6px;margin-top:8px;">'
+            +(isReadOnly ? '' : '<div style="display:flex;gap:6px;margin-top:8px;">'
               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️ Editar</button>'
               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑 Eliminar</button>'
-            +'</div>'
+            +'</div>')
           +'</div>';
         }).join('');
         modal.classList.add('vis');
@@ -3661,17 +3705,41 @@ let sb = window.API;
         }
       }
 
-      async function loadJournalFromApi() {
+      async function loadJournalFromApi(targetCode) {
         if (!window.TNSVT_USER) return;
+        const code = targetCode || window.TNSVT_USER.code;
+        window._journalViewingCode = targetCode || null;
+        window._journalViewingName = null;
         try {
-          const data = await sb.getJournal(window.TNSVT_USER.code);
-          if (data && data.length) {
-            tjTrades = data;
+          const data = await sb.getJournal(code);
+          if (data && data.success && data.trades) {
+            tjTrades = data.trades;
+            window._journalScope = data.scope || 'owner';
+            window._journalStats = data.stats || null;
             tjLoaded = true;
+          } else {
+            tjTrades = [];
+            tjLoaded = false;
           }
         } catch(e) { console.warn('[journal] loadJournalFromApi:', e); }
         tjRefresh();
       }
+
+      window.viewUserJournal = function(code, name) {
+        window._journalViewingName = name;
+        // Cancelar cualquier edición en curso antes de cambiar de journal
+        if (typeof tjCancelEdit === 'function') tjCancelEdit();
+        switchTab('tab-journal');
+        loadJournalFromApi(code);
+      };
+
+      window.backToMyJournal = function() {
+        window._journalViewingCode = null;
+        window._journalViewingName = null;
+        window._journalScope = 'owner';
+        window._journalStats = null;
+        loadJournalFromApi();
+      };
 
       // ========== LEADERBOARD ==========
       let lbData = [];
@@ -5796,6 +5864,7 @@ window.Diary = (() => {
   }
 
   async function saveEntry() {
+    if (!_key) { _showError('Primero desbloqueá el diario con tu contraseña'); return; }
     const title = el('dp-edit-title').value.trim();
     const body = el('dp-edit-body').value.trim();
     if (!title && !body) { _showError('Escribí algo antes de guardar'); return; }
@@ -5964,9 +6033,16 @@ document.addEventListener('DOMContentLoaded', function(){
     const res = $('socialSearchResults');
     if (!q) { res.style.display = 'none'; return; }
 
-    // Only DEMO and ADMIN01 exist — check if search matches
-    const validUsers = ['DEMO', 'ADMIN01'];
-    const matches = validUsers.filter(u => u.includes(q) && u !== window.TNSVT_USER?.code);
+    let data;
+    try {
+      data = await API.searchUsers(q);
+    } catch(e) {
+      res.innerHTML = '<p class="mf-text" style="padding:12px;">🔍 Error al buscar usuarios</p>';
+      res.style.display = 'block';
+      return;
+    }
+
+    const matches = (data.users || []).filter(u => u.code !== window.TNSVT_USER?.code);
 
     if (matches.length === 0) {
       res.innerHTML = '<p class="mf-text" style="padding:12px;">🔍 No se encontraron usuarios</p>';
@@ -5975,23 +6051,21 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     let html = '<div style="margin-top:8px;">';
-    for (const code of matches) {
+    for (const u of matches) {
       try {
-        const profile = await API.getPublicProfile(code);
-        if (!profile.success) continue;
-        const u = profile.profile;
-        const status = await API.getAccessStatus(code, window.TNSVT_USER.code);
+        const status = await API.getAccessStatus(u.code, window.TNSVT_USER.code);
         let actionBtn = '';
+        const viewBtn = `<button class="post-btn" onclick="viewUserJournal('${esc(u.code)}','${esc(u.name)}')" style="padding:6px 10px;font-size:0.65rem;background:rgba(138,60,255,0.15);border-color:rgba(138,60,255,0.4);">📊 Ver Journal</button>`;
         if (status.status === 'none' || status.status === 'rejected') {
-          actionBtn = `<button class="post-btn" onclick="sendAccessReq('${esc(code)}')" style="padding:6px 12px;font-size:0.7rem;">➕ Solicitar Acceso</button>`;
+          actionBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><button class="post-btn" onclick="sendAccessReq('${esc(u.code)}')" style="padding:6px 12px;font-size:0.7rem;">➕ Solicitar Acceso</button>${viewBtn}</div>`;
         } else if (status.status === 'pending') {
-          actionBtn = `<span class="social-request-badge">⏳ Pendiente</span>`;
+          actionBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><span class="social-request-badge">⏳ Pendiente</span>${viewBtn}</div>`;
         } else if (status.status === 'connected') {
-          actionBtn = `<span class="social-request-badge" style="border-color:#34c759;background:rgba(52,199,89,0.1);color:#34c759;">✅ Conectado</span>`;
+          actionBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><span class="social-request-badge" style="border-color:#34c759;background:rgba(52,199,89,0.1);color:#34c759;">✅ Conectado</span>${viewBtn}</div>`;
         } else if (status.status === 'owner') {
           actionBtn = `<span class="social-request-badge" style="border-color:var(--gold);background:rgba(212,175,55,0.1);color:var(--gold);">👑 Tuyo</span>`;
         } else if (status.status === 'received_pending') {
-          actionBtn = `<span class="social-request-badge">📨 Solicitud recibida</span>`;
+          actionBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><span class="social-request-badge">📨 Solicitud recibida</span>${viewBtn}</div>`;
         }
         html += `<div class="social-user-card">
           <div>
@@ -6086,7 +6160,8 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="name">${esc(c.user_name)}</div>
             <div class="code">${esc(c.user_code)}</div>
           </div>
-          <div style="display:flex;gap:6px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="post-btn" onclick="viewUserJournal('${esc(c.user_code)}','${esc(c.user_name)}')" style="padding:6px 10px;font-size:0.65rem;">📊 Ver Journal</button>
             <button class="post-btn" onclick="viewConnectionPerms('${esc(c.user_code)}','${esc(c.user_name)}')" style="padding:6px 10px;font-size:0.65rem;">🔑 Permisos</button>
             <button class="post-btn" onclick="removeConnection(${c.id})" style="padding:6px 10px;font-size:0.65rem;background:rgba(255,59,48,0.1);border-color:#ff3b30;color:#ff3b30;">✕</button>
           </div>
@@ -6152,20 +6227,29 @@ document.addEventListener('DOMContentLoaded', function(){
   };
 
   async function loadJournalSettings() {
+    console.log('[social] loadJournalSettings');
+    if (!window.TNSVT_USER) { showToast('❌ No hay usuario logueado'); return; }
     try {
       const data = await API.getJournalSettings(window.TNSVT_USER.code);
+      console.log('[social] journal settings:', data);
       $('socialVisibilitySelect').value = data.visibility || 'public';
     } catch(e) {
+      console.error('[social] loadJournalSettings error:', e);
       showToast('❌ ' + e.message);
     }
   }
 
   window.updateJournalVisibility = async function() {
+    console.log('[social] updateJournalVisibility called');
     const v = $('socialVisibilitySelect').value;
+    console.log('[social] visibility selected:', v);
+    if (!window.TNSVT_USER) { showToast('❌ No hay usuario logueado'); return; }
     try {
-      await API.updateJournalSettings(v, window.TNSVT_USER.code);
+      const res = await API.updateJournalSettings(v, window.TNSVT_USER.code);
+      console.log('[social] visibility response:', res);
       showToast('⚙️ Visibilidad actualizada');
     } catch(e) {
+      console.error('[social] visibility error:', e);
       showToast('❌ ' + e.message);
     }
   };

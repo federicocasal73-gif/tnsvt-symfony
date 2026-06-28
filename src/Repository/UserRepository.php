@@ -17,4 +17,15 @@ class UserRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['code' => $code]);
     }
+
+    public function findByCodeLike(string $q): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.code LIKE :q')
+            ->setParameter('q', '%' . $q . '%')
+            ->orderBy('u.code', 'ASC')
+            ->setMaxResults(20)
+            ->getQuery()
+            ->getResult();
+    }
 }

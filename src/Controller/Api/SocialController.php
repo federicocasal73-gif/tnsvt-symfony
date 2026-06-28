@@ -434,6 +434,25 @@ class SocialController extends AbstractController
         ]);
     }
 
+    // ── USER SEARCH ──
+
+    #[Route('/users/search', name: 'api_users_search', methods: ['GET'])]
+    public function searchUsers(Request $request): JsonResponse
+    {
+        $q = trim($request->query->get('q', ''));
+        if (strlen($q) < 1) {
+            return $this->json(['success' => true, 'users' => []]);
+        }
+
+        $users = $this->userRepo->findByCodeLike($q);
+        $result = array_map(fn(User $u) => [
+            'code' => $u->getCode(),
+            'name' => $u->getName(),
+        ], $users);
+
+        return $this->json(['success' => true, 'users' => $result]);
+    }
+
     // ── HELPER ──
 
     private function notifyUser(User $user, string $type, string $content): void

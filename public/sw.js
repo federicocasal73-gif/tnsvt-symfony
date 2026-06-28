@@ -1,18 +1,16 @@
 // TNSVT Service Worker - PWA + Offline fallback
-// v32: aggressive cache cleanup + skipWaiting + clients.claim para forzar update
-const CACHE_NAME = 'tnsvt-v36';
-const RUNTIME_CACHE = 'tnsvt-runtime-v36';
+// v37: fixed precache URLs (api.js and styles are served in debug mode, not in public/)
+const CACHE_NAME = 'tnsvt-v37';
+const RUNTIME_CACHE = 'tnsvt-runtime-v37';
 
-// IMPORTANTE: NO incluir app-XYZ.js ni api-XYZ.js aqui porque cambian de hash.
-// Se cachean via runtime cache cuando el usuario los pide.
+// No precacheamos nada que pueda 404. En debug mode Symfony sirve
+// assets/ directamente, en prod los compila con hash. El runtime cache
+// los agarra cuando el usuario navega.
 const PRECACHE_URLS = [
   '/',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/icons/maskable-512.png',
-  '/styles/app.css',
-  '/api.js',
 ];
 
 self.addEventListener('install', (event) => {

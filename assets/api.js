@@ -257,6 +257,10 @@ async getNotifCount(userCode) {
 
   // ── Social / Access Requests ──
 
+  async searchUsers(q) {
+    return this.get(`/api/users/search?q=${encodeURIComponent(q)}`);
+  },
+
   async getPublicProfile(code) {
     return this.get(`/api/profile/${encodeURIComponent(code)}`);
   },
