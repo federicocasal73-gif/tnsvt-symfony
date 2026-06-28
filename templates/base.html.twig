@@ -30,7 +30,7 @@
        if (!imap) return;
        try {
          var data = JSON.parse(imap.textContent);
-            var v = 'v=4.3';
+            var v = 'v=4.4';
          Object.keys(data.imports || {}).forEach(function(k){
            var p = data.imports[k];
            if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
@@ -2561,17 +2561,70 @@
         <button data-impact="3" class="cal-impact-btn cal-imp-high active">Alto</button>
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-        <select id="cal-tz" class="cal-tz-select" title="Zona horaria">
-          <option value="America/Argentina/Buenos_Aires">🇦🇷 ART (UTC−3)</option>
-          <option value="America/New_York">🇺🇸 NY (UTC−5/−4)</option>
-          <option value="America/Sao_Paulo">🇧🇷 BRS (UTC−3)</option>
-          <option value="Atlantic/Azores">🌍 AZO (UTC−1)</option>
-          <option value="Europe/London">🇬🇧 LON (UTC±0/+1)</option>
-          <option value="Europe/Berlin">🇩🇪 BER (UTC+1/+2)</option>
-          <option value="Europe/Madrid">🇪🇸 MAD (UTC+1/+2)</option>
-          <option value="Asia/Tokyo">🇯🇵 TYO (UTC+9)</option>
+        <input type="text" id="cal-tz" class="cal-tz-input"
+               placeholder="UTC-3"
+               list="cal-tz-presets"
+               pattern="^UTC[+\-]\d{1,2}(:?\d{1,2})?$|^[A-Za-z]+/[A-Za-z_]+$"
+               title="Escribí un offset (ej. UTC-3, UTC+5:30) o una TZ IANA (ej. America/New_York)"
+               value="America/Argentina/Buenos_Aires"
+               style="width:130px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.3); color:#fff; padding:4px 8px; border-radius:6px; font-family:'Orbitron',sans-serif; font-size:0.7rem; outline:none;">
+        <datalist id="cal-tz-presets">
+          <option value="UTC-12:00">
+          <option value="UTC-11:00">
+          <option value="UTC-10:00">
+          <option value="UTC-09:30">
+          <option value="UTC-09:00">
+          <option value="UTC-08:00">
+          <option value="UTC-07:00">
+          <option value="UTC-06:00">
+          <option value="UTC-05:00">
+          <option value="UTC-04:00">
+          <option value="UTC-03:30">
+          <option value="UTC-03:00">
+          <option value="UTC-02:00">
+          <option value="UTC-01:00">
+          <option value="UTC+00:00">
+          <option value="UTC+01:00">
+          <option value="UTC+02:00">
+          <option value="UTC+03:00">
+          <option value="UTC+03:30">
+          <option value="UTC+04:00">
+          <option value="UTC+04:30">
+          <option value="UTC+05:00">
+          <option value="UTC+05:30">
+          <option value="UTC+05:45">
+          <option value="UTC+06:00">
+          <option value="UTC+06:30">
+          <option value="UTC+07:00">
+          <option value="UTC+08:00">
+          <option value="UTC+08:45">
+          <option value="UTC+09:00">
+          <option value="UTC+09:30">
+          <option value="UTC+10:00">
+          <option value="UTC+10:30">
+          <option value="UTC+11:00">
+          <option value="UTC+12:00">
+          <option value="UTC+12:45">
+          <option value="UTC+13:00">
+          <option value="UTC+14:00">
+          <option value="America/Argentina/Buenos_Aires">🇦🇷 Buenos Aires</option>
+          <option value="America/New_York">🇺🇸 NY</option>
+          <option value="America/Los_Angeles">🇺🇸 LA</option>
+          <option value="America/Mexico_City">🇲🇽 CDMX</option>
+          <option value="America/Sao_Paulo">🇧🇷 São Paulo</option>
+          <option value="America/Chicago">🇺🇸 Chicago</option>
+          <option value="Europe/London">🇬🇧 London</option>
+          <option value="Europe/Berlin">🇩🇪 Berlin</option>
+          <option value="Europe/Madrid">🇪🇸 Madrid</option>
+          <option value="Europe/Moscow">🇷🇺 Moscow</option>
+          <option value="Asia/Tokyo">🇯🇵 Tokyo</option>
+          <option value="Asia/Shanghai">🇨🇳 Shanghai</option>
+          <option value="Asia/Kolkata">🇮🇳 Kolkata</option>
+          <option value="Asia/Dubai">🇦🇪 Dubai</option>
+          <option value="Australia/Sydney">🇦🇺 Sydney</option>
+          <option value="Pacific/Auckland">🇳🇿 Auckland</option>
           <option value="UTC">🌐 UTC</option>
-        </select>
+        </datalist>
         <div id="cal-reminder-badge" style="display:none;display:flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(52,199,89,0.15);border:1px solid rgba(52,199,89,0.4);border-radius:6px;font-size:0.62rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;cursor:pointer;" title="Click para ver recordatorio" onclick="calShowActiveReminder()">
           <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
           <span id="cal-reminder-badge-text">RECORDATORIO ACTIVO</span>

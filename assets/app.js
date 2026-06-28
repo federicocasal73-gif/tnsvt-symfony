@@ -5215,16 +5215,29 @@ let sb = window.API;
         return new Date(utcMs - 3 * 3600 * 1000);
       }
       function _calGetTz() {
-        const sel = document.getElementById('cal-tz');
-        if (sel && sel.value) {
-          try { localStorage.setItem('tnsvt:cal:tz', sel.value); } catch (e) {}
-          return sel.value;
+        const el = document.getElementById('cal-tz');
+        if (el && el.value.trim()) {
+          const val = el.value.trim();
+          if (_calValidTz(val)) {
+            try { localStorage.setItem('tnsvt:cal:tz', val); } catch (e) {}
+            return val;
+          }
         }
         try {
           const saved = localStorage.getItem('tnsvt:cal:tz');
-          if (saved) return saved;
+          if (saved && _calValidTz(saved)) return saved;
         } catch (e) {}
         return 'America/Argentina/Buenos_Aires';
+      }
+      function _calValidTz(val) {
+        if (!val || typeof val !== 'string') return false;
+        const v = val.trim();
+        if (!v) return false;
+        // Acepta UTC±H o UTC±H:M (con fracciones)
+        if (/^UTC[+\-]\d{1,2}(:?\d{1,2})?$/i.test(v)) return true;
+        // Acepta cualquier IANA name que Intl pueda resolver
+        try { new Intl.DateTimeFormat(undefined, { timeZone: v }); return true; }
+        catch (e) { return false; }
       }
       function _calEventDate(e) {
         if (e.datetime_utc) {

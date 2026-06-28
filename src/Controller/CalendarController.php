@@ -168,27 +168,77 @@ class CalendarController extends AbstractController
 
     private function parseTimezone(?string $raw): string
     {
-        if (empty($raw)) return 'America/Argentina/Buenos_Aires';
-        $allowed = [
-            'UTC', 'America/Argentina/Buenos_Aires', 'America/New_York',
-            'Europe/London', 'Europe/Berlin', 'Asia/Tokyo',
-            'America/Sao_Paulo', 'Atlantic/Azores', 'Europe/Madrid',
-        ];
-        // Aceptar aliases de offset: 'UTC-3', 'UTC+1', etc.
-        if (preg_match('/^UTC([+-]\d{1,2})$/i', $raw, $m)) {
-            $offsetHours = (int)$m[1];
-            $offsetMap = [
-                '-3' => 'America/Argentina/Buenos_Aires',
-                '+9' => 'Asia/Tokyo',
-                '+1' => 'Europe/Berlin',
-                '+2' => 'Europe/Berlin',
-                '+0' => 'UTC',
-                '0' => 'UTC',
-            ];
-            $key = (string)$offsetHours;
-            if (isset($offsetMap[$key])) return $offsetMap[$key];
+        $raw = trim((string)$raw);
+        if ($raw === '') return 'America/Argentina/Buenos_Aires';
+
+        // Aceptar cualquier formato UTC±N o UTC±H:M (con fracciones)
+        if (preg_match('/^UTC([+-])(\d{1,2})(?::?(\d{1,2}))?$/i', $raw)) {
+            return $raw;
         }
-        return in_array($raw, $allowed, true) ? $raw : 'America/Argentina/Buenos_Aires';
+
+        // Si es un IANA name valido, devolverlo tal cual
+        try {
+            new \DateTimeZone($raw);
+            return $raw;
+        } catch (\Throwable $e) {
+            return 'America/Argentina/Buenos_Aires';
+        }
+    }
+
+    private function getOffsetMinutes(string $tzRaw): int
+    {
+        $tzRaw = trim($tzRaw);
+
+        // Parsear string UTC±H o UTC±H:M del input crudo
+        if (preg_match('/^UTC([+-])(\d{1,2})(?::?(\d{1,2}))?$/i', $tzRaw, $m)) {
+            $sign = $m[1] === '-' ? -1 : 1;
+            $hours = (int)$m[2];
+            $mins = isset($m[3]) ? (int)$m[3] : 0;
+            return $sign * ($hours * 60 + $mins);
+        }
+
+        // Si es un IANA name, calcular offset actual (maneja DST)
+        try {
+            $tz = new \DateTimeZone($tzRaw);
+            $now = new \DateTimeImmutable('now', $tz);
+            return (int)$now->format('Z') / 60;
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    private function getTzLabel(string $tzRaw, int $offsetMinutes): string
+    {
+        // Si viene como UTC±N, devolver label directo
+        if (preg_match('/^UTC/i', $tzRaw)) {
+            $sign = $offsetMinutes >= 0 ? '+' : '';
+            $h = intdiv(abs($offsetMinutes), 60);
+            $m = abs($offsetMinutes) % 60;
+            return $m === 0
+                ? "UTC{$sign}{$h}"
+                : "UTC{$sign}{$h}:" . sprintf('%02d', $m);
+        }
+
+        // Map de ciudades comunes
+        $map = [
+            'America/Argentina/Buenos_Aires' => '🇦🇷 Buenos Aires',
+            'America/New_York' => '🇺🇸 NY',
+            'America/Los_Angeles' => '🇺🇸 LA',
+            'America/Mexico_City' => '🇲🇽 CDMX',
+            'America/Sao_Paulo' => '🇧🇷 São Paulo',
+            'America/Chicago' => '🇺🇸 Chicago',
+            'Europe/London' => '🇬🇧 London',
+            'Europe/Berlin' => '🇩🇪 Berlin',
+            'Europe/Madrid' => '🇪🇸 Madrid',
+            'Europe/Moscow' => '🇷🇺 Moscow',
+            'Asia/Tokyo' => '🇯🇵 Tokyo',
+            'Asia/Shanghai' => '🇨🇳 Shanghai',
+            'Asia/Kolkata' => '🇮🇳 Kolkata',
+            'Asia/Dubai' => '🇦🇪 Dubai',
+            'Australia/Sydney' => '🇦🇺 Sydney',
+            'Pacific/Auckland' => '🇳🇿 Auckland',
+        ];
+        return $map[$tzRaw] ?? str_replace('_', ' ', $tzRaw);
     }
 
     private function parseCountriesFilter(?string $raw): array
@@ -311,25 +361,25 @@ class CalendarController extends AbstractController
         return $events;
     }
 
-    private function applyTimezone(array $events, string $tzName): array
+    private function applyTimezone(array $events, string $tzRaw): array
     {
-        try {
-            $tz = new \DateTimeZone($tzName);
-        } catch (\Throwable $e) {
-            $tz = new \DateTimeZone('America/Argentina/Buenos_Aires');
-        }
+        $offsetMinutes = $this->getOffsetMinutes($tzRaw);
+        $tzLabel = $this->getTzLabel($tzRaw, $offsetMinutes);
         foreach ($events as &$e) {
             $utc = $e['datetime_utc'] ?? null;
             if (!$utc) continue;
             try {
                 $dt = new \DateTimeImmutable($utc, new \DateTimeZone('UTC'));
-                $local = $dt->setTimezone($tz);
+                if ($offsetMinutes !== 0) {
+                    $local = $dt->modify(($offsetMinutes >= 0 ? '+' : '-') . abs($offsetMinutes) . ' minutes');
+                } else {
+                    $local = $dt;
+                }
                 $e['date'] = $local->format('Y-m-d');
                 $e['time'] = $local->format('H:i');
-                $e['tz_offset_minutes'] = (int)$local->format('Z');
-                $e['tz_label'] = $this->getTzLabel($tzName);
+                $e['tz_offset_minutes'] = $offsetMinutes;
+                $e['tz_label'] = $tzLabel;
             } catch (\Throwable $ex) {
-                // fallback: UTC time
                 $e['date'] = substr($utc, 0, 10);
                 $e['time'] = substr($utc, 11, 5);
                 $e['tz_offset_minutes'] = 0;
@@ -338,19 +388,6 @@ class CalendarController extends AbstractController
         }
         unset($e);
         return $events;
-    }
-
-    private function getTzLabel(string $tzName): string
-    {
-        $map = [
-            'America/Argentina/Buenos_Aires' => '🇦🇷 ART (UTC−3)',
-            'America/New_York' => '🇺🇸 NY (UTC−5/4)',
-            'Europe/London' => '🇬🇧 LON (UTC±0/1)',
-            'Europe/Berlin' => '🇩🇪 BER (UTC+1/2)',
-            'Asia/Tokyo' => '🇯🇵 TYO (UTC+9)',
-            'UTC' => '🌐 UTC',
-        ];
-        return $map[$tzName] ?? str_replace('_', ' ', $tzName);
     }
 
     private function fetchFromTradingView(): ?array

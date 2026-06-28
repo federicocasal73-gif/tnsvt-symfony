@@ -1,7 +1,7 @@
 // TNSVT Service Worker - PWA + Offline fallback
-// v39: bump for TZ fix (applyTimezone in backend + UTC offset labels in selector)
-const CACHE_NAME = 'tnsvt-v39';
-const RUNTIME_CACHE = 'tnsvt-runtime-v39';
+// v40: free TZ input (any UTC±N or IANA name, datalist with 35+ UTC offsets)
+const CACHE_NAME = 'tnsvt-v40';
+const RUNTIME_CACHE = 'tnsvt-runtime-v40';
 
 // No precacheamos nada que pueda 404. En debug mode Symfony sirve
 // assets/ directamente, en prod los compila con hash. El runtime cache
