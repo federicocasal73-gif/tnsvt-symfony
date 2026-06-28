@@ -1359,7 +1359,7 @@
     .create-post-box textarea:focus{border-color:var(--gold-bright);}
 
     /* Post btn refinado */
-    .post-btn{padding:11px 24px;background:linear-gradient(180deg,var(--gold-bright),#b8860b);color:#000;font-weight:700;border:none;border-radius:10px;cursor:pointer;float:right;transition:all 0.2s;font-family:'Orbitron',sans-serif;font-size:0.78rem;letter-spacing:1px;box-shadow:0 2px 10px rgba(212,175,55,0.25);}
+    .post-btn{min-height:44px;padding:11px 24px;background:linear-gradient(180deg,var(--gold-bright),#b8860b);color:#000;font-weight:700;border:none;border-radius:10px;cursor:pointer;float:right;transition:all 0.2s;font-family:'Orbitron',sans-serif;font-size:0.78rem;letter-spacing:1px;box-shadow:0 2px 10px rgba(212,175,55,0.25);}
     .post-btn:hover{box-shadow:0 4px 16px rgba(212,175,55,0.5);transform:translateY(-1px);}
 
     /* === MACROECONOMÍA === */
@@ -1426,6 +1426,7 @@
 
     .sidebar-btn{
       position:relative;
+      min-height:44px;
       padding:14px 18px !important;
       background:rgba(10,5,22,0.7) !important;
       backdrop-filter:blur(4px);
@@ -1995,3 +1996,108 @@
   .cfp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   @media (max-width: 760px) { #chat-floating-panel { width: calc(100vw - 20px); height: calc(100vh - 180px); max-height: none; } .cfp-sidebar { width: 42%; } }
   @media (max-width: 420px) { #chat-floating-panel { width: calc(100vw - 16px); right: -4px; bottom: 70px; height: calc(100vh - 160px); } .cfp-sidebar { width: 100%; height: 35%; border-right: none; border-bottom: 1px solid rgba(212, 175, 55, 0.1); } .cfp-main { width: 100%; height: 65%; } }
+
+  @media (max-width: 360px) {
+    .inner-page { padding: 12px 10px !important; }
+    .section-header h2 { font-size: 1.2rem !important; }
+    .section-header p { font-size: 0.7rem !important; }
+    .trading-main { padding: 12px !important; }
+    #chat-floating-bubble { width: 50px; height: 50px; }
+    #chat-floating-panel { width: calc(100vw - 12px); height: calc(100vh - 140px); }
+    .cfp-header { padding: 8px 10px; }
+    .cfp-search input { padding: 4px 8px; font-size: 0.7rem; }
+    .cfp-sidebar { width: 40%; }
+  }
+
+  /* ===== TOUCH TARGETS 44px (Mobile) ===== */
+  .back-btn { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; }
+  .zoom-widget button { min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+  .zoom-widget { gap:4px; }
+  .chat-conv-item { min-height:44px; }
+  .mf-tab-btn { min-height:44px; }
+  .mc-navbtn { min-height:44px; }
+
+  /* ===== SIDEBAR DRAWER (Mobile) ===== */
+  #hamburger-btn {
+    display: none;
+    position: fixed;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    z-index: 10000;
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: rgba(10,5,22,0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(212,175,55,0.3);
+    color: var(--gold-bright);
+    font-size: 1.4rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s, transform 0.15s;
+    padding: 0;
+    line-height: 1;
+  }
+  #hamburger-btn:hover { background: rgba(35,18,65,0.9); }
+  #hamburger-btn:active { transform: scale(0.92); }
+
+  #sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(2px);
+    -webkit-tap-highlight-color: transparent;
+  }
+  #sidebar-overlay.active { display: block; }
+
+  @media (max-width: 768px) {
+    .trading-sidebar {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 9998 !important;
+      width: 280px !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      overflow-y: auto !important;
+      padding: calc(80px + env(safe-area-inset-top, 0px)) 16px 24px calc(16px + env(safe-area-inset-left, 0px)) !important;
+      background: #0a0712 !important;
+      border-right: 1px solid rgba(212,175,55,0.3) !important;
+      border-bottom: none !important;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-direction: column !important;
+      gap: 10px !important;
+      display: flex !important;
+      flex-shrink: 0;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+    }
+    .trading-sidebar.open {
+      transform: translateX(0);
+    }
+    #hamburger-btn { display: flex; }
+    .trading-layout { flex-direction: column; }
+    .section-header { padding-top: 60px; }
+    /* Font min 16px on inputs to prevent iOS auto-zoom */
+    input, textarea, select { font-size: 16px !important; }
+    /* Landscape support: constrain heights on short viewports */
+    @media (orientation: landscape) {
+      .trading-sidebar { padding: calc(64px + env(safe-area-inset-top, 0px)) 12px 16px calc(12px + env(safe-area-inset-left, 0px)) !important; }
+      #chat-floating-panel { max-height: calc(100vh - 140px) !important; }
+      #zoomWidget { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+    }
+    /* Safe areas for bottom-positioned widgets */
+    #chat-floating-widget {
+      bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
+    }
+    #zoomWidget {
+      position: fixed;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      left: calc(16px + env(safe-area-inset-left, 0px));
+      z-index: 9998;
+    }
+  }

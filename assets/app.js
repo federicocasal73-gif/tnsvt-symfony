@@ -365,6 +365,29 @@ let sb = window.API;
       // No hay integración inline en TNSVT.
       // ============================================================
 
+      // ==================== SIDEBAR DRAWER (Mobile) ====================
+      function toggleSidebar() {
+        const sidebar = document.querySelector('.trading-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (!sidebar || !overlay) return;
+        const opening = !sidebar.classList.contains('open');
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = opening ? 'hidden' : '';
+        if (opening) {
+          // Ensure first button is focusable
+          const firstBtn = sidebar.querySelector('.sidebar-btn');
+          if (firstBtn) setTimeout(() => firstBtn.focus(), 100);
+        }
+      }
+      // Close drawer on ESC
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const sidebar = document.querySelector('.trading-sidebar.open');
+          if (sidebar) toggleSidebar();
+        }
+      });
+
       function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
@@ -387,6 +410,14 @@ let sb = window.API;
         }
         if (tabId === 'tab-diary') {
           if (typeof Diary !== 'undefined' && Diary.init) Diary.init();
+        }
+        // Close drawer on tab switch (mobile)
+        if (window.innerWidth <= 768) {
+          const s = document.querySelector('.trading-sidebar');
+          const o = document.getElementById('sidebar-overlay');
+          if (s) s.classList.remove('open');
+          if (o) o.classList.remove('active');
+          document.body.style.overflow = '';
         }
       }
       function switchTradingTab(tabId) { switchTab(tabId); }
