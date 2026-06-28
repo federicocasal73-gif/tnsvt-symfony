@@ -23,8 +23,8 @@ class GameAppController extends AbstractController
     private const GAME_VERSION = '1.0.3';
     private const GAME_VERSION_CODE = 4;
     private const GAME_APK_FILENAME = 'tnsvt-market-instinct.apk';
-    private const WEB_APK_FILENAME = 'tnsvt-v1.6.1.apk';
-    private const WEB_VERSION = '1.6.1';
+    private const WEB_APK_FILENAME = 'tnsvt-v1.6.2.apk';
+    private const WEB_VERSION = '1.6.2';
 
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
