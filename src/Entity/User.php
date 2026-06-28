@@ -43,6 +43,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, options: ['default' => '0.00'])]
     private string $walletBalance = '0.00';
 
+    #[ORM\Column(type: Types::INTEGER, options: ['default' => 3])]
+    private int $maxAccounts = 3;
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $diarySetupToken = null;
 
@@ -97,6 +100,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getWalletBalance(): string { return $this->walletBalance; }
     public function setWalletBalance(string $b): static { $this->walletBalance = $b; return $this; }
+
+    public function getMaxAccounts(): int { return $this->maxAccounts; }
+    public function setMaxAccounts(int $v): static { $this->maxAccounts = $v; return $this; }
 
     public function getDiarySetupToken(): ?string { return $this->diarySetupToken; }
     public function setDiarySetupToken(?string $token): static { $this->diarySetupToken = $token; return $this; }

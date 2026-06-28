@@ -19,6 +19,10 @@ class Trade
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
+    #[ORM\ManyToOne(targetEntity: TradingAccount::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?TradingAccount $account = null;
+
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private ?\DateTimeImmutable $date = null;
 
@@ -61,6 +65,9 @@ class Trade
 
     public function getUser(): ?User { return $this->user; }
     public function setUser(?User $user): static { $this->user = $user; return $this; }
+
+    public function getAccount(): ?TradingAccount { return $this->account; }
+    public function setAccount(?TradingAccount $a): static { $this->account = $a; return $this; }
 
     public function getDate(): ?\DateTimeImmutable { return $this->date; }
     public function setDate(\DateTimeImmutable $date): static { $this->date = $date; return $this; }

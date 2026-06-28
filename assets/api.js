@@ -94,8 +94,10 @@ const API = {
   },
 
   // Journal
-  async getJournal(userCode) {
-    return this.get(`/api/journal?user_code=${userCode}`);
+  async getJournal(userCode, accountId) {
+    let url = `/api/journal?user_code=${encodeURIComponent(userCode)}`;
+    if (accountId) url += `&account_id=${accountId}`;
+    return this.get(url);
   },
   async getLeaderboard() {
     return this.get('/api/leaderboard');
@@ -317,6 +319,25 @@ async getNotifCount(userCode) {
 
   async updateJournalSettings(visibility, userCode) {
     return this.patch('/api/journal/settings', { visibility, user_code: userCode });
+  },
+
+  // ── Trading Accounts (multi-account journal) ──
+  async getAccounts(userCode) {
+    return this.get(`/api/accounts?user_code=${encodeURIComponent(userCode)}`);
+  },
+  async createAccount(data, userCode) {
+    return this.post('/api/accounts', { ...data, user_code: userCode });
+  },
+  async updateAccount(id, data, userCode) {
+    return this.request('PUT', `/api/accounts/${id}?user_code=${encodeURIComponent(userCode)}`, { ...data, user_code: userCode });
+  },
+  async deleteAccount(id, userCode) {
+    return this.del(`/api/accounts/${id}?user_code=${encodeURIComponent(userCode)}`);
+  },
+  async getJournalStats(userCode, accountId) {
+    const params = new URLSearchParams({ user_code: userCode });
+    if (accountId) params.set('account_id', accountId);
+    return this.get(`/api/journal/stats?${params}`);
   },
 
   // ── Patch helper ──

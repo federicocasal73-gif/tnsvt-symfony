@@ -39,6 +39,11 @@ let sb = window.API;
       let _calNowTimer = null;
       let _calReminderKey = null;
 
+      // ── Multi-trading-accounts ──
+      let _tjAccounts = [];
+      let _tjActiveAccountId = null;
+      let _tjAccountsMax = 3;
+
       // Módulos de estudio (resumidos, pero igual que antes)
       const modulesData = {
         psi: {
@@ -919,6 +924,7 @@ let sb = window.API;
           photos: tjPhotoData.filter(p => p !== null)
         };
         trade.user_code = window.TNSVT_USER ? window.TNSVT_USER.code : null;
+        if (_tjActiveAccountId) trade.account_id = _tjActiveAccountId;
         const wasEditing = tjEditingId;
         try {
           if (tjEditingId) {
@@ -3624,6 +3630,7 @@ let sb = window.API;
       // ==================== INICIALIZACIÓN GENERAL ====================
       async function initAllPanels() {
         loadTasks();
+        await loadAccounts();
         await loadJournalFromApi();
         renderFeed();
         renderAcademia();
@@ -3709,13 +3716,152 @@ let sb = window.API;
         }
       }
 
+      // ── Multi-account journal functions ──
+      async function loadAccounts() {
+        if (!window.TNSVT_USER?.code) return;
+        try {
+          const data = await sb.getAccounts(window.TNSVT_USER.code);
+          if (data && data.success) {
+            _tjAccounts = data.accounts || [];
+            _tjAccountsMax = data.max_accounts || 3;
+            if (!_tjActiveAccountId && _tjAccounts.length > 0) {
+              _tjActiveAccountId = _tjAccounts[0].id;
+            }
+            try { localStorage.setItem('tnsvt:tj:active_account', String(_tjActiveAccountId || '')); } catch (e) {}
+            renderAccountSelector();
+          }
+        } catch (e) {
+          console.warn('[accounts] load:', e);
+        }
+      }
+      function renderAccountSelector() {
+        const wrap = document.getElementById('tj-account-selector');
+        if (!wrap) return;
+        const isReadOnly = !!window._journalViewingCode;
+        if (isReadOnly) {
+          wrap.innerHTML = '';
+          wrap.style.display = 'none';
+          return;
+        }
+        wrap.style.display = 'flex';
+
+        const options = _tjAccounts.map(a => {
+          const sel = a.id === _tjActiveAccountId ? ' selected' : '';
+          return `<option value="${a.id}"${sel}>${a.color ? '<span style="color:'+a.color+'">●</span> ' : ''}${escapeHtml(a.name)} ($${a.account_size.toLocaleString('en')})</option>`;
+        }).join('');
+
+        const max = _tjAccountsMax;
+        const count = _tjAccounts.length;
+        const canCreate = count < max;
+
+        wrap.innerHTML = `
+          <label style="font-size:0.7rem;color:var(--gold);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:flex;align-items:center;gap:8px;">
+            💰 CUENTA:
+            <select id="tj-active-account" style="background:rgba(0,0,0,0.4);border:1px solid rgba(212,175,55,0.4);color:#fff;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-family:inherit;">
+              ${options}
+            </select>
+            <span style="font-size:0.62rem;color:#a499b8;">${count}/${max}</span>
+            <button type="button" onclick="tjShowCreateAccount()" style="background:${canCreate ? 'rgba(52,199,89,0.15)' : 'rgba(120,120,120,0.15)'};border:1px solid ${canCreate ? 'rgba(52,199,89,0.4)' : 'rgba(120,120,120,0.3)'};color:${canCreate ? '#34c759' : '#888'};padding:3px 8px;border-radius:4px;cursor:${canCreate ? 'pointer' : 'not-allowed'};font-size:0.65rem;" ${canCreate ? '' : 'disabled title="Plan actual: '+max+'/'+max+' cuentas"'}>+ Nueva</button>
+            <button type="button" onclick="tjShowManageAccount()" style="background:rgba(138,60,255,0.15);border:1px solid rgba(138,60,255,0.4);color:#a499b8;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:0.65rem;" title="Editar / eliminar">⚙️</button>
+          </label>
+        `;
+      }
+      function selectAccount(id) {
+        _tjActiveAccountId = id;
+        try { localStorage.setItem('tnsvt:tj:active_account', String(id)); } catch (e) {}
+        renderAccountSelector();
+        loadJournalFromApi();
+      }
+      async function tjShowCreateAccount() {
+        if (_tjAccounts.length >= _tjAccountsMax) {
+          showToast('Ya tenés ' + _tjAccountsMax + '/' + _tjAccountsMax + ' cuentas. Elimina una primero.');
+          return;
+        }
+        const name = prompt('Nombre de la cuenta (ej. Swing Trading, Futuros, Crypto):');
+        if (!name) return;
+        if (_tjAccounts.find(a => a.name === name)) {
+          showToast('Ya tenés una cuenta con ese nombre');
+          return;
+        }
+        const size = prompt('Balance inicial en USD (ej. 5000, 10000):', '5000');
+        if (!size) return;
+        const accountSize = parseFloat(size);
+        if (isNaN(accountSize) || accountSize <= 0) {
+          showToast('Balance inválido');
+          return;
+        }
+        const colors = ['#d4af37', '#8a3cff', '#34c759', '#ff3b30', '#ff8a00'];
+        const color = colors[(_tjAccounts.length) % colors.length];
+        const icons = ['💰', '📈', '📉', '🎯', '⚡', '💎', '🔥'];
+        const icon = icons[(_tjAccounts.length) % icons.length];
+
+        try {
+          const data = await sb.createAccount({ name, account_size: accountSize, color, icon }, window.TNSVT_USER.code);
+          if (data && data.success) {
+            showToast('✅ Cuenta creada: ' + name);
+            await loadAccounts();
+            selectAccount(data.account.id);
+          } else {
+            showToast('Error: ' + (data.error || 'no se pudo crear'));
+          }
+        } catch (e) {
+          showToast('❌ Error creando cuenta');
+        }
+      }
+      async function tjShowManageAccount() {
+        if (_tjAccounts.length === 0) return;
+        const list = _tjAccounts.map((a, i) => `${i+1}. ${a.icon || '💰'} ${a.name} ($${a.account_size.toLocaleString('en')})`).join('\\n');
+        const action = prompt(
+          'Cuentas:\\n' + list + '\\n\\n' +
+          'Escribí:\\n' +
+          '  • "editar <numero>" para editar\\n' +
+          '  • "eliminar <numero>" para soft-delete\\n' +
+          '  • "cancelar" para salir'
+        );
+        if (!action || action === 'cancelar') return;
+        const [op, numStr] = action.split(' ');
+        const idx = parseInt(numStr) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= _tjAccounts.length) {
+          showToast('Número inválido');
+          return;
+        }
+        const acc = _tjAccounts[idx];
+        if (op === 'editar') {
+          const newName = prompt('Nuevo nombre:', acc.name);
+          if (!newName) return;
+          const newSize = prompt('Nuevo balance inicial USD:', String(acc.account_size));
+          if (!newSize) return;
+          const sz = parseFloat(newSize);
+          if (isNaN(sz) || sz <= 0) { showToast('Balance inválido'); return; }
+          try {
+            await sb.updateAccount(acc.id, { name: newName, account_size: sz }, window.TNSVT_USER.code);
+            showToast('✅ Cuenta actualizada');
+            await loadAccounts();
+          } catch (e) { showToast('❌ Error actualizando'); }
+        } else if (op === 'eliminar') {
+          if (!confirm(`¿Eliminar "${acc.name}"? Los trades se preservan y se pueden recuperar.`)) return;
+          try {
+            await sb.deleteAccount(acc.id, window.TNSVT_USER.code);
+            showToast('🗑️ Cuenta eliminada (trades preservados)');
+            if (_tjActiveAccountId === acc.id && _tjAccounts.length > 1) {
+              _tjActiveAccountId = _tjAccounts[0].id === acc.id ? _tjAccounts[1].id : _tjAccounts[0].id;
+            }
+            await loadAccounts();
+            loadJournalFromApi();
+          } catch (e) { showToast('❌ Error eliminando'); }
+        }
+      }
+      window.tjShowCreateAccount = tjShowCreateAccount;
+      window.tjShowManageAccount = tjShowManageAccount;
+
       async function loadJournalFromApi(targetCode) {
         if (!window.TNSVT_USER) return;
         const code = targetCode || window.TNSVT_USER.code;
         window._journalViewingCode = targetCode || null;
         window._journalViewingName = null;
         try {
-          const data = await sb.getJournal(code);
+          const accountId = (!targetCode && _tjActiveAccountId) ? _tjActiveAccountId : null;
+          const data = await sb.getJournal(code, accountId);
           if (data && data.success && data.trades) {
             tjTrades = data.trades;
             window._journalScope = data.scope || 'owner';

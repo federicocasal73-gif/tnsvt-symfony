@@ -4,11 +4,13 @@ namespace App\Controller\Api;
 
 use App\Entity\JournalSetting;
 use App\Entity\Trade;
+use App\Entity\TradingAccount;
 use App\Entity\User;
 use App\Repository\ConnectionRepository;
 use App\Repository\JournalPermissionRepository;
 use App\Repository\JournalSettingRepository;
 use App\Repository\TradeRepository;
+use App\Repository\TradingAccountRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,6 +29,7 @@ class JournalController extends AbstractController
         private ConnectionRepository $connectionRepo,
         private JournalPermissionRepository $permissionRepo,
         private JournalSettingRepository $settingRepo,
+        private TradingAccountRepository $accountRepo,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -74,25 +77,16 @@ class JournalController extends AbstractController
             }
 
             if (!$connected) {
-                // Public view — stats only
                 $trades = $this->tradeRepository->findByUser($target);
                 $stats = $this->computeStats($trades);
                 return $this->json([
                     'success' => true,
                     'scope' => 'public',
-                    'trades' => array_map(fn(Trade $t) => [
-                        'id' => $t->getId(),
-                        'asset' => $t->getAsset(),
-                        'dir' => $t->getDirection(),
-                        'result' => $t->getResult(),
-                        'pnl' => (float) $t->getPnl(),
-                        'date' => $t->getDate()?->format('c'),
-                    ], $trades),
+                    'trades' => array_map(fn(Trade $t) => $this->mapTrade($t, null, 'public'), $trades),
                     'stats' => $stats,
                 ]);
             }
 
-            // Connected — check granular permissions
             $perm = $this->permissionRepo->findByGrantorAndGrantee($target, $currentUser);
             if (!$perm) {
                 return $this->json(['error' => 'Sin permisos configurados'], 403);
@@ -101,31 +95,7 @@ class JournalController extends AbstractController
             $trades = $this->tradeRepository->findByUser($target);
             $stats = $this->computeStats($trades);
 
-            $data = array_map(function (Trade $t) use ($perm) {
-                $entry = [
-                    'id' => $t->getId(),
-                    'asset' => $t->getAsset(),
-                    'dir' => $t->getDirection(),
-                    'result' => $t->getResult(),
-                    'pnl' => (float) $t->getPnl(),
-                    'date' => $t->getDate()?->format('c'),
-                ];
-                if ($perm->canViewTrades()) {
-                    $entry['entry'] = $t->getEntry();
-                    if ($perm->canViewStats()) {
-                        $entry['sl'] = $t->getSl();
-                        $entry['tp'] = $t->getTp();
-                        $entry['ratio'] = $t->getRatio();
-                    }
-                }
-                if ($perm->canViewNotes()) {
-                    $entry['notes'] = $t->getNotes();
-                }
-                if ($perm->canViewComments()) {
-                    // placeholder for future comments
-                }
-                return $entry;
-            }, $trades);
+            $data = array_map(fn(Trade $t) => $this->mapTrade($t, $perm, 'connected'), $trades);
 
             return $this->json([
                 'success' => true,
@@ -135,33 +105,31 @@ class JournalController extends AbstractController
             ]);
         }
 
-        // Owner — full access
-        $trades = $this->tradeRepository->findByUser($target);
+        $trades = $this->loadTradesForOwner($target, $request);
         $stats = $this->computeStats($trades);
 
-        $data = array_map(function (Trade $t) {
-            return [
-                'id' => $t->getId(),
-                'date' => $t->getDate()?->format('c'),
-                'asset' => $t->getAsset(),
-                'dir' => $t->getDirection(),
-                'entry' => $t->getEntry(),
-                'sl' => $t->getSl(),
-                'tp' => $t->getTp(),
-                'result' => $t->getResult(),
-                'pnl' => (float) $t->getPnl(),
-                'ratio' => $t->getRatio(),
-                'notes' => $t->getNotes(),
-                'photos' => $t->getPhotos() ?? [],
-            ];
-        }, $trades);
+        $data = array_map(fn(Trade $t) => $this->mapTrade($t, null, 'owner'), $trades);
 
         return $this->json([
             'success' => true,
             'scope' => 'owner',
             'trades' => $data,
             'stats' => $stats,
+            'account_id' => $request->query->get('account_id') ? (int) $request->query->get('account_id') : null,
         ]);
+    }
+
+    #[Route('/stats', name: 'api_journal_stats', methods: ['GET'])]
+    public function stats(Request $request): JsonResponse
+    {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
+        $trades = $this->loadTradesForOwner($currentUser, $request);
+        $stats = $this->computeStats($trades);
+        $stats['account_id'] = $request->query->get('account_id') ? (int) $request->query->get('account_id') : null;
+
+        return $this->json(['success' => true, 'stats' => $stats]);
     }
 
     #[Route('', name: 'api_journal_create', methods: ['POST'])]
@@ -193,6 +161,21 @@ class JournalController extends AbstractController
         $trade->setNotes($data['notes'] ?? null);
         $trade->setPhotos($data['photos'] ?? null);
 
+        if (isset($data['account_id'])) {
+            $accId = (int) $data['account_id'];
+            if ($accId > 0) {
+                $acc = $this->accountRepo->find($accId);
+                if ($acc && $acc->getUser() === $currentUser && !$acc->isDeleted()) {
+                    $trade->setAccount($acc);
+                }
+            }
+        } elseif ($currentCount = $this->accountRepo->countActiveByUser($currentUser)) {
+            $first = $this->accountRepo->findActiveByUser($currentUser);
+            if (!empty($first)) {
+                $trade->setAccount($first[0]);
+            }
+        }
+
         if (isset($data['date'])) {
             $trade->setDate(new \DateTimeImmutable($data['date']));
         }
@@ -203,7 +186,7 @@ class JournalController extends AbstractController
         return $this->json(['success' => true, 'id' => $trade->getId()], 201);
     }
 
-    #[Route('/{id}', name: 'api_journal_update', methods: ['PUT'])]
+    #[Route('/{id}', name: 'api_journal_update', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request): JsonResponse
     {
         $currentUser = $this->getCurrentUser($request);
@@ -227,6 +210,20 @@ class JournalController extends AbstractController
         if (isset($data['ratio'])) $trade->setRatio($data['ratio']);
         if (isset($data['notes'])) $trade->setNotes($data['notes']);
         if (isset($data['photos'])) $trade->setPhotos($data['photos']);
+
+        if (isset($data['account_id'])) {
+            $accId = (int) $data['account_id'];
+            if ($accId > 0) {
+                $acc = $this->accountRepo->find($accId);
+                if ($acc && $acc->getUser() === $currentUser && !$acc->isDeleted()) {
+                    $trade->setAccount($acc);
+                } else {
+                    return $this->json(['error' => 'Cuenta inválida'], 400);
+                }
+            } else {
+                $trade->setAccount(null);
+            }
+        }
 
         $this->em->flush();
         return $this->json(['success' => true]);
@@ -257,7 +254,7 @@ class JournalController extends AbstractController
         }
 
         $format = $request->query->get('format', 'csv');
-        $trades = $this->tradeRepository->findByUser($target);
+        $trades = $this->loadTradesForOwner($target, $request);
 
         if ($format === 'html') {
             $html = $this->renderView('export/journal.html.twig', [
@@ -272,10 +269,11 @@ class JournalController extends AbstractController
         }
 
         $handle = fopen('php://memory', 'r+');
-        fputcsv($handle, ['Date', 'Asset', 'Direction', 'Entry', 'SL', 'TP', 'Result', 'PNL', 'Ratio', 'Notes']);
+        fputcsv($handle, ['Date', 'Account', 'Asset', 'Direction', 'Entry', 'SL', 'TP', 'Result', 'PNL', 'Ratio', 'Notes']);
         foreach ($trades as $t) {
             fputcsv($handle, [
                 $t->getDate()?->format('Y-m-d H:i'),
+                $t->getAccount()?->getName() ?? '',
                 $t->getAsset(),
                 $t->getDirection(),
                 $t->getEntry(),
@@ -312,6 +310,56 @@ class JournalController extends AbstractController
         $this->em->remove($trade);
         $this->em->flush();
         return $this->json(['success' => true]);
+    }
+
+    private function loadTradesForOwner(User $owner, Request $request): array
+    {
+        $accountId = $request->query->get('account_id');
+        if ($accountId) {
+            $acc = $this->accountRepo->find((int) $accountId);
+            if ($acc && $acc->getUser() === $owner) {
+                return $this->tradeRepository->findByUserAndAccount($owner, $acc);
+            }
+        }
+        return $this->tradeRepository->findByUser($owner);
+    }
+
+    private function mapTrade(Trade $t, $perm, string $scope): array
+    {
+        $entry = [
+            'id' => $t->getId(),
+            'asset' => $t->getAsset(),
+            'dir' => $t->getDirection(),
+            'result' => $t->getResult(),
+            'pnl' => (float) $t->getPnl(),
+            'date' => $t->getDate()?->format('c'),
+            'account_id' => $t->getAccount()?->getId(),
+            'account_name' => $t->getAccount()?->getName(),
+        ];
+
+        if ($scope === 'owner') {
+            $entry['date'] = $t->getDate()?->format('c');
+            $entry['entry'] = $t->getEntry();
+            $entry['sl'] = $t->getSl();
+            $entry['tp'] = $t->getTp();
+            $entry['ratio'] = $t->getRatio();
+            $entry['notes'] = $t->getNotes();
+            $entry['photos'] = $t->getPhotos() ?? [];
+        } elseif ($scope === 'connected' && $perm) {
+            if ($perm->canViewTrades()) {
+                $entry['entry'] = $t->getEntry();
+                if ($perm->canViewStats()) {
+                    $entry['sl'] = $t->getSl();
+                    $entry['tp'] = $t->getTp();
+                    $entry['ratio'] = $t->getRatio();
+                }
+            }
+            if ($perm->canViewNotes()) {
+                $entry['notes'] = $t->getNotes();
+            }
+        }
+
+        return $entry;
     }
 
     private function computeStats(array $trades): array
