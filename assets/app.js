@@ -241,6 +241,11 @@ let sb = window.API;
         document.getElementById('gatePassWrap').style.display = 'none';
         const hint = document.getElementById('adminPassHint');
         if (hint) hint.style.display = 'none';
+        // Ocultar chat flotante
+        const chatPanel = document.getElementById('chat-floating-panel');
+        const chatBubble = document.getElementById('chat-floating-bubble');
+        if (chatPanel) chatPanel.style.display = 'none';
+        if (chatBubble) chatBubble.style.display = 'none';
         document.getElementById('adminSidebarBtn').style.display = 'none';
         document.getElementById('hub-view').style.display = 'flex';
         document.getElementById('module-panel').style.display = 'none';
@@ -3273,8 +3278,10 @@ let sb = window.API;
           const data = await sb.getConversations(window.TNSVT_USER.code);
           chatConversations = data || [];
           renderConversations();
-          // Auto-select first conv if none active
-          if (!activeConvId && chatConversations.length > 0) {
+          // Update floating chat badge with total unread
+          chatUpdateUnreadBadge();
+          // Auto-select first conv if none active (only if panel is open)
+          if (!activeConvId && chatConversations.length > 0 && chatIsOpen()) {
             const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
             selectConversation(groupConv.id);
           }
@@ -3519,6 +3526,7 @@ let sb = window.API;
           const data = await sb.getConversations(window.TNSVT_USER.code);
           if (data) {
             chatConversations = data;
+            chatUpdateUnreadBadge();
             renderConversations();
           }
         } catch(e) { console.warn('[chat] loadChats:', e); }
@@ -3604,6 +3612,7 @@ let sb = window.API;
       function loadChats() {
         loadConversations();
         initChatPolling();
+        chatShowBubble();
         // Wire up input area
         const photoBtn = document.getElementById('chatPhotoBtn');
         const photoInput = document.getElementById('chatPhotoInput');
@@ -3625,6 +3634,64 @@ let sb = window.API;
           sendBtn.addEventListener('click', sendChatMessage);
           sendBtn._wired = true;
         }
+      }
+
+      // ==================== CHAT FLOTANTE (Burbuja + Panel) ====================
+      function chatToggle() {
+        const bubble = document.getElementById('chat-floating-bubble');
+        const panel = document.getElementById('chat-floating-panel');
+        if (!bubble || !panel) return;
+        const isOpen = panel.style.display === 'flex';
+        if (isOpen) {
+          panel.style.display = 'none';
+          bubble.style.display = 'flex';
+        } else {
+          panel.style.display = 'flex';
+          bubble.style.display = 'none';
+          if (!chatConversations || chatConversations.length === 0) {
+            loadConversations();
+          }
+          // If no active conv, auto-select first
+          if (!activeConvId && chatConversations.length > 0) {
+            const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
+            selectConversation(groupConv.id);
+          }
+        }
+      }
+      function chatIsOpen() {
+        const panel = document.getElementById('chat-floating-panel');
+        return panel && panel.style.display === 'flex';
+      }
+      function chatShowBubble() {
+        const bubble = document.getElementById('chat-floating-bubble');
+        if (bubble) bubble.style.display = 'flex';
+      }
+      function chatHideBubble() {
+        const bubble = document.getElementById('chat-floating-bubble');
+        if (bubble) bubble.style.display = 'none';
+      }
+      function chatUpdateUnreadBadge() {
+        const badge = document.getElementById('chat-floating-badge');
+        if (!badge) return;
+        const totalUnread = (chatConversations || []).reduce((sum, c) => {
+          if (chatIsOpen() && c.id === activeConvId) return sum;  // current conv counts as read
+          return sum + (parseInt(c.unread_count || c.unread || 0) || 0);
+        }, 0);
+        if (totalUnread > 0) {
+          badge.style.display = 'flex';
+          badge.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+      function chatTriggerPulse() {
+        const badge = document.getElementById('chat-floating-badge');
+        if (!badge) return;
+        badge.classList.remove('cfb-pulse');
+        // Force reflow to restart animation
+        void badge.offsetWidth;
+        badge.classList.add('cfb-pulse');
+        setTimeout(() => badge.classList.remove('cfb-pulse'), 1600);
       }
 
       // ==================== INICIALIZACIÓN GENERAL ====================
