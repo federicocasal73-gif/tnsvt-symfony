@@ -4883,9 +4883,15 @@ let sb = window.API;
             const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
             console.log('[FCM] SW registrado, scope:', swReg.scope);
             // 5) Obtener el FCM token (requiere permiso granted)
-            const tokenOptions = { serviceWorkerRegistration: swReg };
-            if (config.vapidKey) tokenOptions.vapidKey = config.vapidKey;
-            const fcmToken = await messaging.getToken(tokenOptions);
+            let fcmToken;
+            try {
+              const tokenOptions = { serviceWorkerRegistration: swReg };
+              if (config.vapidKey) tokenOptions.vapidKey = config.vapidKey;
+              fcmToken = await messaging.getToken(tokenOptions);
+            } catch (e) {
+              console.warn('[FCM] getToken() falló. VAPID key inválida o permisos denegados:', e.message);
+              return false;
+            }
             if (!fcmToken) {
               console.warn('[FCM] getToken() devolvió vacío. ¿Permiso denegado?');
               return false;
@@ -5797,10 +5803,10 @@ window.Diary = (() => {
       const plaintext = JSON.stringify({ title, body });
       const payload = await _encrypt(plaintext);
       if (_currentEntryId) {
-        const res = await _api('PUT', '/api/diary/' + _currentEntryId, { encrypted_data: payload, iv: '' });
+        const res = await _api('PUT', '/api/diary/' + _currentEntryId, { encrypted_data: payload });
         if (!res.success) { _showError('Error al actualizar'); return; }
       } else {
-        const res = await _api('POST', '/api/diary', { encrypted_data: payload, iv: '' });
+        const res = await _api('POST', '/api/diary', { encrypted_data: payload });
         if (!res.success) { _showError('Error al guardar'); return; }
       }
       _currentEntryId = null;

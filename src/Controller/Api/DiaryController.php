@@ -65,14 +65,14 @@ class DiaryController extends AbstractController
         if (!$user) return new JsonResponse(['error' => 'Unauthorized'], 401);
 
         $data = json_decode($request->getContent(), true);
-        if (!is_array($data) || empty($data['encrypted_data']) || empty($data['iv'])) {
-            return new JsonResponse(['error' => 'encrypted_data and iv required'], 400);
+        if (!is_array($data) || empty($data['encrypted_data'])) {
+            return new JsonResponse(['error' => 'encrypted_data required'], 400);
         }
 
         $entry = new DiaryEntry();
         $entry->setUser($user);
         $entry->setEncryptedData($data['encrypted_data']);
-        $entry->setIv($data['iv']);
+        $entry->setIv($data['iv'] ?? '');
         $entry->setCreatedAt(new \DateTimeImmutable());
 
         $this->em->persist($entry);

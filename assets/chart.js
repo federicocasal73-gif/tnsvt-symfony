@@ -179,9 +179,9 @@
     const last = candles[candles.length - 1];
     try {
       if (lastPriceLine) {
-        try { chart.removePriceLine(lastPriceLine); } catch (e) {}
+        try { candleSeries.removePriceLine(lastPriceLine); } catch (e) {}
       }
-      lastPriceLine = chart.createPriceLine({
+      lastPriceLine = candleSeries.createPriceLine({
         price: last.c,
         color: last.c >= candles[candles.length - 2].c ? '#34c759' : '#ff7066',
         lineWidth: 1,
