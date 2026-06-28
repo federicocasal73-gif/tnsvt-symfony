@@ -2646,10 +2646,15 @@
                 </div>
               </div>
 
-              <!-- MONTHLY P&L HISTOGRAM -->
+              <!-- PERIOD P&L HISTOGRAM -->
               <div class="tj-equity" style="margin-top:16px;">
                 <div class="tj-equity-header">
-                  <div class="tj-equity-title">📊 P&L Mensual</div>
+                  <div class="tj-equity-title">📊 P&L</div>
+                  <div class="tj-period-btns" id="tj-chart-periods">
+                    <button class="tj-cperiod-btn active" onclick="tjSetPeriod('daily',this)">Diario</button>
+                    <button class="tj-cperiod-btn" onclick="tjSetPeriod('weekly',this)">Semanal</button>
+                    <button class="tj-cperiod-btn" onclick="tjSetPeriod('monthly',this)">Mensual</button>
+                  </div>
                 </div>
                 <div style="position:relative;">
                   <svg id="tj-monthly-svg" viewBox="0 0 600 180" style="width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
@@ -2706,48 +2711,163 @@
               </div>
             </div>
 
-            <!-- REGISTER TRADE PANEL -->
+            <!-- REGISTER TRADE PANEL (v36 redesign) -->
             <div class="tj-panel" id="tj-log">
-              <div style="background:rgba(9,5,18,0.7);border:1px solid rgba(212,175,55,0.15);border-radius:12px;padding:18px;">
-                <div style="font-family:'Orbitron',sans-serif;font-size:0.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;">📝 Registrar Operación</div>
-                <div class="tj-form-grid">
-                  <div class="tj-field"><label>Par / Activo</label><input type="text" id="tj-f-asset" placeholder="EURUSD, NAS100, XAUUSD" aria-label="Par o activo"></div>
-                  <div class="tj-field"><label>Dirección</label><select id="tj-f-dir" aria-label="Dirección del trade"><option value="BUY">BUY (Compra)</option><option value="SELL">SELL (Venta)</option></select></div>
-                  <div class="tj-field"><label>Entry</label><input type="number" step="any" id="tj-f-entry" placeholder="30,773.75" aria-label="Precio de entrada"></div>
-                  <div class="tj-field"><label>Stop Loss</label><input type="number" step="any" id="tj-f-sl" placeholder="30,808.75" aria-label="Precio de stop loss"></div>
-                  <div class="tj-field"><label>Take Profit</label><input type="number" step="any" id="tj-f-tp" placeholder="30,701.00" aria-label="Precio de take profit"></div>
-                  <div class="tj-field"><label>Resultado</label><select id="tj-f-result" aria-label="Resultado del trade"><option value="WIN">WIN ✅</option><option value="LOSS">LOSS ❌</option><option value="BE">Break Even ↔️</option></select></div>
-                  <div class="tj-field"><label>PNL ($)</label><input type="number" step="any" id="tj-f-pnl" placeholder="+150.00 o -75.00" aria-label="Profit and Loss en dolares"></div>
-                  <div class="tj-field"><label>Ratio R:B</label><input type="text" id="tj-f-ratio" placeholder="1:3" aria-label="Ratio riesgo beneficio"></div>
+              <div class="tj-card-v36">
+                <div class="tj-head-v36">
+                  <div class="tj-eyebrow-v36">
+                    <span class="tj-line-v36"></span>
+                    <span class="tj-mark-v36">📊 REGISTRAR TRADE EN EL JOURNAL</span>
+                    <span class="tj-line-v36"></span>
+                  </div>
+                  <h2 class="tj-title-v36">Asentar operación cerrada</h2>
+                  <p class="tj-sub-v36">"Lo que no se registra, no se domina."</p>
                 </div>
-                <div class="tj-field" style="margin-bottom:10px;"><label>Notas / Análisis Post-Trade</label><textarea id="tj-f-notes" rows="2" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(138,60,255,0.2);border-radius:6px;color:#fff;font-family:inherit;font-size:0.82rem;outline:none;" placeholder="¿Cumpliste el plan? ¿Qué aprendiste?"></textarea></div>
+                <div class="tj-body-v36">
 
-                <!-- FOTO UPLOADS -->
-                <div style="margin-bottom:12px;">
-                  <label style="font-family:'Orbitron',sans-serif;font-size:0.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:6px;">📸 Capturas (máx 3)</label>
-                  <div class="tj-photos-row">
-                    <div class="tj-photo-slot" id="tj-photo-0">
-                      <span class="slot-icon">📊</span>
-                      <span class="slot-label">Análisis 1</span>
-                      <input type="file" accept="image/*" onchange="tjPhotoPreview(0,this)" aria-label="Captura de análisis 1">
-                      <div class="remove-photo" onclick="tjPhotoRemove(0,event)">✕</div>
+                  <!-- ASSET -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">🎯 Activo operado</div>
+                    <div class="asset-row-v36" id="tj-asset-chips">
+                      <button type="button" class="asset-chip-v36 selected" data-asset="XAUUSD" onclick="selectTjAsset(this)">XAUUSD</button>
+                      <button type="button" class="asset-chip-v36" data-asset="NAS100" onclick="selectTjAsset(this)">NAS100</button>
+                      <button type="button" class="asset-chip-v36" data-asset="EURUSD" onclick="selectTjAsset(this)">EURUSD</button>
+                      <button type="button" class="asset-chip-v36" data-asset="BTCUSDT" onclick="selectTjAsset(this)">BTCUSDT</button>
+                      <button type="button" class="asset-chip-v36" data-asset="GBPUSD" onclick="selectTjAsset(this)">GBPUSD</button>
+                      <button type="button" class="asset-chip-v36" data-asset="USDJPY" onclick="selectTjAsset(this)">USDJPY</button>
+                      <input type="text" class="asset-input-v36" placeholder="+ otro" oninput="onTjAssetCustom(this)" aria-label="Otro símbolo">
                     </div>
-                    <div class="tj-photo-slot" id="tj-photo-1">
-                      <span class="slot-icon">📊</span>
-                      <span class="slot-label">Análisis 2</span>
-                      <input type="file" accept="image/*" onchange="tjPhotoPreview(1,this)" aria-label="Captura de análisis 2">
-                      <div class="remove-photo" onclick="tjPhotoRemove(1,event)">✕</div>
+                    <input type="hidden" id="tj-f-asset" value="XAUUSD">
+                  </div>
+
+                  <!-- DIRECTION -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">⚔️ Dirección</div>
+                    <div class="dir-row-v36 dir-2col" id="tj-dir-row">
+                      <button type="button" class="dir-btn-v36 buy selected" data-dir="BUY" onclick="selectTjDir(this)">
+                        <span class="icon">📈</span>
+                        <span class="name">BUY</span>
+                        <div class="desc">Long · al alza</div>
+                      </button>
+                      <button type="button" class="dir-btn-v36 sell" data-dir="SELL" onclick="selectTjDir(this)">
+                        <span class="icon">📉</span>
+                        <span class="name">SELL</span>
+                        <div class="desc">Short · a la baja</div>
+                      </button>
                     </div>
-                    <div class="tj-photo-slot" id="tj-photo-2">
-                      <span class="slot-icon">⚡</span>
-                      <span class="slot-label">Ejecución</span>
-                      <input type="file" accept="image/*" onchange="tjPhotoPreview(2,this)" aria-label="Captura de ejecución">
-                      <div class="remove-photo" onclick="tjPhotoRemove(2,event)">✕</div>
+                    <select id="tj-f-dir" style="display:none" aria-hidden="true">
+                      <option value="BUY" selected>BUY</option>
+                      <option value="SELL">SELL</option>
+                    </select>
+                  </div>
+
+                  <!-- RESULT -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">🏆 Resultado</div>
+                    <div class="result-row-v36" id="tj-result-row">
+                      <button type="button" class="result-btn-v36 win selected" data-result="WIN" onclick="selectTjResult(this)">
+                        <span class="icon">✅</span>
+                        <span class="name">WIN</span>
+                        <div class="desc">Ganador</div>
+                      </button>
+                      <button type="button" class="result-btn-v36 loss" data-result="LOSS" onclick="selectTjResult(this)">
+                        <span class="icon">❌</span>
+                        <span class="name">LOSS</span>
+                        <div class="desc">Perdedor</div>
+                      </button>
+                      <button type="button" class="result-btn-v36 be" data-result="BE" onclick="selectTjResult(this)">
+                        <span class="icon">↔️</span>
+                        <span class="name">BE</span>
+                        <div class="desc">Break-even</div>
+                      </button>
+                    </div>
+                    <select id="tj-f-result" style="display:none" aria-hidden="true">
+                      <option value="WIN" selected>WIN</option>
+                      <option value="LOSS">LOSS</option>
+                      <option value="BE">BE</option>
+                    </select>
+                  </div>
+
+                  <!-- PRECIOS -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">💎 Precios de la operación</div>
+                    <div class="prices-grid-v36">
+                      <div class="price-field-v36">
+                        <label>ENTRY <span class="tag entry">🎯</span></label>
+                        <input type="number" step="any" id="tj-f-entry" placeholder="0.00">
+                      </div>
+                      <div class="price-field-v36">
+                        <label>STOP LOSS <span class="tag sl">🛡</span></label>
+                        <input type="number" step="any" id="tj-f-sl" placeholder="0.00">
+                      </div>
+                      <div class="price-field-v36">
+                        <label>TAKE PROFIT <span class="tag tp1">🏁</span></label>
+                        <input type="number" step="any" id="tj-f-tp" placeholder="0.00">
+                      </div>
+                      <div class="price-field-v36">
+                        <label>P&amp;L NETO ($) <span class="tag tp1">💰</span></label>
+                        <input type="number" step="any" id="tj-f-pnl" placeholder="+150.00 / -75.00">
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <button class="post-btn" id="tj-submit-btn" style="float:none;width:100%;" onclick="tjAddTrade()">Registrar Trade</button>
+                  <!-- R:R EDITABLE -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">⚖️ Riesgo y R:R (editable)</div>
+                    <div class="rr-edit-grid-v36">
+                      <div class="rr-edit-cell-v36 risk">
+                        <div class="l">RIESGO</div>
+                        <div class="input-wrap"><input type="text" id="tj-f-risk" placeholder="5.70"></div>
+                        <div class="unit">PUNTOS / PIPS</div>
+                      </div>
+                      <div class="rr-edit-cell-v36 tp1">
+                        <div class="l">R:R · TP1</div>
+                        <div class="input-wrap"><span class="prefix">1 :</span><input type="text" id="tj-f-ratio" placeholder="1.96"></div>
+                        <div class="unit">RATIO</div>
+                      </div>
+                      <div class="rr-edit-cell-v36 tp2">
+                        <div class="l">R:R · TP2</div>
+                        <div class="input-wrap"><span class="prefix">1 :</span><input type="text" id="tj-f-ratio2" placeholder="4.17 (opc)"></div>
+                        <div class="unit">RATIO</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- NOTAS -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">📝 Tesis / aprendizajes</div>
+                    <textarea id="tj-f-notes" class="notes-area-v36" placeholder="¿Cumpliste el plan? ¿Qué aprendiste? ¿Qué hubieras hecho diferente?"></textarea>
+                  </div>
+
+                  <!-- CAPTURAS -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">📷 CAPTURAS (MÁX 3)</div>
+                    <div class="tj-photos-row tj-photos-row-v36">
+                      <div class="tj-photo-slot" id="tj-photo-0">
+                        <span class="slot-icon">📊</span>
+                        <span class="slot-label">ANÁLISIS 1</span>
+                        <input type="file" accept="image/*" onchange="tjPhotoPreview(0,this)" aria-label="Captura de análisis 1">
+                        <div class="remove-photo" onclick="tjPhotoRemove(0,event)">✕</div>
+                      </div>
+                      <div class="tj-photo-slot" id="tj-photo-1">
+                        <span class="slot-icon">📊</span>
+                        <span class="slot-label">ANÁLISIS 2</span>
+                        <input type="file" accept="image/*" onchange="tjPhotoPreview(1,this)" aria-label="Captura de análisis 2">
+                        <div class="remove-photo" onclick="tjPhotoRemove(1,event)">✕</div>
+                      </div>
+                      <div class="tj-photo-slot ejecucion" id="tj-photo-2">
+                        <span class="slot-icon">⚡</span>
+                        <span class="slot-label">EJECUCIÓN</span>
+                        <input type="file" accept="image/*" onchange="tjPhotoPreview(2,this)" aria-label="Captura de ejecución">
+                        <div class="remove-photo" onclick="tjPhotoRemove(2,event)">✕</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="tj-tip-v36">💡 <strong>Tip del cónclave:</strong> Los trades con notas escritas mejoran tu win-rate en un 22% a 6 meses.</div>
+
+                  <button class="tj-submit-btn-v36" id="tj-submit-btn" onclick="tjAddTrade()">Registrar Trade</button>
+                </div>
               </div>
             </div>
 
@@ -2809,6 +2929,42 @@
                 <div class="tj-day-date" id="tjDayTitle"></div>
                 <div class="tj-day-summary" id="tjDaySummary"></div>
                 <div id="tjDayTrades"></div>
+                <button class="tj-day-add-btn" id="tjDayAddBtn" onclick="tjDayToggleForm()">+ Registrar Trade en este día</button>
+                <div class="tj-day-add-form" id="tjDayAddForm">
+                  <div class="tj-sec-label-v36" style="margin-bottom:0;">🎯 Activo</div>
+                  <div class="day-asset-chips" id="tj-day-asset-chips">
+                    <button type="button" class="day-asset-chip selected" data-asset="XAUUSD">XAUUSD</button>
+                    <button type="button" class="day-asset-chip" data-asset="NAS100">NAS100</button>
+                    <button type="button" class="day-asset-chip" data-asset="EURUSD">EURUSD</button>
+                    <button type="button" class="day-asset-chip" data-asset="BTCUSDT">BTCUSDT</button>
+                    <button type="button" class="day-asset-chip" data-asset="GBPUSD">GBPUSD</button>
+                    <button type="button" class="day-asset-chip" data-asset="USDJPY">USDJPY</button>
+                  </div>
+                  <input type="hidden" id="tj-day-asset" value="XAUUSD">
+                  <div class="tj-sec-label-v36" style="margin-bottom:0;">⚔️ Dirección</div>
+                  <div class="day-btn-row">
+                    <button type="button" class="day-dir-btn buy selected" data-dir="BUY">📈 BUY</button>
+                    <button type="button" class="day-dir-btn sell" data-dir="SELL">📉 SELL</button>
+                  </div>
+                  <input type="hidden" id="tj-day-dir" value="BUY">
+                  <div class="inline-row">
+                    <div><label>ENTRY</label><input type="number" step="any" id="tj-day-entry" placeholder="0.00"></div>
+                    <div><label>SL</label><input type="number" step="any" id="tj-day-sl" placeholder="0.00"></div>
+                  </div>
+                  <div class="inline-row">
+                    <div><label>TP</label><input type="number" step="any" id="tj-day-tp" placeholder="0.00"></div>
+                    <div><label>PNL ($)</label><input type="number" step="any" id="tj-day-pnl" placeholder="+150.00"></div>
+                  </div>
+                  <div class="inline-row">
+                    <div><label>RESULTADO</label><select id="tj-day-result"><option value="WIN">WIN ✅</option><option value="LOSS">LOSS ❌</option><option value="BE">BE ↔️</option></select></div>
+                    <div><label>RATIO</label><input type="text" id="tj-day-ratio" placeholder="1:3"></div>
+                  </div>
+                  <div><label>NOTAS</label><textarea id="tj-day-notes" rows="2" placeholder="¿Qué aprendiste?" style="resize:vertical;"></textarea></div>
+                  <div class="day-form-actions">
+                    <button class="day-cancel-btn" onclick="tjDayCancelForm()">Cancelar</button>
+                    <button class="day-save-btn" id="tj-day-save-btn">Guardar Trade</button>
+                  </div>
+                </div>
               </div>
             </div>
 

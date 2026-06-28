@@ -838,6 +838,7 @@ let sb = window.API;
       let tjCalMonth = new Date().getMonth();
       let tjCalYear = new Date().getFullYear();
       let tjPeriodFilter = 'all';
+      let tjChartPeriod = 'daily';
       let tjPhotoData = [null, null, null];
 
       function tjTab(panelId, btn) {
@@ -1048,6 +1049,39 @@ let sb = window.API;
         }).join('');
       }
 
+      function tjSetPeriod(period, btn) {
+        tjChartPeriod = period;
+        document.querySelectorAll('#tj-chart-periods .tj-cperiod-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        tjRenderMonthly();
+      }
+
+      function _getWeekKey(dateStr) {
+        const d = new Date(dateStr);
+        const dayNum = d.getDay() || 7;
+        d.setDate(d.getDate() + 4 - dayNum);
+        const y = d.getFullYear();
+        const start = new Date(y, 0, 1);
+        const week = Math.ceil((((d - start) / 86400000) + start.getDay() + 1) / 7);
+        return y + '-W' + String(week).padStart(2, '0');
+      }
+
+      function _periodLabel(period, key) {
+        if (period === 'daily') {
+          const d = new Date(key);
+          return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+        }
+        if (period === 'weekly') return 'W' + key.slice(-2);
+        const m = parseInt(key.slice(5));
+        return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][m - 1];
+      }
+
+      function _periodTitle(period, key) {
+        if (period === 'daily') return key;
+        if (period === 'weekly') return key;
+        return key;
+      }
+
       function tjRenderMonthly() {
         const svg = document.getElementById('tj-monthly-svg');
         if (!svg) return;
@@ -1068,26 +1102,30 @@ let sb = window.API;
         }
         if (empty) empty.style.display = 'none';
 
-        // Group by month
-        const byMonth = {};
+        // Group by period
+        const byPeriod = {};
         tjTrades.forEach(t => {
-          const m = t.date.slice(0, 7);
-          if (!byMonth[m]) byMonth[m] = { pnl: 0, n: 0, w: 0 };
-          byMonth[m].pnl += t.pnl;
-          byMonth[m].n++;
-          if (t.result === 'WIN') byMonth[m].w++;
+          let key;
+          if (tjChartPeriod === 'daily') key = t.date.slice(0, 10);
+          else if (tjChartPeriod === 'weekly') key = _getWeekKey(t.date);
+          else key = t.date.slice(0, 7);
+          if (!byPeriod[key]) byPeriod[key] = { pnl: 0, n: 0, w: 0 };
+          byPeriod[key].pnl += t.pnl;
+          byPeriod[key].n++;
+          if (t.result === 'WIN') byPeriod[key].w++;
         });
 
-        const months = Object.keys(byMonth).sort();
-        if (months.length < 1) { barsG.innerHTML = ''; wrLine.setAttribute('points', ''); return; }
+        const periods = Object.keys(byPeriod).sort();
+        if (periods.length < 1) { barsG.innerHTML = ''; wrLine.setAttribute('points', ''); return; }
 
         const cL = 50, cR = 585, cT = 25, cB = 170;
         const halfSpace = 4;
         const totalSpace = cR - cL;
-        const barW = Math.min(40, (totalSpace / months.length) - halfSpace * 2);
+        const maxPeriods = Math.min(periods.length, 60);
+        const barW = Math.min(40, (totalSpace / maxPeriods) - halfSpace * 2);
         const gap = barW + halfSpace * 2;
 
-        const allPnl = months.map(m => byMonth[m].pnl);
+        const allPnl = periods.slice(0, 60).map(m => byPeriod[m].pnl);
         const maxPnl = Math.max(...allPnl, 1);
         const minPnl = Math.min(...allPnl, -1);
         const maxAbs = Math.max(Math.abs(maxPnl), Math.abs(minPnl), 1);
@@ -1104,20 +1142,18 @@ let sb = window.API;
 
         let barsHtml = '';
         const wrPts = [];
-        months.forEach((m, i) => {
-          const d = byMonth[m];
+        periods.slice(0, 60).forEach((m, i) => {
+          const d = byPeriod[m];
           const x = cL + i * gap + halfSpace;
           const barH = Math.abs(d.pnl) / maxAbs * (cB - cT) * 0.9;
           const isPos = d.pnl >= 0;
           const y = isPos ? zeroY - barH : zeroY;
           const color = isPos ? 'url(#barGradPos)' : 'url(#barGradNeg)';
           const wr = (d.w / d.n * 100).toFixed(0);
-          const shortLabel = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(m.slice(5)) - 1];
+          const label = _periodLabel(tjChartPeriod, m);
           barsHtml += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 1)}" fill="${color}" rx="3" filter="url(#barShadow)">`
-            + `<title>${shortLabel} ${m.slice(0,4)}: $${d.pnl >= 0 ? '+' : ''}${d.pnl.toFixed(2)} · ${d.w}W / ${d.n - d.w}L · ${wr}%</title></rect>`;
-          // X label
-          barsHtml += `<text x="${x + barW / 2}" y="${cB + 12}" fill="#645a78" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle">${shortLabel}</text>`;
-          // Win rate dot
+            + `<title>${_periodTitle(tjChartPeriod, m)}: $${d.pnl >= 0 ? '+' : ''}${d.pnl.toFixed(2)} · ${d.w}W / ${d.n - d.w}L · ${wr}%</title></rect>`;
+          barsHtml += `<text x="${x + barW / 2}" y="${cB + 12}" fill="#645a78" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle">${label}</text>`;
           const wrX = x + barW / 2;
           const wrY = cT + (100 - wr) / 100 * (cB - cT - 10);
           wrPts.push(wrX + ',' + wrY);
@@ -1126,9 +1162,44 @@ let sb = window.API;
 
         barsG.innerHTML = barsHtml;
         wrLine.setAttribute('points', wrPts.join(' '));
-
-        // Hover tooltips using SVG title (already in rect titles)
       }
+
+      // ── v36 form helpers ──
+      function selectTjAsset(btn) {
+        document.querySelectorAll('#tj-asset-chips .asset-chip-v36').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+        const hidden = document.getElementById('tj-f-asset');
+        if (hidden) hidden.value = btn.getAttribute('data-asset');
+        const custom = document.querySelector('#tj-asset-chips .asset-input-v36');
+        if (custom) custom.value = '';
+      }
+      window.selectTjAsset = selectTjAsset;
+
+      function onTjAssetCustom(input) {
+        const val = (input.value || '').trim().toUpperCase();
+        if (val) {
+          document.querySelectorAll('#tj-asset-chips .asset-chip-v36').forEach(c => c.classList.remove('selected'));
+          const hidden = document.getElementById('tj-f-asset');
+          if (hidden) hidden.value = val;
+        }
+      }
+      window.onTjAssetCustom = onTjAssetCustom;
+
+      function selectTjDir(btn) {
+        document.querySelectorAll('#tj-dir-row .dir-btn-v36').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+        const sel = document.getElementById('tj-f-dir');
+        if (sel) sel.value = btn.getAttribute('data-dir');
+      }
+      window.selectTjDir = selectTjDir;
+
+      function selectTjResult(btn) {
+        document.querySelectorAll('#tj-result-row .result-btn-v36').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+        const sel = document.getElementById('tj-f-result');
+        if (sel) sel.value = btn.getAttribute('data-result');
+      }
+      window.selectTjResult = selectTjResult;
 
       function tjExportCSV() {
         if (tjTrades.length === 0) return showToast('No hay trades para exportar');
@@ -1331,8 +1402,8 @@ let sb = window.API;
         const tradeDates = {};
         tjTrades.forEach(t => {
           const d = t.date.slice(0, 10);
-          if (!tradeDates[d]) tradeDates[d] = [];
-          tradeDates[d].push(t.result);
+          if (!tradeDates[d]) tradeDates[d] = 0;
+          tradeDates[d] += t.pnl;
         });
         let html = '';
         for (let i = 0; i < startDay; i++) html += '<div class="tj-cal-cell empty"></div>';
@@ -1342,10 +1413,11 @@ let sb = window.API;
           let cls = 'tj-cal-cell';
           if (isToday) cls += ' today';
           let clickAttr = '';
-          if (tradeDates[ds]) {
+          const dayPnl = tradeDates[ds];
+          if (dayPnl !== undefined) {
             cls += ' has-trades';
-            if (tradeDates[ds].includes('WIN')) cls += ' has-win';
-            else if (tradeDates[ds].includes('LOSS')) cls += ' has-loss';
+            if (dayPnl > 0) cls += ' has-win';
+            else if (dayPnl < 0) cls += ' has-loss';
             clickAttr = ` onclick="openTjDay('${ds}')"`;
           }
           html += `<div class="${cls}"${clickAttr}>${d}</div>`;
@@ -1354,6 +1426,8 @@ let sb = window.API;
       }
 
       function openTjDay(dateStr) {
+        _tjDayDate = dateStr;
+        tjDayCancelForm();
         const dayTrades = tjTrades.filter(t => t.date.slice(0, 10) === dateStr);
         if (!dayTrades.length) {
           const modal = document.getElementById('tjDayModal');
@@ -1376,13 +1450,14 @@ let sb = window.API;
         const titleEl = document.getElementById('tjDayTitle');
         if(titleEl) titleEl.textContent = parseInt(d)+' de '+months[parseInt(m)-1]+' '+y;
         const dayPnl = dayTrades.reduce((s,t)=>s+t.pnl,0);
-        const dayWins = dayTrades.filter(t=>t.result==='WIN').length;
+        const dayWins = dayTrades.filter(t=>t.pnl>0).length;
+        const dayLosses = dayTrades.filter(t=>t.pnl<0).length;
         const summaryEl = document.getElementById('tjDaySummary');
-        if(summaryEl) summaryEl.innerHTML = dayTrades.length+' trade'+(dayTrades.length>1?'s':'')+' · '+dayWins+'W · PNL: <strong style="color:'+(dayPnl>=0?'#34c759':'var(--red-impact)')+';">$'+(dayPnl>=0?'+':'')+dayPnl.toFixed(2)+'</strong>';
+        if(summaryEl) summaryEl.innerHTML = dayTrades.length+' trade'+(dayTrades.length>1?'s':'')+' · '+dayWins+'W / '+dayLosses+'L · PNL: <strong style="color:'+(dayPnl>=0?'#34c759':'var(--red-impact)')+';">$'+(dayPnl>=0?'+':'')+dayPnl.toFixed(2)+'</strong>';
         const tradesEl = document.getElementById('tjDayTrades');
         if(tradesEl) tradesEl.innerHTML = dayTrades.map(t => {
-          const rColor=t.result==='WIN'?'#34c759':t.result==='LOSS'?'var(--red-impact)':'var(--orange-impact)';
-          const rIcon=t.result==='WIN'?'✅':t.result==='LOSS'?'❌':'↔️';
+          const rColor=t.pnl>0?'#34c759':t.pnl<0?'var(--red-impact)':'';
+          const rIcon=t.pnl>0?'✅':t.pnl<0?'❌':'↔️';
           const dirColor=t.dir==='BUY'?'#34c759':'var(--red-impact)';
           let photosHtml='';
           if(t.photos && t.photos.length){
@@ -1411,6 +1486,93 @@ let sb = window.API;
       }
 
       function closeTjDay() { document.getElementById('tjDayModal')?.classList.remove('vis'); }
+
+      let _tjDayDate = null;
+
+      function tjDayToggleForm() {
+        const form = document.getElementById('tjDayAddForm');
+        const btn = document.getElementById('tjDayAddBtn');
+        if (!form) return;
+        const isVis = form.classList.toggle('visible');
+        if (btn) btn.textContent = isVis ? '✕ Cancelar' : '+ Registrar Trade en este día';
+        if (!isVis) tjDayCancelForm();
+      }
+
+      function tjDayCancelForm() {
+        const form = document.getElementById('tjDayAddForm');
+        if (form) form.classList.remove('visible');
+        const btn = document.getElementById('tjDayAddBtn');
+        if (btn) btn.textContent = '+ Registrar Trade en este día';
+        ['tj-day-entry','tj-day-sl','tj-day-tp','tj-day-pnl','tj-day-ratio','tj-day-notes'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        document.querySelectorAll('#tj-day-asset-chips .day-asset-chip').forEach(c => c.classList.remove('selected'));
+        const first = document.querySelector('#tj-day-asset-chips .day-asset-chip');
+        if (first) { first.classList.add('selected'); document.getElementById('tj-day-asset').value = first.getAttribute('data-asset'); }
+        const dirBtn = document.querySelector('#tj-day-dir');
+        document.querySelectorAll('#tjDayAddForm .day-dir-btn').forEach(c => c.classList.remove('selected'));
+        const buyBtn = document.querySelector('#tjDayAddForm .day-dir-btn.buy');
+        if (buyBtn) { buyBtn.classList.add('selected'); if (dirBtn) dirBtn.value = 'BUY'; }
+        const resSel = document.getElementById('tj-day-result');
+        if (resSel) resSel.value = 'WIN';
+      }
+
+      function tjDaySaveTrade() {
+        const dateStr = _tjDayDate;
+        if (!dateStr) return showToast('Error: no hay fecha seleccionada');
+        const asset = document.getElementById('tj-day-asset')?.value?.trim().toUpperCase() || 'XAUUSD';
+        const dir = document.getElementById('tj-day-dir')?.value || 'BUY';
+        const entry = document.getElementById('tj-day-entry')?.value?.trim() || '';
+        const sl = document.getElementById('tj-day-sl')?.value?.trim() || '';
+        const tp = document.getElementById('tj-day-tp')?.value?.trim() || '';
+        const pnl = parseFloat(document.getElementById('tj-day-pnl')?.value) || 0;
+        const result = document.getElementById('tj-day-result')?.value || 'WIN';
+        const ratio = document.getElementById('tj-day-ratio')?.value?.trim() || '';
+        const notes = document.getElementById('tj-day-notes')?.value?.trim() || '';
+
+        const trade = {
+          id: Date.now(),
+          date: new Date(dateStr + 'T12:00:00').toISOString(),
+          asset, dir, entry, sl, tp, pnl, result, ratio, notes,
+          photos: [],
+          user_code: window.TNSVT_USER ? window.TNSVT_USER.code : null
+        };
+
+        sb.createTrade(trade).then(res => {
+          trade.id = res.id;
+          tjTrades.unshift(trade);
+          localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
+          tjDayCancelForm();
+          openTjDay(dateStr);
+          showToast('Trade registrado ✅');
+        }).catch(e => {
+          showToast('Error al guardar: ' + (e.message || 'desconocido'));
+        });
+      }
+
+      // Wire up save button
+      document.addEventListener('DOMContentLoaded', () => {
+        const saveBtn = document.getElementById('tj-day-save-btn');
+        if (saveBtn) saveBtn.addEventListener('click', tjDaySaveTrade);
+      });
+
+      // Wire up day asset chips and dir buttons (delegated)
+      document.addEventListener('click', function(e) {
+        const chip = e.target.closest('#tjDayAddForm .day-asset-chip');
+        if (chip) {
+          document.querySelectorAll('#tjDayAddForm .day-asset-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          document.getElementById('tj-day-asset').value = chip.getAttribute('data-asset');
+        }
+        const dirBtn = e.target.closest('#tjDayAddForm .day-dir-btn');
+        if (dirBtn) {
+          document.querySelectorAll('#tjDayAddForm .day-dir-btn').forEach(c => c.classList.remove('selected'));
+          dirBtn.classList.add('selected');
+          document.getElementById('tj-day-dir').value = dirBtn.getAttribute('data-dir');
+        }
+      });
+
       function tjImgFull(ref) {
         const m = ref.match(/PHOTO(\d+)_(\d+)/);
         if(!m) return;
@@ -5391,13 +5553,13 @@ window.Diary = (() => {
     try {
       _key = await _deriveKey(password);
       const encrypted = await _encrypt(VERIFY_PLAINTEXT);
-      const res = await _api('POST', '/api/diary/setup', { setup_token: encrypted, setup_iv: '' });
+      const res = await _api('POST', '/api/diary/setup', { setup_token: encrypted });
       if (res.success) {
         _setPw(password);
         _setupDone = true;
         _loadList();
       } else {
-        _showError('Error al guardar configuración');
+        _showError(res.error || 'Error al guardar configuración');
       }
     } catch(e) {
       _showError('Error: ' + e.message);

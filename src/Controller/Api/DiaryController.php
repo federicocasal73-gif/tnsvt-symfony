@@ -141,12 +141,12 @@ class DiaryController extends AbstractController
         }
 
         $data = json_decode($request->getContent(), true);
-        if (!is_array($data) || empty($data['setup_token']) || empty($data['setup_iv'])) {
-            return new JsonResponse(['error' => 'setup_token and setup_iv required'], 400);
+        if (!is_array($data) || empty($data['setup_token'])) {
+            return new JsonResponse(['error' => 'setup_token required'], 400);
         }
 
         $user->setDiarySetupToken($data['setup_token']);
-        $user->setDiarySetupIv($data['setup_iv']);
+        $user->setDiarySetupIv($data['setup_iv'] ?? null);
         $this->em->flush();
 
         return new JsonResponse(['success' => true]);
