@@ -22,6 +22,11 @@ class NotificationController extends AbstractController
         'dm' => 'chat',
         'academia' => 'academia',
         'task' => 'tasks',
+        'access_request' => 'social',
+        'access_accepted' => 'social',
+        'access_rejected' => 'social',
+        'connection_removed' => 'social',
+        'permissions_changed' => 'social',
     ];
 
     public function __construct(

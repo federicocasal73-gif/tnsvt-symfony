@@ -253,7 +253,70 @@ async getNotifCount(userCode) {
   },
   async getMarketSymbols() {
     return this.get('/api/market/symbols');
-  }
+  },
+
+  // ── Social / Access Requests ──
+
+  async getPublicProfile(code) {
+    return this.get(`/api/profile/${encodeURIComponent(code)}`);
+  },
+
+  async sendAccessRequest(targetCode, userCode) {
+    return this.post('/api/access-request', { target_code: targetCode, user_code: userCode });
+  },
+
+  async getAccessRequests(userCode) {
+    return this.get(`/api/access-request?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async respondAccessRequest(id, status, userCode) {
+    return this.patch(`/api/access-request/${id}`, { status, user_code: userCode });
+  },
+
+  async cancelAccessRequest(id) {
+    return this.del(`/api/access-request/${id}`);
+  },
+
+  async getAccessStatus(targetCode, userCode) {
+    return this.get(`/api/access-status/${encodeURIComponent(targetCode)}?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  // ── Connections ──
+
+  async getConnections(userCode) {
+    return this.get(`/api/connections?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async removeConnection(id, userCode) {
+    return this.del(`/api/connections/${id}?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async blockConnection(id, userCode) {
+    return this.post(`/api/connections/${id}/block`, { user_code: userCode });
+  },
+
+  // ── Permissions ──
+
+  async getPermissions(targetCode, userCode) {
+    return this.get(`/api/permissions/${encodeURIComponent(targetCode)}?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async updatePermissions(targetCode, perms, userCode) {
+    return this.patch(`/api/permissions/${encodeURIComponent(targetCode)}`, { ...perms, user_code: userCode });
+  },
+
+  // ── Journal Settings ──
+
+  async getJournalSettings(userCode) {
+    return this.get(`/api/journal/settings?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async updateJournalSettings(visibility, userCode) {
+    return this.patch('/api/journal/settings', { visibility, user_code: userCode });
+  },
+
+  // ── Patch helper ──
+  patch(path, body) { return this.request('PATCH', path, body); },
 };
 
 window.API = API;

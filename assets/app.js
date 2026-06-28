@@ -4383,12 +4383,14 @@ let sb = window.API;
         const iconMap = {
           signal: '📊', like: '♥', comment: '💬', post: '✨',
           dm: '💬', mention: '📢', task: '✅', academia: '🎓',
+          access_request: '🔗', access_accepted: '✅', access_rejected: '❌',
+          connection_removed: '✂️', permissions_changed: '🔑',
           generic: '🔔'
         };
         const timeStr = timeAgoStr(n.ts);
         const idEscaped = String(n.id).replace(/'/g, "\\'");
         const type = n.type || 'generic';
-        const title = n.title || ({ dm: 'Mensaje directo', signal: 'Nueva señal', academia: 'Academia', task: 'Tarea', comment: 'Comentario', mention: 'Mención', like: 'Reacción', post: 'Publicación' }[type] || 'Notificación');
+        const title = n.title || ({ dm: 'Mensaje directo', signal: 'Nueva señal', academia: 'Academia', task: 'Tarea', comment: 'Comentario', mention: 'Mención', like: 'Reacción', post: 'Publicación', access_request: 'Solicitud de Acceso', access_accepted: 'Acceso Aceptado', access_rejected: 'Acceso Rechazado', connection_removed: 'Conexión Eliminada', permissions_changed: 'Permisos Actualizados' }[type] || 'Notificación');
         const sender = n.sender_name ? `<span class="notif-from">de <strong>${escapeHtml(n.sender_name)}</strong></span>` : '';
         const avatar = n.sender_avatar || iconMap[type] || '🔔';
         const preview = n.preview || n.text || '';
@@ -4462,6 +4464,17 @@ let sb = window.API;
           badge.classList.remove('show');
           bell.classList.remove('has-notifs');
         }
+        // Social badge for pending access requests
+        const socialBadge = document.getElementById('social-notif-badge');
+        if (socialBadge) {
+          const reqCount = notifList.filter(n => n.type === 'access_request' && !n.read).length;
+          if (reqCount > 0) {
+            socialBadge.textContent = reqCount > 9 ? '9+' : reqCount;
+            socialBadge.style.display = 'inline';
+          } else {
+            socialBadge.style.display = 'none';
+          }
+        }
       }
 
       function markAllRead() {
@@ -4498,6 +4511,7 @@ let sb = window.API;
           'tasks': 'tab-tasks',
           'journal': 'tab-journal',
           'calendar': 'tab-calendar',
+          'social': 'tab-social',
         };
         const tabId = tabMap[relatedUrl] || 'tab-posts';
         if (typeof switchTab === 'function') {
@@ -5621,4 +5635,255 @@ window.Diary = (() => {
     init, unlock, showSetup, openEditor, cancelEditor, saveEntry,
     openReader, editEntry, deleteEntry, backToList, bioUnlock, toggleBio, _esc
   };
+})();
+
+/* ===================================================================================
+   SOCIAL MODULE — Profile search, access requests, connections, permissions
+   =================================================================================== */
+(function() {
+  const $ = id => document.getElementById(id);
+  const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+  let _searchTimer = null;
+  let _loaded = false;
+
+  window.showSocialSection = function(section) {
+    ['socialRequestsSection','socialConnectionsSection','socialSettingsSection'].forEach(id => {
+      $(id).style.display = id.includes(section) ? 'block' : 'none';
+    });
+    if (section === 'requests') loadAccessRequests();
+    if (section === 'connections') loadConnections();
+    if (section === 'settings') loadJournalSettings();
+  };
+
+  window.debounceSocialSearch = function() {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => searchUsers(), 400);
+  };
+
+  async function searchUsers() {
+    const q = $('socialUserSearch').value.trim().toUpperCase();
+    const res = $('socialSearchResults');
+    if (!q) { res.style.display = 'none'; return; }
+
+    // Only DEMO and ADMIN01 exist — check if search matches
+    const validUsers = ['DEMO', 'ADMIN01'];
+    const matches = validUsers.filter(u => u.includes(q) && u !== window.TNSVT_USER?.code);
+
+    if (matches.length === 0) {
+      res.innerHTML = '<p class="mf-text" style="padding:12px;">🔍 No se encontraron usuarios</p>';
+      res.style.display = 'block';
+      return;
+    }
+
+    let html = '<div style="margin-top:8px;">';
+    for (const code of matches) {
+      try {
+        const profile = await API.getPublicProfile(code);
+        if (!profile.success) continue;
+        const u = profile.profile;
+        const status = await API.getAccessStatus(code, window.TNSVT_USER.code);
+        let actionBtn = '';
+        if (status.status === 'none' || status.status === 'rejected') {
+          actionBtn = `<button class="post-btn" onclick="sendAccessReq('${esc(code)}')" style="padding:6px 12px;font-size:0.7rem;">➕ Solicitar Acceso</button>`;
+        } else if (status.status === 'pending') {
+          actionBtn = `<span class="social-request-badge">⏳ Pendiente</span>`;
+        } else if (status.status === 'connected') {
+          actionBtn = `<span class="social-request-badge" style="border-color:#34c759;background:rgba(52,199,89,0.1);color:#34c759;">✅ Conectado</span>`;
+        } else if (status.status === 'owner') {
+          actionBtn = `<span class="social-request-badge" style="border-color:var(--gold);background:rgba(212,175,55,0.1);color:var(--gold);">👑 Tuyo</span>`;
+        } else if (status.status === 'received_pending') {
+          actionBtn = `<span class="social-request-badge">📨 Solicitud recibida</span>`;
+        }
+        html += `<div class="social-user-card">
+          <div>
+            <div class="name">${esc(u.name)}</div>
+            <div class="code">${esc(u.code)}</div>
+          </div>
+          <div>${actionBtn}</div>
+        </div>`;
+      } catch(e) {
+        console.warn('Social search error:', e);
+      }
+    }
+    html += '</div>';
+    res.innerHTML = html;
+    res.style.display = 'block';
+  }
+
+  window.sendAccessReq = async function(targetCode) {
+    try {
+      await API.sendAccessRequest(targetCode, window.TNSVT_USER.code);
+      showToast('📨 Solicitud enviada');
+      searchUsers(); // refresh
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  };
+
+  async function loadAccessRequests() {
+    try {
+      const data = await API.getAccessRequests(window.TNSVT_USER.code);
+      const received = $('socialRequestsReceived');
+      const sent = $('socialRequestsSent');
+
+      if (data.received.length === 0) {
+        received.innerHTML = '<p class="mf-text">No tenés solicitudes pendientes</p>';
+      } else {
+        received.innerHTML = data.received.map(r => `
+          <div class="social-user-card">
+            <div>
+              <div class="name">${esc(r.requester_name)}</div>
+              <div class="code">${esc(r.requester_code)}</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="post-btn" onclick="respondAccessReq(${r.id},'accepted')" style="padding:6px 12px;font-size:0.7rem;background:rgba(52,199,89,0.15);border-color:#34c759;color:#34c759;">✅ Aceptar</button>
+              <button class="post-btn" onclick="respondAccessReq(${r.id},'rejected')" style="padding:6px 12px;font-size:0.7rem;background:rgba(255,59,48,0.1);border-color:#ff3b30;color:#ff3b30;">❌ Rechazar</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      if (data.sent.length === 0) {
+        sent.innerHTML = '<p class="mf-text">No enviaste solicitudes pendientes</p>';
+      } else {
+        sent.innerHTML = data.sent.map(r => `
+          <div class="social-user-card">
+            <div>
+              <div class="name">${esc(r.target_name)}</div>
+              <div class="code">${esc(r.target_code)}</div>
+            </div>
+            <div>
+              <span class="social-request-badge">⏳ Pendiente</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch(e) {
+      showToast('❌ Error al cargar solicitudes: ' + e.message);
+    }
+  }
+
+  window.respondAccessReq = async function(id, status) {
+    try {
+      await API.respondAccessRequest(id, status, window.TNSVT_USER.code);
+      showToast(status === 'accepted' ? '✅ Solicitud aceptada' : '❌ Solicitud rechazada');
+      loadAccessRequests();
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  };
+
+  async function loadConnections() {
+    try {
+      const data = await API.getConnections(window.TNSVT_USER.code);
+      const list = $('socialConnectionsList');
+      if (!data.connections || data.connections.length === 0) {
+        list.innerHTML = '<p class="mf-text">Aún no tenés conexiones. Buscá usuarios para conectar.</p>';
+        return;
+      }
+      list.innerHTML = data.connections.map(c => `
+        <div class="social-user-card">
+          <div>
+            <div class="name">${esc(c.user_name)}</div>
+            <div class="code">${esc(c.user_code)}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="post-btn" onclick="viewConnectionPerms('${esc(c.user_code)}','${esc(c.user_name)}')" style="padding:6px 10px;font-size:0.65rem;">🔑 Permisos</button>
+            <button class="post-btn" onclick="removeConnection(${c.id})" style="padding:6px 10px;font-size:0.65rem;background:rgba(255,59,48,0.1);border-color:#ff3b30;color:#ff3b30;">✕</button>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  }
+
+  window.removeConnection = async function(id) {
+    if (!confirm('¿Eliminar conexión? También se eliminarán los permisos mutuos.')) return;
+    try {
+      await API.removeConnection(id, window.TNSVT_USER.code);
+      showToast('🔗 Conexión eliminada');
+      loadConnections();
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  };
+
+  window.viewConnectionPerms = function(targetCode, targetName) {
+    const modal = $('socialProfileModal');
+    const content = $('socialProfileContent');
+    modal.style.display = 'flex';
+    $('socialProfileName').textContent = '🔑 Permisos para ' + targetName;
+
+    API.getPermissions(targetCode, window.TNSVT_USER.code).then(data => {
+      const p = data.permissions || {};
+      const fields = [
+        { key: 'can_view_stats', label: 'Ver estadísticas' },
+        { key: 'can_view_trades', label: 'Ver trades (entry, SL, TP)' },
+        { key: 'can_view_notes', label: 'Ver notas de trades' },
+        { key: 'can_view_comments', label: 'Ver comentarios' },
+        { key: 'can_download_csv', label: 'Descargar CSV' },
+        { key: 'can_view_realtime', label: 'Ver en tiempo real' },
+      ];
+      content.innerHTML = `
+        <p class="mf-text" style="margin-bottom:12px;">Configurá qué puede ver <strong>${esc(targetName)}</strong> de tu journal:</p>
+        ${fields.map(f => `
+          <div class="permission-toggle">
+            <label>${esc(f.label)}</label>
+            <input type="checkbox" ${p[f.key] !== false ? 'checked' : ''} onchange="updatePerm('${esc(targetCode)}','${f.key}',this.checked)">
+          </div>
+        `).join('')}
+        <button class="post-btn" onclick="closeSocialProfile()" style="margin-top:12px;width:100%;">Cerrar</button>
+      `;
+    }).catch(e => {
+      content.innerHTML = '<p class="mf-text">Error: ' + esc(e.message) + '</p>';
+    });
+  };
+
+  window.updatePerm = async function(targetCode, key, value) {
+    try {
+      await API.updatePermissions(targetCode, { [key]: value }, window.TNSVT_USER.code);
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  };
+
+  window.closeSocialProfile = function() {
+    $('socialProfileModal').style.display = 'none';
+  };
+
+  async function loadJournalSettings() {
+    try {
+      const data = await API.getJournalSettings(window.TNSVT_USER.code);
+      $('socialVisibilitySelect').value = data.visibility || 'public';
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  }
+
+  window.updateJournalVisibility = async function() {
+    const v = $('socialVisibilitySelect').value;
+    try {
+      await API.updateJournalSettings(v, window.TNSVT_USER.code);
+      showToast('⚙️ Visibilidad actualizada');
+    } catch(e) {
+      showToast('❌ ' + e.message);
+    }
+  };
+
+  // Close modal on overlay click
+  document.addEventListener('click', function(e) {
+    const modal = $('socialProfileModal');
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  // Init on login
+  document.addEventListener('tnsvt:login', function() {
+    _loaded = true;
+  });
+
+  window.loadAccessRequests = loadAccessRequests;
+  window.loadConnections = loadConnections;
+  window.loadJournalSettings = loadJournalSettings;
 })();

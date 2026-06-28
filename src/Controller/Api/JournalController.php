@@ -2,7 +2,12 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\JournalSetting;
 use App\Entity\Trade;
+use App\Entity\User;
+use App\Repository\ConnectionRepository;
+use App\Repository\JournalPermissionRepository;
+use App\Repository\JournalSettingRepository;
 use App\Repository\TradeRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,22 +24,120 @@ class JournalController extends AbstractController
         private EntityManagerInterface $em,
         private TradeRepository $tradeRepository,
         private UserRepository $userRepository,
+        private ConnectionRepository $connectionRepo,
+        private JournalPermissionRepository $permissionRepo,
+        private JournalSettingRepository $settingRepo,
     ) {}
+
+    private function getCurrentUser(Request $request): ?User
+    {
+        $user = $this->getUser();
+        if ($user instanceof User) return $user;
+        $code = trim($request->headers->get('X-Game-Code', ''));
+        if (!$code) {
+            $data = json_decode($request->getContent(), true);
+            $code = trim($data['user_code'] ?? '');
+        }
+        if (!$code) {
+            $code = trim($request->query->get('user_code', ''));
+        }
+        if (!$code) return null;
+        return $this->userRepository->findByCode($code);
+    }
 
     #[Route('', name: 'api_journal_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $userCode = $request->query->get('user_code');
-        if (!$userCode) {
-            return $this->json(['error' => 'Usuario requerido'], Response::HTTP_BAD_REQUEST);
+        $targetCode = $request->query->get('user_code');
+        if (!$targetCode) {
+            return $this->json(['error' => 'Usuario requerido'], 400);
+        }
+        $target = $this->userRepository->findByCode($targetCode);
+        if (!$target) return $this->json(['error' => 'Usuario inválido'], 401);
+
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
+        $isOwner = $currentUser === $target;
+
+        if (!$isOwner) {
+            $setting = $this->settingRepo->findByUser($target);
+            $visibility = $setting?->getVisibility() ?? JournalSetting::VISIBILITY_PUBLIC;
+
+            if ($visibility === JournalSetting::VISIBILITY_PRIVATE) {
+                return $this->json(['error' => 'Este journal es privado'], 403);
+            }
+
+            $connected = $this->connectionRepo->areConnected($currentUser, $target);
+            if ($visibility === JournalSetting::VISIBILITY_CONNECTIONS && !$connected) {
+                return $this->json(['error' => 'Debes estar conectado para ver este journal'], 403);
+            }
+
+            if (!$connected) {
+                // Public view — stats only
+                $trades = $this->tradeRepository->findByUser($target);
+                $stats = $this->computeStats($trades);
+                return $this->json([
+                    'success' => true,
+                    'scope' => 'public',
+                    'trades' => array_map(fn(Trade $t) => [
+                        'id' => $t->getId(),
+                        'asset' => $t->getAsset(),
+                        'dir' => $t->getDirection(),
+                        'result' => $t->getResult(),
+                        'pnl' => (float) $t->getPnl(),
+                        'date' => $t->getDate()?->format('c'),
+                    ], $trades),
+                    'stats' => $stats,
+                ]);
+            }
+
+            // Connected — check granular permissions
+            $perm = $this->permissionRepo->findByGrantorAndGrantee($target, $currentUser);
+            if (!$perm) {
+                return $this->json(['error' => 'Sin permisos configurados'], 403);
+            }
+
+            $trades = $this->tradeRepository->findByUser($target);
+            $stats = $this->computeStats($trades);
+
+            $data = array_map(function (Trade $t) use ($perm) {
+                $entry = [
+                    'id' => $t->getId(),
+                    'asset' => $t->getAsset(),
+                    'dir' => $t->getDirection(),
+                    'result' => $t->getResult(),
+                    'pnl' => (float) $t->getPnl(),
+                    'date' => $t->getDate()?->format('c'),
+                ];
+                if ($perm->canViewTrades()) {
+                    $entry['entry'] = $t->getEntry();
+                    if ($perm->canViewStats()) {
+                        $entry['sl'] = $t->getSl();
+                        $entry['tp'] = $t->getTp();
+                        $entry['ratio'] = $t->getRatio();
+                    }
+                }
+                if ($perm->canViewNotes()) {
+                    $entry['notes'] = $t->getNotes();
+                }
+                if ($perm->canViewComments()) {
+                    // placeholder for future comments
+                }
+                return $entry;
+            }, $trades);
+
+            return $this->json([
+                'success' => true,
+                'scope' => 'connected',
+                'trades' => $data,
+                'stats' => $stats,
+            ]);
         }
 
-        $user = $this->userRepository->findByCode($userCode);
-        if (!$user) {
-            return $this->json(['error' => 'Usuario inválido'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $trades = $this->tradeRepository->findByUser($user);
+        // Owner — full access
+        $trades = $this->tradeRepository->findByUser($target);
+        $stats = $this->computeStats($trades);
 
         $data = array_map(function (Trade $t) {
             return [
@@ -53,26 +156,32 @@ class JournalController extends AbstractController
             ];
         }, $trades);
 
-        return $this->json($data);
+        return $this->json([
+            'success' => true,
+            'scope' => 'owner',
+            'trades' => $data,
+            'stats' => $stats,
+        ]);
     }
 
     #[Route('', name: 'api_journal_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
         $data = json_decode($request->getContent(), true);
         $userCode = $data['user_code'] ?? null;
 
         if (!$userCode) {
-            return $this->json(['error' => 'Usuario requerido'], Response::HTTP_BAD_REQUEST);
+            return $this->json(['error' => 'Usuario requerido'], 400);
         }
-
-        $user = $this->userRepository->findByCode($userCode);
-        if (!$user) {
-            return $this->json(['error' => 'Usuario inválido'], Response::HTTP_UNAUTHORIZED);
+        if ($userCode !== $currentUser->getCode()) {
+            return $this->json(['error' => 'Solo puedes crear trades propios'], 403);
         }
 
         $trade = new Trade();
-        $trade->setUser($user);
+        $trade->setUser($currentUser);
         $trade->setAsset(strtoupper($data['asset'] ?? ''));
         $trade->setDirection($data['dir'] ?? 'BUY');
         $trade->setEntry($data['entry'] ?? null);
@@ -91,15 +200,19 @@ class JournalController extends AbstractController
         $this->em->persist($trade);
         $this->em->flush();
 
-        return $this->json(['success' => true, 'id' => $trade->getId()], Response::HTTP_CREATED);
+        return $this->json(['success' => true, 'id' => $trade->getId()], 201);
     }
 
     #[Route('/{id}', name: 'api_journal_update', methods: ['PUT'])]
     public function update(int $id, Request $request): JsonResponse
     {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
         $trade = $this->tradeRepository->find($id);
-        if (!$trade) {
-            return $this->json(['error' => 'Trade no encontrado'], Response::HTTP_NOT_FOUND);
+        if (!$trade) return $this->json(['error' => 'Trade no encontrado'], 404);
+        if ($trade->getUser() !== $currentUser) {
+            return $this->json(['error' => 'Solo puedes editar trades propios'], 403);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -116,40 +229,48 @@ class JournalController extends AbstractController
         if (isset($data['photos'])) $trade->setPhotos($data['photos']);
 
         $this->em->flush();
-
         return $this->json(['success' => true]);
     }
 
     #[Route('/export', name: 'api_journal_export', methods: ['GET'])]
     public function export(Request $request): Response
     {
-        $userCode = $request->query->get('user_code');
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return new Response('Unauthorized', 401);
+
+        $targetCode = $request->query->get('user_code');
+        if (!$targetCode) return new Response('Usuario requerido', 400);
+
+        $target = $this->userRepository->findByCode($targetCode);
+        if (!$target) return new Response('Usuario inválido', 401);
+
+        $isOwner = $currentUser === $target;
+
+        if (!$isOwner) {
+            $connected = $this->connectionRepo->areConnected($currentUser, $target);
+            if (!$connected) return new Response('No tienes permiso para exportar', 403);
+
+            $perm = $this->permissionRepo->findByGrantorAndGrantee($target, $currentUser);
+            if (!$perm || !$perm->canDownloadCsv()) {
+                return new Response('No tienes permiso para descargar CSV', 403);
+            }
+        }
+
         $format = $request->query->get('format', 'csv');
-
-        if (!$userCode) {
-            return new Response('Usuario requerido', 400);
-        }
-
-        $user = $this->userRepository->findByCode($userCode);
-        if (!$user) {
-            return new Response('Usuario inválido', 401);
-        }
-
-        $trades = $this->tradeRepository->findByUser($user);
+        $trades = $this->tradeRepository->findByUser($target);
 
         if ($format === 'html') {
             $html = $this->renderView('export/journal.html.twig', [
-                'user' => $user,
+                'user' => $target,
                 'trades' => $trades,
                 'generated' => new \DateTimeImmutable(),
             ]);
             return new Response($html, 200, [
                 'Content-Type' => 'text/html; charset=utf-8',
-                'Content-Disposition' => 'inline; filename="journal-' . $user->getCode() . '.html"',
+                'Content-Disposition' => 'inline; filename="journal-' . $target->getCode() . '.html"',
             ]);
         }
 
-        // Default: CSV
         $handle = fopen('php://memory', 'r+');
         fputcsv($handle, ['Date', 'Asset', 'Direction', 'Entry', 'SL', 'TP', 'Result', 'PNL', 'Ratio', 'Notes']);
         foreach ($trades as $t) {
@@ -172,21 +293,45 @@ class JournalController extends AbstractController
 
         return new Response($csv, 200, [
             'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="journal-' . $user->getCode() . '.csv"',
+            'Content-Disposition' => 'attachment; filename="journal-' . $target->getCode() . '.csv"',
         ]);
     }
 
     #[Route('/{id}', name: 'api_journal_delete', methods: ['DELETE'])]
-    public function delete(int $id): JsonResponse
+    public function delete(int $id, Request $request): JsonResponse
     {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
         $trade = $this->tradeRepository->find($id);
-        if (!$trade) {
-            return $this->json(['error' => 'No encontrado'], Response::HTTP_NOT_FOUND);
+        if (!$trade) return $this->json(['error' => 'No encontrado'], 404);
+        if ($trade->getUser() !== $currentUser) {
+            return $this->json(['error' => 'Solo puedes eliminar trades propios'], 403);
         }
 
         $this->em->remove($trade);
         $this->em->flush();
-
         return $this->json(['success' => true]);
+    }
+
+    private function computeStats(array $trades): array
+    {
+        $total = count($trades);
+        $wins = 0;
+        $losses = 0;
+        $totalPnl = 0.0;
+        foreach ($trades as $t) {
+            $pnl = (float) $t->getPnl();
+            $totalPnl += $pnl;
+            if ($pnl >= 0) $wins++;
+            else $losses++;
+        }
+        return [
+            'total' => $total,
+            'wins' => $wins,
+            'losses' => $losses,
+            'win_rate' => $total > 0 ? round($wins / $total * 100, 1) : 0,
+            'total_pnl' => round($totalPnl, 2),
+        ];
     }
 }
