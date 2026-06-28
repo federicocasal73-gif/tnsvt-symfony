@@ -413,7 +413,7 @@ let sb = window.API;
           if (typeof Diary !== 'undefined' && Diary.init) Diary.init();
         }
         // Close drawer on tab switch (mobile)
-        if (window.innerWidth <= 768) {
+        if (window.innerWidth <= 950) {
           const s = document.querySelector('.trading-sidebar');
           const o = document.getElementById('sidebar-overlay');
           if (s) s.classList.remove('open');
