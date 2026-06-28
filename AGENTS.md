@@ -105,6 +105,22 @@
 - **Trading Journal Social System**: complete permissions/connections/access system for social trading journal sharing.
 - Permite a usuarios buscar otros usuarios, solicitar acceso al journal, aceptar/rechazar solicitudes, configurar permisos granulares (qué ver y qué no), y controlar la visibilidad del propio journal.
 
+## Session 2026-06-28 — Architecture PDF + Release Notes
+### Commits
+- `9908a0e` — docs: add arquitectura PDF + release notes generator + opencode plans
+
+### What was done
+- **Arquitectura PDF**: `docs/arquitectura.pdf` generado (23 páginas, 41 KB) con `generate_architecture_pdf.py` (fpdf)
+  - 15 secciones: resumen, arquitectura, stack, estructura, 26 entidades, 27 controladores, 7 servicios, frontend, APKs, pagos compartido, Mercure, FCM push, auth, DB/migraciones, roadmap
+  - Diagramas ASCII, snippets de código, branding TNSVT (gold #d4af37, violet #8a3cff, dark #0a0712)
+  - Énfasis en que MP y Binance Pay son backend **compartido** entre ambos APKs
+- **Release notes PDF**: `docs/TNSVT-v1.6.3-release-notes.pdf` (9 páginas, sesión anterior)
+
+### Key files
+- `docs/arquitectura.pdf` - Documentación técnica de arquitectura
+- `generate_architecture_pdf.py` - Script generador del PDF (Python + fpdf2)
+- `generate_release_pdf.py` - Script generador de release notes
+
 ### 4 new entities + migrations
 - `AccessRequest`: requester, target, status (pending/accepted/rejected)
 - `Connection`: user, connected_user (bidirectional — 2 rows per connection)
