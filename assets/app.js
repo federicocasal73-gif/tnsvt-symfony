@@ -1621,6 +1621,56 @@ let sb = window.API;
         }
       }
 
+      // ============================================================
+      // ⛧ GLOW-UP v3.6 — Signal form helpers (asset/dir/RR)
+      // ============================================================
+      function selectSigAsset(btn) {
+        document.querySelectorAll('.asset-chip-v36').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+        const hidden = document.getElementById('sig-asset');
+        if (hidden) hidden.value = btn.getAttribute('data-asset');
+        const custom = document.querySelector('.asset-input-v36');
+        if (custom) custom.value = '';
+      }
+      window.selectSigAsset = selectSigAsset;
+
+      function onSigAssetCustom(input) {
+        const val = (input.value || '').trim().toUpperCase();
+        if (val) {
+          document.querySelectorAll('.asset-chip-v36').forEach(c => c.classList.remove('selected'));
+          const hidden = document.getElementById('sig-asset');
+          if (hidden) hidden.value = val;
+        }
+      }
+      window.onSigAssetCustom = onSigAssetCustom;
+
+      function selectSigDir(btn) {
+        document.querySelectorAll('.dir-btn-v36').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+        const sel = document.getElementById('sig-dir');
+        if (sel) sel.value = btn.getAttribute('data-dir');
+        calcSigRR();
+      }
+      window.selectSigDir = selectSigDir;
+
+      function calcSigRR() {
+        const dir = document.getElementById('sig-dir')?.value || 'BUY';
+        const entry = parseFloat(document.getElementById('sig-entry')?.value);
+        const sl = parseFloat(document.getElementById('sig-sl')?.value);
+        const tp1 = parseFloat(document.getElementById('sig-tp1')?.value);
+        const tp2 = parseFloat(document.getElementById('sig-tp2')?.value);
+        const risk = isFinite(entry) && isFinite(sl) ? Math.abs(entry - sl) : null;
+        const reward1 = isFinite(entry) && isFinite(tp1) ? Math.abs(tp1 - entry) : null;
+        const reward2 = isFinite(entry) && isFinite(tp2) ? Math.abs(tp2 - entry) : null;
+        const fmtPts = v => v == null ? '\u2014' : (v < 10 ? v.toFixed(4) : v.toFixed(2)) + ' pts';
+        const fmtRR  = (rew) => (risk && rew && risk > 0) ? ('1 : ' + (rew/risk).toFixed(2)) : '\u2014';
+        const setEl = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        setEl('sig-rr-risk', risk == null ? '\u2014' : fmtPts(risk));
+        setEl('sig-rr-tp1', fmtRR(reward1));
+        setEl('sig-rr-tp2', fmtRR(reward2));
+      }
+      window.calcSigRR = calcSigRR;
+
       function toggleSignalForm() {
         const sf = document.getElementById('signalForm');
         if (!sf) return;
@@ -1643,14 +1693,28 @@ let sb = window.API;
         const sf = document.getElementById('signalForm');
         if (!sf) return;
         sf.classList.remove('vis');
-        // Limpiar inputs del form de senal
-        ['sig-asset','sig-entry','sig-sl','sig-tp1','sig-tp2'].forEach(id => {
+        // Resetear hidden sig-asset a XAUUSD y chips
+        const ha = document.getElementById('sig-asset');
+        if (ha) ha.value = 'XAUUSD';
+        document.querySelectorAll('.asset-chip-v36').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.asset-chip-v36[data-asset="XAUUSD"]').forEach(c => c.classList.add('selected'));
+        const cust = document.querySelector('.asset-input-v36');
+        if (cust) cust.value = '';
+        // Resetear inputs de precios
+        ['sig-entry','sig-sl','sig-tp1','sig-tp2'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
-        // Resetear selector de direccion a BUY
+        // Resetear direccion a BUY
         const dir = document.getElementById('sig-dir');
         if (dir) dir.value = 'BUY';
+        document.querySelectorAll('.dir-btn-v36').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.dir-btn-v36.buy').forEach(c => c.classList.add('selected'));
+        // Resetear RR display
+        ['sig-rr-risk','sig-rr-tp1','sig-rr-tp2'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '\u2014';
+        });
         // Quitar foto adjunta
         if (typeof removeSignalPhoto === 'function') removeSignalPhoto();
       }
@@ -5474,6 +5538,16 @@ window.Diary = (() => {
   const VERIFY_PLAINTEXT = 'TNSVT-DIARY-VERIFIED';
   const SALT_PREFIX = 'TNSVT-DIARY-';
 
+  const EDITOR_PROMPTS = [
+    { title:'Hoy escribo para mí', quote:'"Lo que callamos hoy, mañana vuelve más fuerte. Escribí sin filtro."' },
+    { title:'La voz que no habla', quote:'"Hay verdades que solo aparecen cuando la mano escribe sin pensar."' },
+    { title:'Confesín de medianoche', quote:'"El papel es el único testigo que no juzga ni traiciona."' },
+    { title:'Espejo de tinta', quote:'"Lo que escribís sobre vos hoy, será el mapa de quién sos mañana."' },
+    { title:'El acto de re-encontrarse', quote:'"Volvé sobre estas líneas en un año. Verás a otro vos."' },
+    { title:'Sin filtros, sin testigos', quote:'"Aquí no hay performance. Aquí sos vos, crudo."' },
+    { title:'La página espera', quote:'"Escribí lo que no podrías decirle a nadie."' },
+  ];
+
   let _key = null;
   let _currentEntryId = null;
   let _isNew = true;
@@ -5495,7 +5569,7 @@ window.Diary = (() => {
   }
 
   function _show(id) {
-    ['dp-locked','dp-list','dp-editor','dp-reader'].forEach(s => { const e=el(s); if(e) e.style.display = s===id?'flex':'none'; });
+    ['dp-locked','dp-list','dp-editor','dp-reader'].forEach(s => { const e=el(s); if(e) e.style.display = s===id ? '' : 'none'; });
   }
 
   function _showError(msg) {
@@ -5650,6 +5724,7 @@ window.Diary = (() => {
   async function _loadList() {
     _show('dp-list');
     el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#645a78;padding:20px;">Cargando...</div>';
+    _toggleEmpty();
     const bioBtn = el('dp-bio-toggle');
     if (bioBtn) {
       const avail = await window.BiometricAuth.isAvailable();
@@ -5663,9 +5738,10 @@ window.Diary = (() => {
     }
     try {
       const res = await _api('GET', '/api/diary');
-      if (!res.success) { el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#ff4444;padding:20px;">Error al cargar</div>'; return; }
+      if (!res.success) { el('dp-entries-list').innerHTML = ''; _toggleEmpty(); return; }
       if (!res.entries || res.entries.length === 0) {
-        el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#645a78;padding:30px;">📓 No hay entradas todavía. Creá la primera.</div>';
+        el('dp-entries-list').innerHTML = '';
+        _toggleEmpty();
         return;
       }
       let html = '';
@@ -5678,14 +5754,16 @@ window.Diary = (() => {
         } catch(_) {}
         const date = new Date(e.created_at);
         const dateStr = date.toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' }) + ' ' + date.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
-        html += `<div class="diary-entry-item" onclick="Diary.openReader(${e.id})" style="cursor:pointer;background:rgba(20,12,40,0.6);border:1px solid rgba(147,83,255,0.2);border-radius:10px;padding:12px 14px;transition:all 0.2s;">
-          <div style="font-size:0.85rem;color:var(--gold-bright);margin-bottom:3px;">${Diary._esc(title)}</div>
+        html += `<div onclick="Diary.openReader(${e.id})">
+          <div style="font-size:0.88rem;color:var(--gold-bright);font-family:'Cinzel',serif;font-weight:600;">${_esc(title)}</div>
           <div style="font-size:0.7rem;color:#645a78;">${dateStr}</div>
         </div>`;
       }
       el('dp-entries-list').innerHTML = html;
+      _toggleEmpty();
     } catch(e) {
-      el('dp-entries-list').innerHTML = '<div style="text-align:center;color:#ff4444;padding:20px;">Error: ' + e.message + '</div>';
+      el('dp-entries-list').innerHTML = '';
+      _toggleEmpty();
     }
   }
 
@@ -5694,7 +5772,15 @@ window.Diary = (() => {
     _isNew = true;
     el('dp-edit-title').value = '';
     el('dp-edit-body').value = '';
-    el('dp-editor').querySelector('span').textContent = '✏️ Nueva Entrada';
+    // Random prompt
+    const t = el('dp-editor-title');
+    const q = el('dp-editor-prompt');
+    if (t && q) {
+      const p = EDITOR_PROMPTS[Math.floor(Math.random() * EDITOR_PROMPTS.length)];
+      t.textContent = p.title;
+      q.textContent = p.quote;
+    }
+    updateCounter();
     _show('dp-editor');
   }
 
@@ -5749,7 +5835,11 @@ window.Diary = (() => {
     const body = el('dp-reader-body').textContent;
     el('dp-edit-title').value = title === '(sin título)' ? '' : title;
     el('dp-edit-body').value = body;
-    el('dp-editor').querySelector('span').textContent = '✏️ Editar Entrada';
+    const te = el('dp-editor-title');
+    const qe = el('dp-editor-prompt');
+    if (te) te.textContent = '✏️ Editando';
+    if (qe) qe.textContent = '"Corregir no es castigarse. Es re-escribirte mejor."';
+    updateCounter();
     _isNew = false;
     _show('dp-editor');
   }
@@ -5793,11 +5883,51 @@ window.Diary = (() => {
     btn.style.background = enabled ? 'rgba(52,199,89,0.1)' : 'rgba(147,83,255,0.08)';
   }
 
+  function updateCounter() {
+    const ta = el('dp-edit-body');
+    const counter = el('dp-edit-counter');
+    if (!ta || !counter) return;
+    const txt = (ta.value || '').trim();
+    const words = txt ? txt.split(/\s+/).length : 0;
+    counter.textContent = words + (words === 1 ? ' palabra' : ' palabras');
+  }
+
+  function usePrompt(btn) {
+    const ta = el('dp-edit-body');
+    if (!ta) return;
+    const txt = btn.textContent.trim();
+    const cur = ta.value || '';
+    ta.value = (cur ? (cur.endsWith('\n\n') ? cur : cur + '\n\n') : '') + txt + '\n\n';
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = ta.value.length;
+    updateCounter();
+  }
+
+  function _toggleEmpty() {
+    const list = el('dp-entries-list');
+    const empty = el('dp-entries-empty');
+    const pill = el('dp-count-pill');
+    if (!list || !empty) return;
+    const count = list.children.length;
+    empty.style.display = (count === 0) ? '' : 'none';
+    list.style.display = (count === 0) ? 'none' : '';
+    if (pill) pill.textContent = count;
+  }
+
   return {
     init, unlock, showSetup, openEditor, cancelEditor, saveEntry,
-    openReader, editEntry, deleteEntry, backToList, bioUnlock, toggleBio, _esc
+    openReader, editEntry, deleteEntry, backToList, bioUnlock, toggleBio,
+    _esc, updateCounter, usePrompt, _toggleEmpty
   };
 })();
+
+// ⛧ GLOW-UP v3.6 — Diary MutationObserver for empty state
+document.addEventListener('DOMContentLoaded', function(){
+  const list = document.getElementById('dp-entries-list');
+  if (!list) return;
+  const obs = new MutationObserver(() => { if (window.Diary._toggleEmpty) window.Diary._toggleEmpty(); });
+  obs.observe(list, { childList: true });
+});
 
 /* ===================================================================================
    SOCIAL MODULE — Profile search, access requests, connections, permissions

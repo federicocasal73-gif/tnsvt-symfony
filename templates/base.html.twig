@@ -425,53 +425,109 @@
                   <img id="postPhotoImg" src="" alt="preview" style="max-width:100%; max-height:200px; border-radius:6px; display:block;">
                   <button type="button" onclick="removePostPhoto()" style="position:absolute; top:14px; right:14px; background:rgba(255,59,48,0.85); border:none; color:#fff; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:0.9rem; line-height:1;">✕</button>
                 </div>
-                <div class="show-signal-form" id="signalForm">
-                  <div class="sig-form-header">
-                    <span class="sig-form-icon">📊</span>
-                    <div>
-                      <div class="sig-form-title">Datos de la Señal</div>
-                      <div class="sig-form-subtitle">Publicá una señal con tu análisis</div>
+                <div class="show-signal-form sig-card-v36" id="signalForm">
+                  <div class="sig-head-v36">
+                    <div class="sig-eyebrow-v36">
+                      <span class="sig-line-v36"></span>
+                      <span class="sig-mark-v36">📡 NUEVA SEÑAL DE EJECUCIÓN</span>
+                      <span class="sig-line-v36"></span>
                     </div>
+                    <h2 class="sig-title-v36">Registrá tu operación</h2>
+                    <p class="sig-sub-v36">"El ejecutor honesto cuenta no solo lo que hizo, sino cómo se sintió al hacerlo."</p>
                   </div>
 
-                  <div class="sig-field">
-                    <label class="sig-label">Activo y dirección</label>
-                    <div class="sig-input-row">
-                      <input class="sig-inp" id="sig-asset" placeholder="Activo (ej: NAS100)">
-                      <select class="sig-inp" id="sig-dir" aria-label="Dirección de la señal"><option value="BUY">🟢 BUY</option><option value="SELL">🔴 SELL</option><option value="BE">🟡 BE (Break Even)</option></select>
-                    </div>
-                  </div>
+                  <div class="sig-body-v36">
 
-                  <div class="sig-field">
-                    <label class="sig-label">Niveles de la operación</label>
-                    <div class="sig-input-row sig-4col">
-                      <input class="sig-inp" id="sig-entry" placeholder="Entry">
-                      <input class="sig-inp" id="sig-sl" placeholder="Stop Loss">
-                      <input class="sig-inp" id="sig-tp1" placeholder="TP1">
-                      <input class="sig-inp" id="sig-tp2" placeholder="TP2 (opc)">
+                    <div class="sig-section-v36">
+                      <div class="sig-sec-label-v36">🎯 Activo operado</div>
+                      <div class="asset-row-v36" id="sig-asset-chips">
+                        <button type="button" class="asset-chip-v36 selected" data-asset="XAUUSD" onclick="selectSigAsset(this)">XAUUSD</button>
+                        <button type="button" class="asset-chip-v36" data-asset="NAS100" onclick="selectSigAsset(this)">NAS100</button>
+                        <button type="button" class="asset-chip-v36" data-asset="EURUSD" onclick="selectSigAsset(this)">EURUSD</button>
+                        <button type="button" class="asset-chip-v36" data-asset="BTCUSDT" onclick="selectSigAsset(this)">BTCUSDT</button>
+                        <button type="button" class="asset-chip-v36" data-asset="GBPUSD" onclick="selectSigAsset(this)">GBPUSD</button>
+                        <button type="button" class="asset-chip-v36" data-asset="USDJPY" onclick="selectSigAsset(this)">USDJPY</button>
+                        <input type="text" class="asset-input-v36" placeholder="+ otro símbolo" oninput="onSigAssetCustom(this)" aria-label="Otro símbolo">
+                      </div>
+                      <input type="hidden" id="sig-asset" value="XAUUSD">
                     </div>
-                  </div>
 
-                  <div class="sig-field">
-                    <label class="sig-label">Captura del chart (opcional)</label>
-                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                      <label id="sigPhotoLabel" style="cursor:pointer;padding:10px 16px;background:rgba(138,60,255,0.12);border:1px dashed rgba(138,60,255,0.5);border-radius:8px;color:#c4a0ff;font-size:0.85rem;display:flex;align-items:center;gap:8px;transition:all 0.2s;" title="Adjuntar screenshot/chart a esta señal" onmouseover="this.style.background='rgba(138,60,255,0.22)';this.style.borderColor='rgba(138,60,255,0.7)';this.style.color='#fff'" onmouseout="this.style.background='rgba(138,60,255,0.12)';this.style.borderColor='rgba(138,60,255,0.5)';this.style.color='#c4a0ff'">
-                        <span style="font-size:1.1rem;">📷</span> Adjuntar captura
-                        <span id="sigPhotoBadge" style="display:none;background:var(--gold-bright);color:#000;font-size:0.6rem;padding:2px 7px;border-radius:8px;font-weight:700;letter-spacing:0.5px;">LISTA</span>
-                        <input type="file" accept="image/*" style="display:none;" onchange="attachSignalPhoto(this)" aria-label="Adjuntar foto a la señal">
-                      </label>
-                      <div id="sigPhotoPreview" style="display:none;position:relative;">
-                        <img id="sigPhotoImg" src="" alt="preview" style="max-height:80px;border-radius:8px;border:1px solid rgba(212,175,55,0.3);">
-                        <button type="button" onclick="removeSignalPhoto()" style="position:absolute;top:-6px;right:-6px;background:rgba(255,59,48,0.85);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:0.8rem;line-height:1;">✕</button>
+                    <div class="sig-section-v36">
+                      <div class="sig-sec-label-v36">⚔️ Dirección</div>
+                      <div class="dir-row-v36" id="sig-dir-row">
+                        <button type="button" class="dir-btn-v36 buy selected" data-dir="BUY" onclick="selectSigDir(this)">
+                          <span class="icon">📈</span>
+                          <span class="name">BUY</span>
+                          <div class="desc">Long · al alza</div>
+                        </button>
+                        <button type="button" class="dir-btn-v36 sell" data-dir="SELL" onclick="selectSigDir(this)">
+                          <span class="icon">📉</span>
+                          <span class="name">SELL</span>
+                          <div class="desc">Short · a la baja</div>
+                        </button>
+                        <button type="button" class="dir-btn-v36 be" data-dir="BE" onclick="selectSigDir(this)">
+                          <span class="icon">↔️</span>
+                          <span class="name">BE</span>
+                          <div class="desc">Break-even</div>
+                        </button>
+                      </div>
+                      <select id="sig-dir" style="display:none" aria-hidden="true">
+                        <option value="BUY" selected>BUY</option>
+                        <option value="SELL">SELL</option>
+                        <option value="BE">BE</option>
+                      </select>
+                    </div>
+
+                    <div class="sig-section-v36">
+                      <div class="sig-sec-label-v36">💎 Precios y gestión</div>
+                      <div class="prices-grid-v36">
+                        <div class="price-field-v36">
+                          <label>ENTRY <span class="tag entry">🎯</span></label>
+                          <input type="text" id="sig-entry" placeholder="0.00" oninput="calcSigRR()">
+                        </div>
+                        <div class="price-field-v36">
+                          <label>STOP LOSS <span class="tag sl">🛡</span></label>
+                          <input type="text" id="sig-sl" placeholder="0.00" oninput="calcSigRR()">
+                        </div>
+                        <div class="price-field-v36">
+                          <label>TP 1 <span class="tag tp1">🏁</span></label>
+                          <input type="text" id="sig-tp1" placeholder="0.00" oninput="calcSigRR()">
+                        </div>
+                        <div class="price-field-v36">
+                          <label>TP 2 <span class="tag tp2">🏆</span></label>
+                          <input type="text" id="sig-tp2" placeholder="0.00 (opc)" oninput="calcSigRR()">
+                        </div>
+                      </div>
+                      <div class="rr-row-v36" id="sig-rr-row">
+                        <div class="rr-cell-v36"><div class="l">RIESGO</div><div class="v red" id="sig-rr-risk">—</div></div>
+                        <div class="rr-cell-v36"><div class="l">R:R · TP1</div><div class="v gold" id="sig-rr-tp1">—</div></div>
+                        <div class="rr-cell-v36"><div class="l">R:R · TP2</div><div class="v green" id="sig-rr-tp2">—</div></div>
                       </div>
                     </div>
-                  </div>
 
-                  <div class="sig-form-hint">💡 Tip: una señal con chart tiene 3× más confianza para la comunidad</div>
+                    <div class="sig-section-v36">
+                      <div class="sig-sec-label-v36">📸 Captura del setup (opcional)</div>
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <label id="sigPhotoLabel" class="photo-drop-v36">
+                          <span class="icon">📷</span>
+                          <span class="lbl-text">Adjuntar captura</span>
+                          <span id="sigPhotoBadge" class="lbl-badge" style="display:none;">LISTA</span>
+                          <input type="file" accept="image/*" style="display:none;" onchange="attachSignalPhoto(this)" aria-label="Adjuntar foto a la señal">
+                        </label>
+                        <div id="sigPhotoPreview" style="display:none;position:relative;">
+                          <img id="sigPhotoImg" src="" alt="preview" style="max-height:80px;border-radius:8px;border:1px solid rgba(212,175,55,0.3);">
+                          <button type="button" onclick="removeSignalPhoto()" style="position:absolute;top:-6px;right:-6px;background:rgba(255,59,48,0.85);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:0.8rem;line-height:1;">✕</button>
+                        </div>
+                      </div>
+                    </div>
 
-                  <div class="sig-form-actions">
-                    <button type="button" class="sig-btn-cancel" onclick="closeSignalForm()">Cancelar</button>
-                    <button type="button" class="sig-btn-publish" onclick="createNewPost()">📊 Publicar Señal</button>
+                    <div class="sig-tip-v36">💡 <strong>Tip del cónclave:</strong> Las señales con tesis escrita rinden 38% mejor a 3 meses. Forzate a escribir aunque sea 2 líneas en el cuadro de texto principal.</div>
+
+                    <div class="sig-form-actions-v36">
+                      <button type="button" class="sig-btn-cancel-v36" onclick="closeSignalForm()">CANCELAR</button>
+                      <button type="button" class="sig-btn-publish-v36" onclick="createNewPost()"><span style="font-size:1rem;">📡</span> PUBLICAR SEÑAL</button>
+                    </div>
+
                   </div>
                 </div>
               </div>
@@ -2987,56 +3043,120 @@
   </div>
 
   <!-- 🔒 LOCKED STATE -->
-  <div id="dp-locked" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 20px;text-align:center;">
-    <div style="font-size:3rem;opacity:0.5;">🔒</div>
-    <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;color:var(--gold-bright);">Diario Bloqueado</div>
-    <div style="font-size:0.8rem;color:#645a78;max-width:360px;">Ingresá tu contraseña para desbloquear tu diario personal. Esta contraseña nunca se envía al servidor — solo vos podés descifrar tus entradas.</div>
-    <input type="password" id="dp-password-input" placeholder="Contraseña del diario" style="width:260px;padding:10px 14px;border-radius:10px;border:1px solid var(--violet);background:rgba(20,12,40,0.8);color:#e0d8f0;font-family:'Inter',sans-serif;text-align:center;outline:none;" />
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;">
-      <button id="dp-unlock-btn" onclick="Diary.unlock()" class="btn-gold" style="padding:8px 28px;">🔓 Desbloquear</button>
-      <button id="dp-setup-btn" onclick="Diary.showSetup()" class="btn-violet" style="padding:8px 28px;display:none;">🔐 Crear Contraseña</button>
-      <button id="dp-bio-btn" onclick="Diary.bioUnlock()" style="display:none;padding:8px 16px;border-radius:10px;border:1px solid rgba(147,83,255,0.4);background:rgba(147,83,255,0.1);color:#d0c8e0;cursor:pointer;font-size:0.85rem;">🖐️ Huella</button>
+  <div id="dp-locked" class="dp-locked-card">
+    <div class="dp-lock-icon">
+      <div class="dp-lock-glow"></div>
+      🔒
     </div>
-    <div id="dp-error" style="color:#ff4444;font-size:0.8rem;display:none;"></div>
+    <div class="dp-locked-title">Diario Bloqueado</div>
+    <div class="dp-locked-sub">Ingresá tu contraseña para desbloquear tu diario personal.<br>Esta contraseña nunca se envía al servidor — solo vos podés descifrar tus entradas.</div>
+    <input type="password" id="dp-password-input" class="dp-pwd-input" placeholder="Contraseña del diario" onkeypress="if(event.key==='Enter') Diary.unlock()">
+    <div class="dp-locked-actions">
+      <button id="dp-unlock-btn" onclick="Diary.unlock()" class="dp-btn dp-btn-primary">🔓 Desbloquear</button>
+      <button id="dp-setup-btn" onclick="Diary.showSetup()" class="dp-btn dp-btn-violet" style="display:none;">🔐 Crear Contraseña</button>
+      <button id="dp-bio-btn" onclick="Diary.bioUnlock()" class="dp-btn dp-btn-ghost" style="display:none;">🖐️ Huella</button>
+    </div>
+    <div id="dp-error" class="dp-error" style="display:none;"></div>
   </div>
 
   <!-- 📋 LIST STATE -->
-  <div id="dp-list" style="display:none;padding:10px 0;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-      <span style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:var(--gold-bright);">📋 Mis Entradas</span>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <button id="dp-bio-toggle" onclick="Diary.toggleBio()" style="display:none;padding:4px 12px;border-radius:8px;border:1px solid rgba(147,83,255,0.3);background:rgba(147,83,255,0.08);color:#d0c8e0;cursor:pointer;font-size:0.7rem;">🖐️ Activar Huella</button>
-        <button onclick="Diary.openEditor()" class="btn-gold" style="padding:6px 18px;font-size:0.8rem;">+ Nueva Entrada</button>
+  <div id="dp-list" class="dp-section" style="display:none;">
+    <div class="dp-list-header">
+      <div class="dp-list-title">
+        <span class="dp-list-icon">📖</span>
+        <span>Mis Notas</span>
+        <span class="dp-count-pill" id="dp-count-pill">0</span>
+      </div>
+      <div class="dp-list-actions">
+        <button id="dp-bio-toggle" onclick="Diary.toggleBio()" class="dp-btn dp-btn-ghost" style="display:none;">🖐️ Activar Huella</button>
+        <button onclick="Diary.openEditor()" class="dp-btn dp-btn-primary">✨ Nueva Nota</button>
       </div>
     </div>
-    <div id="dp-entries-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+
+    <div id="dp-entries-list" class="dp-entries-grid"></div>
+
+    <div id="dp-entries-empty" class="dp-empty-state">
+      <div class="dp-empty-icon">📜</div>
+      <div class="dp-empty-title">Aún no escribiste ninguna nota</div>
+      <div class="dp-empty-quote">"Quien no escribe su jornada, vuelve a vivirla sin aprender."</div>
+      <button onclick="Diary.openEditor()" class="dp-btn dp-btn-primary" style="margin-top:14px;">✨ Escribir la primera nota</button>
+    </div>
   </div>
 
   <!-- ✏️ EDITOR STATE -->
-  <div id="dp-editor" style="display:none;padding:10px 0;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <span style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:var(--gold-bright);">✏️ Nueva Entrada</span>
-      <button onclick="Diary.cancelEditor()" class="btn-violet" style="padding:4px 14px;font-size:0.75rem;">✕ Cancelar</button>
-    </div>
-    <input type="text" id="dp-edit-title" placeholder="Título de la entrada" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--violet);background:rgba(20,12,40,0.8);color:#e0d8f0;font-family:'Inter',sans-serif;margin-bottom:10px;outline:none;box-sizing:border-box;" />
-    <textarea id="dp-edit-body" placeholder="Escribí lo que quieras... Este texto se cifra antes de guardarse." style="width:100%;min-height:220px;padding:10px 14px;border-radius:10px;border:1px solid var(--violet);background:rgba(20,12,40,0.8);color:#e0d8f0;font-family:'Inter',sans-serif;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
-    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
-      <button onclick="Diary.saveEntry()" class="btn-gold" style="padding:8px 28px;">💾 Guardar</button>
+  <div id="dp-editor" class="dp-section" style="display:none;">
+    <div class="dp-editor-card">
+      <div class="dp-editor-header">
+        <div class="dp-editor-eyebrow">
+          <span class="dp-editor-line"></span>
+          <span class="dp-editor-mark">✍️ NUEVA NOTA</span>
+          <span class="dp-editor-line"></span>
+        </div>
+        <h2 class="dp-editor-title" id="dp-editor-title">Hoy escribo para mí</h2>
+        <p class="dp-editor-prompt" id="dp-editor-prompt">"Lo que callamos hoy, mañana vuelve más fuerte. Escribí sin filtro."</p>
+      </div>
+
+      <div class="dp-editor-body">
+        <div class="dp-field">
+          <label class="dp-label">📑 Título</label>
+          <input type="text" id="dp-edit-title" class="dp-edit-input" placeholder="Un título corto para esta nota…" maxlength="120">
+        </div>
+
+        <div class="dp-field">
+          <label class="dp-label">
+            <span>📝 Escritura libre</span>
+            <span class="dp-counter" id="dp-edit-counter">0 palabras</span>
+          </label>
+          <textarea id="dp-edit-body" class="dp-edit-textarea" placeholder="Escribí lo que quieras… Este texto se cifra antes de guardarse. Nadie más podrá leerlo." oninput="Diary.updateCounter && Diary.updateCounter()"></textarea>
+        </div>
+
+        <div class="dp-prompt-card">
+          <div class="dp-prompt-card-label">⛧ Si no sabés por dónde empezar</div>
+          <div class="dp-prompt-suggestions" id="dp-prompt-suggestions">
+            <button class="dp-prompt-chip" type="button" onclick="Diary.usePrompt && Diary.usePrompt(this)">¿Qué emoción dominó mi día?</button>
+            <button class="dp-prompt-chip" type="button" onclick="Diary.usePrompt && Diary.usePrompt(this)">¿Qué hice bien hoy?</button>
+            <button class="dp-prompt-chip" type="button" onclick="Diary.usePrompt && Diary.usePrompt(this)">¿Qué evité que debería haber enfrentado?</button>
+            <button class="dp-prompt-chip" type="button" onclick="Diary.usePrompt && Diary.usePrompt(this)">¿A qué me agradezco esta noche?</button>
+            <button class="dp-prompt-chip" type="button" onclick="Diary.usePrompt && Diary.usePrompt(this)">¿Qué patrón volvió a aparecer?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dp-editor-footer">
+        <div class="dp-encrypt-tag"><span class="dp-encrypt-dot"></span> Cifrado de extremo a extremo</div>
+        <div class="dp-editor-actions">
+          <button onclick="Diary.cancelEditor()" class="dp-btn dp-btn-ghost">✕ Cancelar</button>
+          <button onclick="Diary.saveEntry()" class="dp-btn dp-btn-primary">💾 Guardar nota</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- 👁️ READER STATE -->
-  <div id="dp-reader" style="display:none;padding:10px 0;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
-      <span id="dp-reader-date" style="font-family:'Inter',sans-serif;font-size:0.75rem;color:#645a78;"></span>
-      <div style="display:flex;gap:6px;">
-        <button onclick="Diary.editEntry()" class="btn-violet" style="padding:4px 14px;font-size:0.75rem;">✏️ Editar</button>
-        <button onclick="Diary.deleteEntry()" class="btn" style="padding:4px 14px;font-size:0.75rem;background:rgba(255,50,50,0.15);border:1px solid rgba(255,50,50,0.3);color:#ff4444;">🗑️ Borrar</button>
-        <button onclick="Diary.backToList()" class="btn-gold" style="padding:4px 14px;font-size:0.75rem;">← Volver</button>
+  <div id="dp-reader" class="dp-section" style="display:none;">
+    <div class="dp-reader-card">
+      <div class="dp-reader-toolbar">
+        <button onclick="Diary.backToList()" class="dp-btn dp-btn-ghost dp-btn-icon">← Volver</button>
+        <div class="dp-reader-meta">
+          <span id="dp-reader-date" class="dp-reader-date"></span>
+        </div>
+        <div class="dp-reader-actions">
+          <button onclick="Diary.editEntry()" class="dp-btn dp-btn-violet dp-btn-icon">✏️ Editar</button>
+          <button onclick="Diary.deleteEntry()" class="dp-btn dp-btn-danger dp-btn-icon">🗑️ Borrar</button>
+        </div>
+      </div>
+
+      <div class="dp-reader-content">
+        <h2 id="dp-reader-title" class="dp-reader-title"></h2>
+        <div class="dp-reader-divider">
+          <span class="dp-reader-divider-line"></span>
+          <span class="dp-reader-divider-mark">⛧</span>
+          <span class="dp-reader-divider-line"></span>
+        </div>
+        <div id="dp-reader-body" class="dp-reader-body"></div>
+        <div class="dp-reader-footer-quote">"Lo escrito permanece. Lo dicho se lo lleva el viento."</div>
       </div>
     </div>
-    <h2 id="dp-reader-title" style="font-family:'Orbitron',sans-serif;font-size:1rem;color:var(--gold-bright);margin-bottom:12px;"></h2>
-    <div id="dp-reader-body" style="background:rgba(20,12,40,0.6);border:1px solid rgba(147,83,255,0.2);border-radius:12px;padding:16px;min-height:120px;white-space:pre-wrap;line-height:1.6;color:#d0c8e0;"></div>
   </div>
 </div>
 
