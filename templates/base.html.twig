@@ -30,7 +30,7 @@
        if (!imap) return;
        try {
          var data = JSON.parse(imap.textContent);
-           var v = 'v=4.1';
+            var v = 'v=4.2';
          Object.keys(data.imports || {}).forEach(function(k){
            var p = data.imports[k];
            if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
@@ -215,6 +215,7 @@
       <h2>⛧ T.N.S.V.T ⛧</h2>
       <p class="sub">NEURO-SPIRITUAL VALUE THEORY</p>
       <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" aria-label="Código de acceso" autofocus oninput="toggleAdminPassField()" onkeydown="if(event.key==='Enter'){event.preventDefault();maybeFocusPass();}" style="text-transform:uppercase;">
+      <input type="text" id="gateName" placeholder="TU NOMBRE DE USUARIO" aria-label="Nombre de usuario" style="margin-top:8px; text-transform:capitalize;" onkeydown="if(event.key==='Enter'){event.preventDefault();if(document.getElementById('gatePassWrap').style.display==='block'){document.getElementById('gatePass').focus();}else{verifyGateKey();}}">
       <form id="gateForm" onsubmit="event.preventDefault();verifyGateKey();" style="margin:0;">
       <div id="gatePassWrap" style="position:relative; display:none; margin-top:8px;">
         <input type="password" id="gatePass" placeholder="CONTRASEÑA" aria-label="Contraseña de administrador" autocomplete="current-password" style="padding-right:46px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
@@ -2544,12 +2545,12 @@
       <div id="cal-country-filters" style="display:flex;gap:4px;flex-wrap:wrap;">
         <button data-country="USD" class="cal-country-btn active">USD</button>
         <button data-country="EUR" class="cal-country-btn active">EUR</button>
-        <button data-country="GBP" class="cal-country-btn">GBP</button>
-        <button data-country="JPY" class="cal-country-btn">JPY</button>
-        <button data-country="CAD" class="cal-country-btn">CAD</button>
-        <button data-country="AUD" class="cal-country-btn">AUD</button>
-        <button data-country="CHF" class="cal-country-btn">CHF</button>
-        <button data-country="CNY" class="cal-country-btn">CNY</button>
+        <button data-country="GBP" class="cal-country-btn active">GBP</button>
+        <button data-country="JPY" class="cal-country-btn active">JPY</button>
+        <button data-country="CAD" class="cal-country-btn active">CAD</button>
+        <button data-country="AUD" class="cal-country-btn active">AUD</button>
+        <button data-country="CHF" class="cal-country-btn active">CHF</button>
+        <button data-country="CNY" class="cal-country-btn active">CNY</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -2559,9 +2560,23 @@
         <button data-impact="2" class="cal-impact-btn cal-imp-med active">Medio</button>
         <button data-impact="3" class="cal-impact-btn cal-imp-high active">Alto</button>
       </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:0.6rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:1px;">
-        <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
-        TIEMPO REAL · TradingView
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <select id="cal-tz" class="cal-tz-select" title="Zona horaria">
+          <option value="America/Argentina/Buenos_Aires">🇦🇷 ART</option>
+          <option value="America/New_York">🇺🇸 NY</option>
+          <option value="Europe/London">🇬🇧 LON</option>
+          <option value="Europe/Berlin">🇩🇪 BER</option>
+          <option value="Asia/Tokyo">🇯🇵 TYO</option>
+          <option value="UTC">🌐 UTC</option>
+        </select>
+        <div id="cal-reminder-badge" style="display:none;display:flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(52,199,89,0.15);border:1px solid rgba(52,199,89,0.4);border-radius:6px;font-size:0.62rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;cursor:pointer;" title="Click para ver recordatorio" onclick="calShowActiveReminder()">
+          <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
+          <span id="cal-reminder-badge-text">RECORDATORIO ACTIVO</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:1px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
+          TIEMPO REAL · TradingView
+        </div>
       </div>
     </div>
   </div>

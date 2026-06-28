@@ -13,13 +13,13 @@ class CalendarController extends AbstractController
     private const TV_EVENTS_URL = 'https://chartevents-reuters.tradingview.com/events';
 
     private const FALLBACK_EVENTS = [
-        ['date' => null, 'time' => '08:30', 'country' => '🇺🇸 USD', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'IPC Mensual (CPI MM)', 'original_title' => 'CPI MM', 'importance' => 3, 'actual' => '—', 'forecast' => '0.2%', 'previous' => '0.1%'],
-        ['date' => null, 'time' => '08:30', 'country' => '🇺🇸 USD', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'IPC Anual (CPI YY)', 'original_title' => 'CPI YY', 'importance' => 3, 'actual' => '—', 'forecast' => '3.1%', 'previous' => '3.2%'],
-        ['date' => null, 'time' => '08:30', 'country' => '🇺🇸 USD', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Nóminas No Agrícolas (NFP)', 'original_title' => 'Non-Farm Payrolls', 'importance' => 3, 'actual' => '—', 'forecast' => '180K', 'previous' => '175K'],
-        ['date' => null, 'time' => '14:00', 'country' => '🇺🇸 USD', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Decisión Tasa de Interés (FOMC)', 'original_title' => 'Interest Rate Decision', 'importance' => 3, 'actual' => '—', 'forecast' => '5.50%', 'previous' => '5.50%'],
-        ['date' => null, 'time' => '10:00', 'country' => '🇪🇺 EUR', 'country_code' => 'EU', 'currency' => 'EUR', 'title' => 'PMI Manufacturero', 'original_title' => 'Manufacturing PMI', 'importance' => 2, 'actual' => '—', 'forecast' => '47.5', 'previous' => '47.0'],
-        ['date' => null, 'time' => '14:30', 'country' => '🇺🇸 USD', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Conferencia de Prensa FOMC', 'original_title' => 'FOMC Press Conference', 'importance' => 3, 'actual' => '—', 'forecast' => '—', 'previous' => '—'],
-        ['date' => null, 'time' => '03:00', 'country' => '🇺🇸 USD', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Cambio Empleo ADP', 'original_title' => 'ADP Non-Farm Employment Change', 'importance' => 3, 'actual' => '—', 'forecast' => '150K', 'previous' => '145K'],
+        ['time' => '08:30', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'IPC Mensual (CPI MM)', 'original_title' => 'CPI MM', 'importance' => 3, 'actual' => '—', 'forecast' => '0.2%', 'previous' => '0.1%'],
+        ['time' => '08:30', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'IPC Anual (CPI YY)', 'original_title' => 'CPI YY', 'importance' => 3, 'actual' => '—', 'forecast' => '3.1%', 'previous' => '3.2%'],
+        ['time' => '08:30', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Nóminas No Agrícolas (NFP)', 'original_title' => 'Non-Farm Payrolls', 'importance' => 3, 'actual' => '—', 'forecast' => '180K', 'previous' => '175K'],
+        ['time' => '14:00', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Decisión Tasa de Interés (FOMC)', 'original_title' => 'Interest Rate Decision', 'importance' => 3, 'actual' => '—', 'forecast' => '5.50%', 'previous' => '5.50%'],
+        ['time' => '10:00', 'country_code' => 'EU', 'currency' => 'EUR', 'title' => 'PMI Manufacturero', 'original_title' => 'Manufacturing PMI', 'importance' => 2, 'actual' => '—', 'forecast' => '47.5', 'previous' => '47.0'],
+        ['time' => '14:30', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Conferencia de Prensa FOMC', 'original_title' => 'FOMC Press Conference', 'importance' => 3, 'actual' => '—', 'forecast' => '—', 'previous' => '—'],
+        ['time' => '03:00', 'country_code' => 'US', 'currency' => 'USD', 'title' => 'Cambio Empleo ADP', 'original_title' => 'ADP Non-Farm Employment Change', 'importance' => 3, 'actual' => '—', 'forecast' => '150K', 'previous' => '145K'],
     ];
 
     private const COUNTRY_MAP = [
@@ -28,7 +28,7 @@ class CalendarController extends AbstractController
         'CH' => '🇨🇭 CHF', 'CN' => '🇨🇳 CNY', 'MX' => '🇲🇽 MXN',
         'BR' => '🇧🇷 BRL', 'IN' => '🇮🇳 INR', 'NZ' => '🇳🇿 NZD',
         'DE' => '🇩🇪 EUR', 'FR' => '🇫🇷 EUR', 'IT' => '🇮🇹 EUR',
-        'ES' => '🇪🇸 EUR',
+        'ES' => '🇪🇸 EUR', 'AR' => '🇦🇷 ARS',
     ];
 
     private const SPANISH_TITLES = [
@@ -86,6 +86,18 @@ class CalendarController extends AbstractController
         'RBA Interest Rate Decision' => 'Decisión Tasa RBA',
         'BOC Interest Rate Decision' => 'Decisión Tasa BOC',
         'RBNZ Interest Rate Decision' => 'Decisión Tasa RBNZ',
+        'PCE Price Index MM' => 'PCE Mensual',
+        'PCE Price Index YY' => 'PCE Anual',
+        'Core PCE Price Index MM' => 'PCE Subyacente Mensual',
+        'Core PCE Price Index YY' => 'PCE Subyacente Anual',
+    ];
+
+    private const HIGH_IMPACT_KEYWORDS = [
+        'NFP', 'NON-FARM', 'NONFARM', 'PAYROLL',
+        'CPI', 'IPC',
+        'PCE',
+        'PMI',
+        'FOMC', 'FED', 'INTEREST RATE',
     ];
 
     #[Route('/calendar/widget', name: 'app_calendar_widget', methods: ['GET'])]
@@ -94,6 +106,7 @@ class CalendarController extends AbstractController
         $cacheFile = sys_get_temp_dir() . '/tnsvt_calendar_cache.json';
         $cacheTtl = 900;
 
+        $tz = $this->parseTimezone($request->query->get('tz'));
         $countriesFilter = $this->parseCountriesFilter($request->query->get('countries'));
         $impactFilter = $this->parseImpactFilter($request->query->get('impact'));
 
@@ -102,20 +115,10 @@ class CalendarController extends AbstractController
             $events = $this->fetchFromTradingView();
         }
         if ($events === null || count($events) < 3) {
-            $fb = $this->getFallbackEvents();
-            $allDates = [];
-            foreach ($events ?? [] as $e) {
-                $key = ($e['date'] ?? '') . 'T' . ($e['time'] ?? '') . ':' . ($e['original_title'] ?? $e['title'] ?? '');
-                $allDates[$key] = $e;
-            }
-            foreach ($fb as $e) {
-                $key = ($e['date'] ?? '') . 'T' . ($e['time'] ?? '') . ':' . ($e['original_title'] ?? $e['title'] ?? '');
-                if (!isset($allDates[$key])) $allDates[$key] = $e;
-            }
-            $events = array_values($allDates);
-            usort($events, fn($a, $b) => strcmp($a['date'] . $a['time'], $b['date'] . $b['time']));
-            $this->saveToCache($cacheFile, $events);
+            $events = $this->mergeWithFallback($events);
         }
+
+        $this->saveToCache($cacheFile, $events);
 
         $filtered = $this->applyFilters($events, $countriesFilter, $impactFilter);
 
@@ -135,6 +138,7 @@ class CalendarController extends AbstractController
         $cacheFile = sys_get_temp_dir() . '/tnsvt_calendar_cache.json';
         $cacheTtl = 900;
 
+        $tz = $this->parseTimezone($request->query->get('tz'));
         $countriesFilter = $this->parseCountriesFilter($request->query->get('countries'));
         $impactFilter = $this->parseImpactFilter($request->query->get('impact'));
 
@@ -143,24 +147,31 @@ class CalendarController extends AbstractController
             $events = $this->fetchFromTradingView();
         }
         if ($events === null || count($events) < 3) {
-            $fb = $this->getFallbackEvents();
-            $allDates = [];
-            foreach ($events ?? [] as $e) {
-                $key = ($e['date'] ?? '') . 'T' . ($e['time'] ?? '') . ':' . ($e['original_title'] ?? $e['title'] ?? '');
-                $allDates[$key] = $e;
-            }
-            foreach ($fb as $e) {
-                $key = ($e['date'] ?? '') . 'T' . ($e['time'] ?? '') . ':' . ($e['original_title'] ?? $e['title'] ?? '');
-                if (!isset($allDates[$key])) $allDates[$key] = $e;
-            }
-            $events = array_values($allDates);
-            usort($events, fn($a, $b) => strcmp($a['date'] . $a['time'], $b['date'] . $b['time']));
-            $this->saveToCache($cacheFile, $events);
+            $events = $this->mergeWithFallback($events);
         }
+
+        $this->saveToCache($cacheFile, $events);
 
         $filtered = $this->applyFilters($events, $countriesFilter, $impactFilter);
 
-        return new JsonResponse(['events' => $filtered]);
+        foreach ($filtered as &$e) {
+            $e['is_critical'] = $this->isHighImpact($e['title'] ?? '', $e['original_title'] ?? '');
+        }
+        unset($e);
+
+        $response = new JsonResponse(['events' => $filtered, 'tz' => $tz], Response::HTTP_OK);
+        $response->setEncodingOptions($response->getEncodingOptions() | JSON_UNESCAPED_UNICODE);
+        return $response;
+    }
+
+    private function parseTimezone(?string $raw): string
+    {
+        if (empty($raw)) return 'America/Argentina/Buenos_Aires';
+        $allowed = [
+            'UTC', 'America/Argentina/Buenos_Aires', 'America/New_York',
+            'Europe/London', 'Europe/Berlin', 'Asia/Tokyo',
+        ];
+        return in_array($raw, $allowed, true) ? $raw : 'America/Argentina/Buenos_Aires';
     }
 
     private function parseCountriesFilter(?string $raw): array
@@ -195,14 +206,15 @@ class CalendarController extends AbstractController
         return array_values(array_unique($impact));
     }
 
-    private function normalizeImportance(int $raw): int
+    private function isHighImpact(string $titleEs, string $titleEn): bool
     {
-        return match(true) {
-            $raw >= 1 => 3,    // High
-            $raw === 0 => 2,   // Medium
-            $raw < 0 => 1,     // Low
-            default => 1,
-        };
+        $haystack = ' ' . strtoupper($titleEs . ' ' . $titleEn) . ' ';
+        foreach (self::HIGH_IMPACT_KEYWORDS as $kw) {
+            if (str_contains($haystack, ' ' . $kw . ' ') || str_contains($haystack, $kw)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function applyFilters(?array $events, array $countries, array $impact): array
@@ -238,9 +250,34 @@ class CalendarController extends AbstractController
         @file_put_contents($cacheFile, json_encode($events, JSON_UNESCAPED_UNICODE));
     }
 
+    private function mergeWithFallback(?array $existing): array
+    {
+        $fb = $this->getFallbackEvents();
+        if (empty($existing)) return $fb;
+
+        $seen = [];
+        foreach ($existing as $e) {
+            $key = $this->dedupKey($e);
+            $seen[$key] = $e;
+        }
+        foreach ($fb as $e) {
+            $key = $this->dedupKey($e);
+            if (!isset($seen[$key])) $seen[$key] = $e;
+        }
+        $merged = array_values($seen);
+        usort($merged, fn($a, $b) => strcmp(($a['date'] ?? '') . ($a['time'] ?? ''), ($b['date'] ?? '') . ($b['time'] ?? '')));
+        return $merged;
+    }
+
+    private function dedupKey(array $e): string
+    {
+        $titleNorm = strtoupper(preg_replace('/[^A-Z0-9]/', '', $this->translateTitle($e['original_title'] ?? $e['title'] ?? '')));
+        return ($e['date'] ?? '') . '|' . ($e['time'] ?? '') . '|' . ($e['country_code'] ?? '') . '|' . $titleNorm;
+    }
+
     private function getFallbackEvents(): array
     {
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('America/Argentina/Buenos_Aires'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $events = [];
         $offsets = [0, 0, 0, 0, 1, 7, 1];
         foreach (self::FALLBACK_EVENTS as $i => $fb) {
@@ -252,15 +289,19 @@ class CalendarController extends AbstractController
                 'country' => $countryLabel,
             ]);
         }
-        usort($events, fn($a, $b) => strcmp($a['date'] . $a['time'], $b['date'] . $b['time']));
+        usort($events, fn($a, $b) => strcmp(($a['date'] ?? '') . ($a['time'] ?? ''), ($b['date'] ?? '') . ($b['time'] ?? '')));
         return $events;
     }
 
     private function fetchFromTradingView(): ?array
     {
         try {
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+            $from = $now->format('Y-m-d');
+            $to = $now->modify('+14 days')->format('Y-m-d');
+
             $client = HttpClient::create([
-                'timeout' => 5,
+                'timeout' => 8,
                 'headers' => [
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                     'Accept' => 'application/json',
@@ -269,7 +310,8 @@ class CalendarController extends AbstractController
                 ],
             ]);
 
-            $response = $client->request('GET', self::TV_EVENTS_URL);
+            $url = self::TV_EVENTS_URL . '?from=' . $from . '&to=' . $to;
+            $response = $client->request('GET', $url);
             if ($response->getStatusCode() !== 200) return null;
 
             $data = $response->toArray();
@@ -284,7 +326,7 @@ class CalendarController extends AbstractController
 
     private function normalizeEvents(array $rows): array
     {
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('America/Argentina/Buenos_Aires'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $cutoff = $now->modify('-1 day');
         $max = $now->modify('+14 days');
 
@@ -297,29 +339,27 @@ class CalendarController extends AbstractController
 
             $dateStr = $row['date'] ?? null;
             if (!$dateStr) continue;
-            try {
-                $dt = new \DateTimeImmutable($dateStr);
-            } catch (\Throwable $e) {
-                continue;
-            }
 
-            $dtAr = $dt->setTimezone(new \DateTimeZone('America/Argentina/Buenos_Aires'));
-            if ($dtAr < $cutoff || $dtAr > $max) continue;
+            $dt = $this->parseTvDate($dateStr);
+            if ($dt === null) continue;
 
-            $country = $row['country'] ?? '';
-            $currency = $row['currency'] ?? '';
-            $importance = (int)($row['importance'] ?? 0);
+            $dt = $dt->setTimezone(new \DateTimeZone('UTC'));
+            if ($dt < $cutoff || $dt > $max) continue;
+
+            $country = strtoupper($row['country'] ?? '');
+            $currency = strtoupper($row['currency'] ?? '');
+            $tvImportance = (int)($row['importance'] ?? 0);
 
             $events[] = [
-                'date' => $dtAr->format('Y-m-d'),
-                'time' => $dtAr->format('H:i'),
-                'datetime_label' => $dtAr->format('d M H:i'),
-                'country' => self::COUNTRY_MAP[$country] ?? ($country . ' ' . $currency),
+                'date' => $dt->format('Y-m-d'),
+                'time' => $dt->format('H:i'),
+                'datetime_utc' => $dt->format('Y-m-d\TH:i:s\Z'),
+                'country' => self::COUNTRY_MAP[$country] ?? (trim($country) . ' ' . $currency),
                 'country_code' => $country,
                 'currency' => $currency,
                 'title' => $this->translateTitle($title),
                 'original_title' => $title,
-                'importance' => $this->normalizeImportance($importance),
+                'importance' => $this->normalizeImportance($tvImportance),
                 'actual' => $this->formatValue($row['actual'] ?? null, $row['unit'] ?? ''),
                 'forecast' => $this->formatValue($row['forecast'] ?? null, $row['unit'] ?? ''),
                 'previous' => $this->formatValue($row['previous'] ?? null, $row['unit'] ?? ''),
@@ -327,8 +367,43 @@ class CalendarController extends AbstractController
             ];
         }
 
-        usort($events, fn($a, $b) => strcmp($a['date'] . $a['time'], $b['date'] . $b['time']));
+        usort($events, fn($a, $b) => strcmp(($a['date'] ?? '') . ($a['time'] ?? ''), ($b['date'] ?? '') . ($b['time'] ?? '')));
         return $events;
+    }
+
+    private function parseTvDate(string $raw): ?\DateTimeImmutable
+    {
+        $raw = trim($raw);
+        $fmts = [
+            'Y-m-d\TH:i:sP',
+            'Y-m-d\TH:i:s\Z',
+            'Y-m-d\TH:i:s',
+            'm/d/Y H:i:s',
+            'm/d/Y H:i',
+            'Y-m-d H:i:s',
+        ];
+        foreach ($fmts as $fmt) {
+            try {
+                return new \DateTimeImmutable($raw, new \DateTimeZone('UTC'));
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+        $ts = strtotime($raw);
+        if ($ts !== false) {
+            return (new \DateTimeImmutable('@' . $ts))->setTimezone(new \DateTimeZone('UTC'));
+        }
+        return null;
+    }
+
+    private function normalizeImportance(int $tvRaw): int
+    {
+        return match (true) {
+            $tvRaw >= 1 => 3,
+            $tvRaw === 0 => 2,
+            $tvRaw < 0 => 1,
+            default => 1,
+        };
     }
 
     private function translateTitle(string $title): string

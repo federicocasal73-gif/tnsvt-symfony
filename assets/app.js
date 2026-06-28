@@ -32,6 +32,13 @@ let sb = window.API;
       let godActivated = sessionStorage.getItem('tnsv_god_activated') === 'true';
       const nodeSequence = ['psi', 'tec', 'fun', 'fib', 'step'];
 
+      // Calendario económico — declarar al inicio para evitar TDZ cuando setupCalFilters() corre en window.onload
+      let _calEvents = [];
+      let _calRefreshTimer = null;
+      let _calCountdownTimer = null;
+      let _calNowTimer = null;
+      let _calReminderKey = null;
+
       // Módulos de estudio (resumidos, pero igual que antes)
       const modulesData = {
         psi: {
@@ -86,13 +93,16 @@ let sb = window.API;
         const code = document.getElementById('gateKey').value.trim().toUpperCase();
         const passWrap = document.getElementById('gatePassWrap');
         const hint = document.getElementById('adminPassHint');
+        const nameField = document.getElementById('gateName');
         const isAdminCode = /^ADMIN/i.test(code) && code.length >= 4;
         if (isAdminCode) {
           passWrap.style.display = 'block';
           hint.style.display = 'block';
+          if (nameField) nameField.style.display = 'none';
         } else {
           passWrap.style.display = 'none';
           hint.style.display = 'none';
+          if (nameField) nameField.style.display = '';
         }
         hideLoginError();
       }
@@ -141,19 +151,24 @@ let sb = window.API;
 
       async function verifyGateKey() {
         const code = document.getElementById('gateKey').value.trim().toUpperCase();
+        const name = document.getElementById('gateName')?.value.trim() || '';
         const password = document.getElementById('gatePass')?.value || '';
         hideLoginError();
         if (!code) { showLoginError("⚠️ Ingresá tu código de acceso."); return; }
         if (!sb) { showLoginError("❌ API no disponible."); return; }
+        const isAdminCode = /^ADMIN/i.test(code) && code.length >= 4;
+        if (!isAdminCode && !name) { showLoginError("⚠️ Ingresá tu nombre de usuario."); return; }
         const loginBtn = document.querySelector('.login-btn');
         if (loginBtn) { loginBtn.disabled = true; loginBtn.innerText = '⏳ Verificando…'; }
         try {
-          const data = await sb.login(code, password);
+          const data = await sb.login(code, name, password);
           if (!data.success || !data.user) {
             const err = data.error || 'Código inválido';
             let friendly = '❌ ' + err;
             if (/password|contrase/i.test(err)) {
               friendly = '❌ Contraseña incorrecta. Consultá al administrador.';
+            } else if (/nombre.*incorrecto|usuario.*incorrecto/i.test(err)) {
+              friendly = '❌ Nombre de usuario incorrecto. Revisá que sea el que te dió el administrador.';
             } else if (/invalido|desactivado/i.test(err)) {
               friendly = '❌ Código inválido o desactivado. Revisá que esté bien escrito.';
             } else if (/requerida/i.test(err)) {
@@ -214,6 +229,8 @@ let sb = window.API;
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('gateKey').value = '';
+        const nameField = document.getElementById('gateName');
+        if (nameField) { nameField.value = ''; nameField.style.display = ''; }
         const passEl = document.getElementById('gatePass');
         if (passEl) { passEl.value = ''; passEl.style.display = ''; passEl.type = 'password'; }
         document.getElementById('gatePassWrap').style.display = 'none';
@@ -798,14 +815,6 @@ let sb = window.API;
       }
 
       // ==================== CALENDARIO ECONÓMICO ====================
-      const calendarEvents = [
-        { time: "04:30 AM (Londres)", currency: "GBP", event: "Flash Manufacturing PMI", impact: "HIGH", focus: "Mitigación estructural de libras esterlinas." },
-        { time: "09:30 AM (N. York)", currency: "USD", event: "Discurso del Presidente de la FED", impact: "HIGH", focus: "Proyección de tasas." },
-        { time: "11:00 AM (N. York)", currency: "EUR", event: "Convergencia de Datos de Inflación", impact: "MED", focus: "Búsqueda de lateralizaciones." },
-        { time: "08:30 PM (Asia)", currency: "AUD", event: "Tasa de Desempleo Oficial", impact: "HIGH", focus: "Caza de Liquidez Externa." }
-      ];
-
-      
       function switchCalTab(tab) {
         const live = document.getElementById('cal-live');
         const manual = document.getElementById('cal-manual');
@@ -815,20 +824,6 @@ let sb = window.API;
         if(manual) manual.style.display = tab==='manual' ? 'block' : 'none';
         if(btnLive){ btnLive.style.background=tab==='live'?'var(--gold)':'transparent'; btnLive.style.color=tab==='live'?'#000':'#645a78'; }
         if(btnManual){ btnManual.style.background=tab==='manual'?'var(--gold)':'transparent'; btnManual.style.color=tab==='manual'?'#000':'#645a78'; }
-      }
-      
-      function loadCalendarData() {
-        const tbody = document.getElementById('calendarTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = calendarEvents.map(e => `
-          <tr>
-            <td style="font-family:'Orbitron'; font-size:0.8rem;">${e.time}</td>
-            <td style="font-weight:700; color:var(--gold-bright);">${e.currency}</td>
-            <td>${e.event}</td>
-            <td><span class="impact-badge ${e.impact === 'HIGH' ? 'impact-high' : 'impact-med'}">${e.impact}</span></td>
-            <td style="color:#a499b8; font-size:0.85rem;">${e.focus}</td>
-          </tr>
-        `).join('');
       }
 
       // ==================== TRADING JOURNAL (versión completa) ====================
@@ -2349,11 +2344,24 @@ let sb = window.API;
         const tbody = document.getElementById('adminUsersTableBody');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; color:#645a78;">Cargando...</td></tr>';
+        // Los endpoints /api/admin/users y /api/admin/dashboard se implementan en el backend.
+        // Si devuelven 401 (endpoint todavia no conectado), mostramos UI placeholder.
+        let users = null;
+        let stats = null;
         try {
-          const users = await sb.get('/api/admin/users');
-          const stats = await sb.get('/api/admin/dashboard');
+          users = await sb.get('/api/admin/users');
+          stats = await sb.get('/api/admin/dashboard');
+        } catch (e) {
+          // 401/404 = endpoint no disponible todavia. Mostrar mensaje amigable.
+          tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:#a499b8;">⚠️ Panel admin: los endpoints del backend (/api/admin/users, /api/admin/dashboard) aún no están conectados. Próximamente.</td></tr>';
           const dashboardEl = document.getElementById('adminDashboard');
-          if (dashboardEl && stats) {
+          if (dashboardEl) {
+            dashboardEl.innerHTML = '<div class="mf-info-card" style="grid-column:1/-1;"><div style="font-size:0.78rem; color:#a499b8;">⚠️ Backend admin endpoints pendientes</div></div>';
+          }
+          return;
+        }
+        const dashboardEl = document.getElementById('adminDashboard');
+        if (dashboardEl && stats) {
             dashboardEl.innerHTML = `
               <div class="mf-info-card"><div style="font-size:1.3rem; margin-bottom:4px; color:var(--gold-bright);">${stats.totalUsers}</div><div style="font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif;">TOTAL</div></div>
               <div class="mf-info-card"><div style="font-size:1.3rem; margin-bottom:4px; color:#34c759;">${stats.activeUsers}</div><div style="font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif;">ACTIVOS</div></div>
@@ -2379,7 +2387,7 @@ let sb = window.API;
                  <button class="admin-btn-danger" onclick="adminDeleteUser(${u.id},'${u.code}','${safeName}')" title="Eliminar usuario">🗑️</button>`;
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid rgba(255,255,255,0.04)';
-            tr.innerHTML = `
+             tr.innerHTML = `
               <td style="padding:10px 8px; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; color:#fff;">${escapeHtml(u.code)}</td>
               <td style="padding:10px 8px; color:#a499b8;">${escapeHtml(u.name)}</td>
               <td style="padding:10px 8px; text-align:center;">${isAdmin}</td>
@@ -2388,9 +2396,6 @@ let sb = window.API;
             `;
             tbody.appendChild(tr);
           });
-        } catch(e) {
-          tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#ff3b30;">Error: ${e.message}</td></tr>`;
-        }
       }
 
       function adminShowCreateForm() {
@@ -3619,7 +3624,6 @@ let sb = window.API;
       // ==================== INICIALIZACIÓN GENERAL ====================
       async function initAllPanels() {
         loadTasks();
-        loadCalendarData();
         await loadJournalFromApi();
         renderFeed();
         renderAcademia();
@@ -3886,7 +3890,6 @@ let sb = window.API;
       window.loadTasks = loadTasks;
       window.toggleTask = toggleTask;
       window.updateInnerLocks = updateInnerLocks;
-      window.loadCalendarData = loadCalendarData;
       window.tjTab = tjTab;
       window.tjPhotoPreview = tjPhotoPreview;
       window.tjPhotoRemove = tjPhotoRemove;
@@ -5002,7 +5005,10 @@ let sb = window.API;
             });
             return true;
           } catch (e) {
-            console.error('[FCM] initFirebasePush error:', e);
+            // En Capacitor/APK no hay SW de firebase, asi que el register falla con AbortError.
+            // Silenciar ese caso especifico para no ensuciar la consola.
+            const isAbort = e && (e.name === 'AbortError' || /ServiceWorker/.test(String(e.message || '')));
+            if (!isAbort) console.error('[FCM] initFirebasePush error:', e);
             return false;
           }
         })();
@@ -5146,10 +5152,6 @@ let sb = window.API;
         CNY: ['USDCNH'],
       };
       const CAL_FLAG = { US:'\uD83C\uDDFA\uD83C\uDDF8', EU:'\uD83C\uDDEA\uD83C\uDDFA', GB:'\uD83C\uDDEC\uD83C\uDDE7', JP:'\uD83C\uDDEF\uD83C\uDDF5', CA:'\uD83C\uDDE8\uD83C\uDDE6', AU:'\uD83C\uDDE6\uD83C\uDDFA', CH:'\uD83C\uDDE8\uD83C\uDDED', CN:'\uD83C\uDDE8\uD83C\uDDF3', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9', ES:'\uD83C\uDDEA\uD83C\uDDF8' };
-      let _calEvents = [];
-      let _calCountdownTimer = null;
-      let _calRefreshTimer = null;
-      let _calNowTimer = null;
       function _calLoadFilters() {
         try {
           const raw = localStorage.getItem(CAL_LS_FILTERS);
@@ -5159,8 +5161,12 @@ let sb = window.API;
         } catch (e) {}
         return null;
       }
-      function _calSaveFilters(countries, impact) {
-        try { localStorage.setItem(CAL_LS_FILTERS, JSON.stringify({ countries, impact })); } catch (e) {}
+      function _calSaveFilters(countries, impact, tz) {
+        try {
+          const payload = { countries, impact };
+          if (tz) payload.tz = tz;
+          localStorage.setItem(CAL_LS_FILTERS, JSON.stringify(payload));
+        } catch (e) {}
       }
       function _calGetSelected() {
         const countries = [...document.querySelectorAll('.cal-country-btn.active')].map(b => b.getAttribute('data-country'));
@@ -5186,8 +5192,9 @@ let sb = window.API;
       }
       async function _calFetch() {
         const { countries, impact } = _calGetSelected();
-        _calSaveFilters(countries, impact);
-        const url = '/api/calendar/events?countries=' + (countries.join(',') || 'USD') + '&impact=' + (impact.join(',') || '1,2,3');
+        const tz = _calGetTz();
+        _calSaveFilters(countries, impact, tz);
+        const url = '/api/calendar/events?countries=' + (countries.join(',') || 'USD,EUR,GBP,JPY') + '&impact=' + (impact.join(',') || '1,2,3') + '&tz=' + encodeURIComponent(tz);
         const tl = document.getElementById('cal-timeline');
         try {
           const res = await fetch(url, { cache: 'no-store' });
@@ -5195,6 +5202,7 @@ let sb = window.API;
           const data = await res.json();
           _calEvents = Array.isArray(data.events) && data.events.length > 0 ? data.events : _calFallbackEvents();
           _calRender();
+          _calAutoScheduleCritical();
         } catch (e) {
           _calEvents = _calFallbackEvents();
           _calRender();
@@ -5205,6 +5213,18 @@ let sb = window.API;
         const now = new Date();
         const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
         return new Date(utcMs - 3 * 3600 * 1000);
+      }
+      function _calGetTz() {
+        const sel = document.getElementById('cal-tz');
+        if (sel && sel.value) {
+          try { localStorage.setItem('tnsvt:cal:tz', sel.value); } catch (e) {}
+          return sel.value;
+        }
+        try {
+          const saved = localStorage.getItem('tnsvt:cal:tz');
+          if (saved) return saved;
+        } catch (e) {}
+        return 'America/Argentina/Buenos_Aires';
       }
       function _calEventDate(e) {
         const [y, m, d] = e.date.split('-').map(Number);
@@ -5251,11 +5271,67 @@ let sb = window.API;
       }
       function _calFindNextCritical(nowAr) {
         for (const e of _calEvents) {
-          if (e.importance !== 3) continue;
+          if (!e.is_critical && e.importance !== 3) continue;
           if (_calEventDate(e) > nowAr) return e;
         }
         return null;
       }
+      function _calAutoScheduleCritical() {
+        const nowAr = _calNowAr();
+        const ev = _calFindNextCritical(nowAr);
+        if (!ev) { _calUpdateReminderBadge(null); return; }
+        const evDate = _calEventDate(ev);
+        if (evDate - nowAr > 24 * 3600 * 1000) { _calUpdateReminderBadge(null); return; }
+        const key = (ev.date || '') + '|' + (ev.time || '') + '|' + (ev.country_code || '') + '|' + (ev.title || '');
+        if (key === _calReminderKey) { _calUpdateReminderBadge(ev); return; }
+        _calReminderKey = key;
+        if (!window.TNSVT_USER || !window.TNSVT_USER.code) { _calUpdateReminderBadge(ev); return; }
+        fetch('/api/economic-reminders/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_code: window.TNSVT_USER.code,
+            event_date: ev.date,
+            event_time: ev.time,
+            timezone: _calGetTz(),
+            event_title: ev.title,
+            event_title_original: ev.original_title || ev.title,
+            event_country_code: ev.country_code,
+            event_currency: ev.currency,
+            event_importance: ev.importance || 3,
+          }),
+        }).then(r => r.json()).then(data => {
+          if (data && data.success) _calUpdateReminderBadge(ev);
+          else console.warn('[cal] reminder schedule response:', data);
+        }).catch(err => console.warn('[cal] reminder schedule error:', err));
+      }
+      function _calUpdateReminderBadge(ev) {
+        const badge = document.getElementById('cal-reminder-badge');
+        const text = document.getElementById('cal-reminder-badge-text');
+        if (!badge || !text) return;
+        if (!ev) { badge.style.display = 'none'; return; }
+        const nowAr = _calNowAr();
+        const diffMs = _calEventDate(ev) - nowAr;
+        const mins = Math.round(diffMs / 60000);
+        let label = '';
+        if (mins <= 0) label = '⏰ EN CURSO / PASÓ';
+        else if (mins < 60) label = '🔔 EN ' + mins + 'm';
+        else if (mins < 24 * 60) label = '🔔 EN ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
+        else label = '🔔 ' + ev.date;
+        text.textContent = label;
+        badge.style.display = 'flex';
+      }
+      function calShowActiveReminder() {
+        const nowAr = _calNowAr();
+        const ev = _calFindNextCritical(nowAr);
+        if (!ev) { showToast('Sin eventos críticos próximos.'); return; }
+        const evDate = _calEventDate(ev);
+        const diffMs = evDate - nowAr;
+        const mins = Math.round(diffMs / 60000);
+        const when = mins <= 0 ? 'en curso o reciente' : 'en ' + (mins < 60 ? mins + ' min' : Math.floor(mins/60) + 'h ' + (mins%60) + 'm');
+        showToast('🔔 ' + ev.title + ' (' + ev.date + ' ' + ev.time + ' ART) — ' + when);
+      }
+      window.calShowActiveReminder = calShowActiveReminder;
       function _calRender() {
         const tl = document.getElementById('cal-timeline');
         if (!tl) return;
@@ -5377,9 +5453,19 @@ let sb = window.API;
         const tl = document.getElementById('cal-timeline');
         if (!tl) return;
         const saved = _calLoadFilters();
-        if (saved) {
+        if (saved && saved.countries && saved.countries.length) {
           document.querySelectorAll('.cal-country-btn').forEach(b => b.classList.toggle('active', saved.countries.includes(b.getAttribute('data-country'))));
           document.querySelectorAll('.cal-impact-btn').forEach(b => b.classList.toggle('active', saved.impact.includes(b.getAttribute('data-impact'))));
+        }
+        const tzSel = document.getElementById('cal-tz');
+        if (tzSel) {
+          try {
+            const savedTz = localStorage.getItem('tnsvt:cal:tz');
+            if (savedTz) {
+              [...tzSel.options].forEach(o => { o.selected = o.value === savedTz; });
+            }
+          } catch (e) {}
+          tzSel.addEventListener('change', () => _calFetch());
         }
         document.querySelectorAll('.cal-country-btn, .cal-impact-btn').forEach(btn => {
           btn.addEventListener('click', () => { btn.classList.toggle('active'); _calFetch(); });
@@ -5390,7 +5476,7 @@ let sb = window.API;
         if (_calNowTimer) clearInterval(_calNowTimer);
         _calRefreshTimer = setInterval(_calFetch, 60000);
         _calCountdownTimer = setInterval(_calTickCountdown, 1000);
-        _calNowTimer = setInterval(() => { _calRender(); }, 5 * 60000);
+        _calNowTimer = setInterval(() => { _calRender(); _calUpdateReminderBadge(_calFindNextCritical(_calNowAr())); }, 5 * 60000);
       }
 
       window.setupCalFilters = setupCalFilters;

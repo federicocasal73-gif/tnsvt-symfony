@@ -26,6 +26,7 @@ class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         $code = strtoupper(trim($data['code'] ?? ''));
+        $name = trim($data['name'] ?? '');
         $password = $data['password'] ?? null;
 
         if (empty($code)) {
@@ -45,6 +46,8 @@ class AuthController extends AbstractController
             if (!$passwordHasher->isPasswordValid($user, $password)) {
                 return $this->json(['success' => false, 'error' => 'Contraseña incorrecta'], Response::HTTP_UNAUTHORIZED);
             }
+        } elseif (strcasecmp(trim($user->getName()), $name) !== 0) {
+            return $this->json(['success' => false, 'error' => 'Nombre de usuario incorrecto'], Response::HTTP_UNAUTHORIZED);
         }
 
         $user->setLastLogin(new \DateTimeImmutable());

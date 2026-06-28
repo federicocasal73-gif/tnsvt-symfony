@@ -59,8 +59,8 @@ const API = {
   del(path) { return this.request('DELETE', path); },
 
   // Auth
-  async login(code, password = '') {
-    const body = { code };
+  async login(code, name = '', password = '') {
+    const body = { code, name };
     if (password) body.password = password;
     return this.post('/api/auth/login', body);
   },

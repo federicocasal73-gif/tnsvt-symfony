@@ -1,7 +1,7 @@
 // TNSVT Service Worker - PWA + Offline fallback
-// v37: fixed precache URLs (api.js and styles are served in debug mode, not in public/)
-const CACHE_NAME = 'tnsvt-v37';
-const RUNTIME_CACHE = 'tnsvt-runtime-v37';
+// v38: bump for calendar refactor + TDZ fix
+const CACHE_NAME = 'tnsvt-v38';
+const RUNTIME_CACHE = 'tnsvt-runtime-v38';
 
 // No precacheamos nada que pueda 404. En debug mode Symfony sirve
 // assets/ directamente, en prod los compila con hash. El runtime cache

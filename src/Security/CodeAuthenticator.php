@@ -31,6 +31,7 @@ class CodeAuthenticator extends AbstractAuthenticator implements AuthenticationE
     {
         $data = json_decode($request->getContent(), true);
         $code = strtoupper(trim($data['code'] ?? ''));
+        $name = trim($data['name'] ?? '');
         $password = $data['password'] ?? null;
 
         if (empty($code)) {
@@ -52,6 +53,10 @@ class CodeAuthenticator extends AbstractAuthenticator implements AuthenticationE
                 new UserBadge($code),
                 new PasswordCredentials($password)
             );
+        }
+
+        if (strcasecmp(trim($user->getName()), $name) !== 0) {
+            throw new BadCredentialsException('Nombre de usuario incorrecto');
         }
 
         return new SelfValidatingPassport(new UserBadge($code));
