@@ -387,6 +387,7 @@ let sb = window.API;
           if (sidebar) toggleSidebar();
         }
       });
+      window.toggleSidebar = toggleSidebar;
 
       function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -3693,6 +3694,19 @@ let sb = window.API;
         const panel = document.getElementById('chat-floating-panel');
         return panel && panel.style.display === 'flex';
       }
+      window.chatToggle = chatToggle;
+      window.chatIsOpen = chatIsOpen;
+
+      function filterChatList() {
+        const input = document.getElementById('cfpChatSearch');
+        const q = (input ? input.value : '').toLowerCase().trim();
+        const items = document.querySelectorAll('.chat-conv-item');
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          item.style.display = (!q || text.includes(q)) ? '' : 'none';
+        });
+      }
+      window.filterChatList = filterChatList;
       function chatShowBubble() {
         const bubble = document.getElementById('chat-floating-bubble');
         if (bubble) bubble.style.display = 'flex';
