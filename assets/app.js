@@ -5227,6 +5227,9 @@ let sb = window.API;
         return 'America/Argentina/Buenos_Aires';
       }
       function _calEventDate(e) {
+        if (e.datetime_utc) {
+          return new Date(e.datetime_utc);
+        }
         const [y, m, d] = e.date.split('-').map(Number);
         const [hh, mm] = e.time.split(':').map(Number);
         return new Date(Date.UTC(y, m - 1, d, hh + 3, mm));

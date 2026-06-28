@@ -30,7 +30,7 @@
        if (!imap) return;
        try {
          var data = JSON.parse(imap.textContent);
-            var v = 'v=4.2';
+            var v = 'v=4.3';
          Object.keys(data.imports || {}).forEach(function(k){
            var p = data.imports[k];
            if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
@@ -2562,11 +2562,14 @@
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
         <select id="cal-tz" class="cal-tz-select" title="Zona horaria">
-          <option value="America/Argentina/Buenos_Aires">🇦🇷 ART</option>
-          <option value="America/New_York">🇺🇸 NY</option>
-          <option value="Europe/London">🇬🇧 LON</option>
-          <option value="Europe/Berlin">🇩🇪 BER</option>
-          <option value="Asia/Tokyo">🇯🇵 TYO</option>
+          <option value="America/Argentina/Buenos_Aires">🇦🇷 ART (UTC−3)</option>
+          <option value="America/New_York">🇺🇸 NY (UTC−5/−4)</option>
+          <option value="America/Sao_Paulo">🇧🇷 BRS (UTC−3)</option>
+          <option value="Atlantic/Azores">🌍 AZO (UTC−1)</option>
+          <option value="Europe/London">🇬🇧 LON (UTC±0/+1)</option>
+          <option value="Europe/Berlin">🇩🇪 BER (UTC+1/+2)</option>
+          <option value="Europe/Madrid">🇪🇸 MAD (UTC+1/+2)</option>
+          <option value="Asia/Tokyo">🇯🇵 TYO (UTC+9)</option>
           <option value="UTC">🌐 UTC</option>
         </select>
         <div id="cal-reminder-badge" style="display:none;display:flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(52,199,89,0.15);border:1px solid rgba(52,199,89,0.4);border-radius:6px;font-size:0.62rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;cursor:pointer;" title="Click para ver recordatorio" onclick="calShowActiveReminder()">

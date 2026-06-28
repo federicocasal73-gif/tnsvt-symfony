@@ -121,6 +121,7 @@ class CalendarController extends AbstractController
         $this->saveToCache($cacheFile, $events);
 
         $filtered = $this->applyFilters($events, $countriesFilter, $impactFilter);
+        $filtered = $this->applyTimezone($filtered, $tz);
 
         return $this->render('calendar/widget.html.twig', [
             'events' => $filtered,
@@ -153,6 +154,7 @@ class CalendarController extends AbstractController
         $this->saveToCache($cacheFile, $events);
 
         $filtered = $this->applyFilters($events, $countriesFilter, $impactFilter);
+        $filtered = $this->applyTimezone($filtered, $tz);
 
         foreach ($filtered as &$e) {
             $e['is_critical'] = $this->isHighImpact($e['title'] ?? '', $e['original_title'] ?? '');
@@ -170,7 +172,22 @@ class CalendarController extends AbstractController
         $allowed = [
             'UTC', 'America/Argentina/Buenos_Aires', 'America/New_York',
             'Europe/London', 'Europe/Berlin', 'Asia/Tokyo',
+            'America/Sao_Paulo', 'Atlantic/Azores', 'Europe/Madrid',
         ];
+        // Aceptar aliases de offset: 'UTC-3', 'UTC+1', etc.
+        if (preg_match('/^UTC([+-]\d{1,2})$/i', $raw, $m)) {
+            $offsetHours = (int)$m[1];
+            $offsetMap = [
+                '-3' => 'America/Argentina/Buenos_Aires',
+                '+9' => 'Asia/Tokyo',
+                '+1' => 'Europe/Berlin',
+                '+2' => 'Europe/Berlin',
+                '+0' => 'UTC',
+                '0' => 'UTC',
+            ];
+            $key = (string)$offsetHours;
+            if (isset($offsetMap[$key])) return $offsetMap[$key];
+        }
         return in_array($raw, $allowed, true) ? $raw : 'America/Argentina/Buenos_Aires';
     }
 
@@ -265,14 +282,14 @@ class CalendarController extends AbstractController
             if (!isset($seen[$key])) $seen[$key] = $e;
         }
         $merged = array_values($seen);
-        usort($merged, fn($a, $b) => strcmp(($a['date'] ?? '') . ($a['time'] ?? ''), ($b['date'] ?? '') . ($b['time'] ?? '')));
+        usort($merged, fn($a, $b) => strcmp($a['datetime_utc'] ?? '', $b['datetime_utc'] ?? ''));
         return $merged;
     }
 
     private function dedupKey(array $e): string
     {
         $titleNorm = strtoupper(preg_replace('/[^A-Z0-9]/', '', $this->translateTitle($e['original_title'] ?? $e['title'] ?? '')));
-        return ($e['date'] ?? '') . '|' . ($e['time'] ?? '') . '|' . ($e['country_code'] ?? '') . '|' . $titleNorm;
+        return ($e['datetime_utc'] ?? '') . '|' . ($e['country_code'] ?? '') . '|' . $titleNorm;
     }
 
     private function getFallbackEvents(): array
@@ -282,15 +299,58 @@ class CalendarController extends AbstractController
         $offsets = [0, 0, 0, 0, 1, 7, 1];
         foreach (self::FALLBACK_EVENTS as $i => $fb) {
             $d = $now->modify('+' . ($offsets[$i] ?? 0) . ' days');
+            $time = $fb['time'] ?? '00:00';
             $code = $fb['country_code'] ?? '';
             $countryLabel = self::COUNTRY_MAP[$code] ?? ($code . ' ' . ($fb['currency'] ?? ''));
             $events[] = array_merge($fb, [
-                'date' => $d->format('Y-m-d'),
+                'datetime_utc' => $d->format('Y-m-d') . 'T' . $time . ':00Z',
                 'country' => $countryLabel,
             ]);
         }
-        usort($events, fn($a, $b) => strcmp(($a['date'] ?? '') . ($a['time'] ?? ''), ($b['date'] ?? '') . ($b['time'] ?? '')));
+        usort($events, fn($a, $b) => strcmp($a['datetime_utc'] ?? '', $b['datetime_utc'] ?? ''));
         return $events;
+    }
+
+    private function applyTimezone(array $events, string $tzName): array
+    {
+        try {
+            $tz = new \DateTimeZone($tzName);
+        } catch (\Throwable $e) {
+            $tz = new \DateTimeZone('America/Argentina/Buenos_Aires');
+        }
+        foreach ($events as &$e) {
+            $utc = $e['datetime_utc'] ?? null;
+            if (!$utc) continue;
+            try {
+                $dt = new \DateTimeImmutable($utc, new \DateTimeZone('UTC'));
+                $local = $dt->setTimezone($tz);
+                $e['date'] = $local->format('Y-m-d');
+                $e['time'] = $local->format('H:i');
+                $e['tz_offset_minutes'] = (int)$local->format('Z');
+                $e['tz_label'] = $this->getTzLabel($tzName);
+            } catch (\Throwable $ex) {
+                // fallback: UTC time
+                $e['date'] = substr($utc, 0, 10);
+                $e['time'] = substr($utc, 11, 5);
+                $e['tz_offset_minutes'] = 0;
+                $e['tz_label'] = 'UTC';
+            }
+        }
+        unset($e);
+        return $events;
+    }
+
+    private function getTzLabel(string $tzName): string
+    {
+        $map = [
+            'America/Argentina/Buenos_Aires' => '🇦🇷 ART (UTC−3)',
+            'America/New_York' => '🇺🇸 NY (UTC−5/4)',
+            'Europe/London' => '🇬🇧 LON (UTC±0/1)',
+            'Europe/Berlin' => '🇩🇪 BER (UTC+1/2)',
+            'Asia/Tokyo' => '🇯🇵 TYO (UTC+9)',
+            'UTC' => '🌐 UTC',
+        ];
+        return $map[$tzName] ?? str_replace('_', ' ', $tzName);
     }
 
     private function fetchFromTradingView(): ?array
@@ -351,8 +411,6 @@ class CalendarController extends AbstractController
             $tvImportance = (int)($row['importance'] ?? 0);
 
             $events[] = [
-                'date' => $dt->format('Y-m-d'),
-                'time' => $dt->format('H:i'),
                 'datetime_utc' => $dt->format('Y-m-d\TH:i:s\Z'),
                 'country' => self::COUNTRY_MAP[$country] ?? (trim($country) . ' ' . $currency),
                 'country_code' => $country,
@@ -367,7 +425,7 @@ class CalendarController extends AbstractController
             ];
         }
 
-        usort($events, fn($a, $b) => strcmp(($a['date'] ?? '') . ($a['time'] ?? ''), ($b['date'] ?? '') . ($b['time'] ?? '')));
+        usort($events, fn($a, $b) => strcmp($a['datetime_utc'] ?? '', $b['datetime_utc'] ?? ''));
         return $events;
     }
 
