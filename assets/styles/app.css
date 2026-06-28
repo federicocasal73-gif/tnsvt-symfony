@@ -1241,7 +1241,7 @@
       border: 1px solid rgba(212,175,55,0.25) !important;
       border-radius: 16px !important;
       box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(138,60,255,0.08) !important;
-      overflow: hidden;
+      overflow: visible;
       padding: 0 !important;
     }
     .tj-head-v36 { padding:22px 28px 18px; border-bottom:1px solid rgba(212,175,55,0.12); text-align:center; background:linear-gradient(180deg, rgba(20,8,42,0.4), transparent); }
@@ -1344,6 +1344,20 @@
     @media(max-width:600px){
       .ms-mystic-title{font-size:1.4rem;}
       .ms-mystic-mark{font-size:0.55rem;letter-spacing:3px;}
+      /* Journal v36 form mobile overrides */
+      .dir-row-v36,.result-row-v36{grid-template-columns:1fr 1fr;}
+      .rr-edit-grid-v36{grid-template-columns:1fr 1fr;}
+      .tj-photos-row-v36{grid-template-columns:1fr 1fr !important;}
+      .tj-body-v36{padding:16px 18px;gap:16px;}
+      .tj-head-v36{padding:16px 20px 14px;}
+      .tj-tab{font-size:0.68rem;padding:14px 8px;}
+    }
+    @media(max-width:400px){
+      .tj-stats{grid-template-columns:1fr;}
+      .dir-row-v36,.result-row-v36,.rr-edit-grid-v36{grid-template-columns:1fr;}
+      .tj-photos-row-v36{grid-template-columns:1fr !important;}
+      .tj-body-v36{padding:12px 12px;gap:12px;}
+      .tj-tab{font-size:0.6rem;padding:12px 6px;}
     }
 
     /* === MANUSCRITO === */
@@ -2011,8 +2025,7 @@
 
   /* ===== TOUCH TARGETS 44px (Mobile) ===== */
   .back-btn { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; }
-  .zoom-widget button { min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
-  .zoom-widget { gap:4px; }
+
   .chat-conv-item { min-height:44px; }
   .mf-tab-btn { min-height:44px; }
   .mc-navbtn { min-height:44px; }
@@ -2096,17 +2109,10 @@
     @media (orientation: landscape) {
       .trading-sidebar { padding: calc(64px + env(safe-area-inset-top, 0px)) 12px 16px calc(12px + env(safe-area-inset-left, 0px)) !important; }
       #chat-floating-panel { max-height: calc(100vh - 140px) !important; }
-      #zoomWidget { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
     }
     /* Safe areas for bottom-positioned widgets */
     #chat-floating-widget {
       bottom: calc(80px + env(safe-area-inset-bottom, 0px));
       right: calc(20px + env(safe-area-inset-right, 0px));
-    }
-    #zoomWidget {
-      position: fixed;
-      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-      left: calc(16px + env(safe-area-inset-left, 0px));
-      z-index: 9998;
     }
   }

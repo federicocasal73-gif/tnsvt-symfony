@@ -2896,28 +2896,8 @@ let sb = window.API;
       }
       window.toggleAvatarMenu = toggleAvatarMenu;
 
-      // ==================== ZOOM WIDGET (mobile) ====================
-      // Escala global de la UI via CSS transform en <body>.
-      // Persiste en localStorage entre sesiones.
-      let currentZoom = parseFloat(localStorage.getItem('tnsvt_zoom') || '1');
-      function applyZoom(level){
-        level = Math.max(0.7, Math.min(1.5, level));
-        currentZoom = level;
-        document.body.style.transform = `scale(${level})`;
-        document.body.style.transformOrigin = 'top center';
-        const display = Math.round(level * 100) + '%';
-        const el = document.getElementById('zoomLevel');
-        if (el) el.textContent = display;
-        try { localStorage.setItem('tnsvt_zoom', String(level)); } catch(_){}
-      }
-      function zoomIn(){ applyZoom(currentZoom + 0.1); }
-      function zoomOut(){ applyZoom(currentZoom - 0.1); }
-      function zoomReset(){ applyZoom(1); }
-      window.zoomIn = zoomIn;
-      window.zoomOut = zoomOut;
-      window.zoomReset = zoomReset;
-      // Aplicar zoom persistido al cargar
-      if (currentZoom !== 1) setTimeout(() => applyZoom(currentZoom), 100);
+      // NOTA: zoom nativo del browser (pinch-to-zoom) ya habilitado via viewport meta.
+      // El widget con botones fue eliminado porque transform:scale() causaba clipping.
 
       // Después de subir/borrar avatar, refrescar el menú para mostrar/ocultar "Quitar foto"
       async function refreshAvatarMenuAfterChange(data) {
