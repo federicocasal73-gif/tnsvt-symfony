@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.9.1">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.0.0">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=3.9.1"></script>
+    <script src="{{ asset('api.js') }}?v=4.0.0"></script>
     <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
-    <script src="{{ asset('chart.js') }}?v=3.9.1"></script>
+    <script src="{{ asset('chart.js') }}?v=4.0.0"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -207,6 +207,135 @@
 
 <canvas id="divineCanvas"></canvas>
 
+<!-- ==================== TOPBAR (hamburger + brand + notif + admin) ==================== -->
+<header class="tnsvt-topbar" id="tnsvt-topbar" style="display:none;">
+  <button type="button"
+          class="tnsvt-hamburger"
+          id="hamburgerBtn"
+          onclick="toggleSidebar()"
+          aria-label="Menú"
+          title="Menú">
+    ☰
+  </button>
+
+  <a href="javascript:void(0)" class="tnsvt-brand" onclick="return false;">
+    <h1>T.N.S.V.T</h1>
+    <span class="tnsvt-brand-sub">REINO DEL CRISTO ÍNTEGRO</span>
+  </a>
+
+  <div class="tnsvt-topbar-right">
+
+    <button type="button"
+            class="tnsvt-notif-btn"
+            id="notifBellBtn"
+            onclick="openNotifications()"
+            aria-label="Notificaciones"
+            title="Notificaciones">
+      🔔
+      <span class="tnsvt-notif-badge" id="tnsvtNotifBadge" style="display:none;">0</span>
+    </button>
+
+    <div class="tnsvt-admin-block" id="tnsvtUserBlock" style="display:none;" onclick="openProfileMenu()">
+      <div class="tnsvt-admin-info">
+        <div class="tnsvt-admin-tag" id="tnsvtUserTag">⛧ USUARIO</div>
+        <div class="tnsvt-admin-sub" id="tnsvtUserSub">Ejecutor</div>
+      </div>
+      <div class="tnsvt-admin-avatar" id="tnsvtUserAvatar">⛧</div>
+    </div>
+
+    <button type="button"
+            id="tnsvtLogoutBtn"
+            onclick="logout()"
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+            style="display:none; padding:8px 14px; background:rgba(255,59,48,0.12); color:#ff7066; border:1px solid rgba(255,59,48,0.4); border-radius:10px; font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:1.5px; cursor:pointer; transition:all .2s; text-transform:uppercase;">
+      🔒 CERRAR SESIÓN
+    </button>
+
+  </div>
+</header>
+
+<script>
+(function() {
+  'use strict';
+
+  function renderTopbarUser() {
+    var user = window.TNSVT_USER;
+    var topbar = document.getElementById('tnsvt-topbar');
+    var userBlock = document.getElementById('tnsvtUserBlock');
+    var logoutBtn = document.getElementById('tnsvtLogoutBtn');
+    if (!topbar) return;
+
+    if (user && (user.username || user.code)) {
+      var isAdmin = !!user.isAdmin;
+      var tag = document.getElementById('tnsvtUserTag');
+      var sub = document.getElementById('tnsvtUserSub');
+      var av = document.getElementById('tnsvtUserAvatar');
+
+      if (tag) tag.textContent = isAdmin
+        ? '👑 ADMIN'
+        : '⛧ ' + String(user.username || user.code).toUpperCase();
+      if (sub) sub.textContent = isAdmin
+        ? 'Administrador'
+        : (user.role || 'Ejecutor');
+
+      if (av) {
+        av.innerHTML = '';
+        if (user.avatar) {
+          var img = document.createElement('img');
+          img.src = user.avatar;
+          img.alt = 'avatar';
+          av.appendChild(img);
+        } else {
+          av.textContent = '⛧';
+        }
+      }
+
+      topbar.style.display = '';
+      if (userBlock) userBlock.style.display = '';
+      if (logoutBtn) logoutBtn.style.display = '';
+    } else {
+      topbar.style.display = 'none';
+      if (userBlock) userBlock.style.display = 'none';
+      if (logoutBtn) logoutBtn.style.display = 'none';
+    }
+  }
+
+  function renderTopbarBadge() {
+    var badge = document.getElementById('tnsvtNotifBadge');
+    if (!badge) return;
+    var list = (typeof window.notifList !== 'undefined' && window.notifList) ? window.notifList : [];
+    var arr = Array.isArray(list) ? list : [];
+    var unread = 0;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] && !arr[i].read) unread++;
+    }
+    if (unread > 0) {
+      badge.textContent = unread > 99 ? '99+' : String(unread);
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  window.refreshTopbar = function() {
+    renderTopbarUser();
+    renderTopbarBadge();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.refreshTopbar);
+  } else {
+    setTimeout(window.refreshTopbar, 0);
+  }
+
+  setInterval(renderTopbarBadge, 5000);
+  setInterval(function() {
+    if (window.TNSVT_USER) renderTopbarUser();
+  }, 3000);
+})();
+</script>
+
 <div class="app-container">
 
   <!-- LOGIN -->
@@ -353,8 +482,7 @@
           <button class="back-btn" onclick="closeTradingPanel()" title="Cerrar Estación" aria-label="Cerrar Estación" style="width:42px;height:42px;padding:0;border-radius:12px;font-size:1.1rem;flex-shrink:0;">🔒</button>
         </div>
 
-        <!-- Hamburger button + overlay for mobile sidebar drawer -->
-        <button id="hamburger-btn" type="button" onclick="toggleSidebar()" aria-label="Abrir menú" title="Menú">☰</button>
+        <!-- Sidebar drawer overlay (hamburger está integrado en el topbar) -->
         <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
         <div class="trading-layout">
           <div class="trading-sidebar">

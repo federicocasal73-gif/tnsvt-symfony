@@ -5418,6 +5418,12 @@ let sb = window.API;
       }
 
       window.toggleNotifPanel = toggleNotifPanel;
+      // Alias solicitado por el nuevo topbar (puede llamar openNotifications() en vez de toggleNotifPanel)
+      window.openNotifications = function() {
+        if (typeof window.toggleNotifPanel === 'function') {
+          window.toggleNotifPanel();
+        }
+      };
       window.markAllRead = markAllRead;
       window.markOneRead = markOneRead;
       window.addNotif = addNotif;
