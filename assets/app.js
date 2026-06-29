@@ -400,6 +400,13 @@ let sb = window.API;
         }
         const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
         if (btn) btn.classList.add('active');
+        // Chat: ahora se maneja con el CF widget flotante
+        if (tabId === 'tab-chat') {
+          if (window.CF && typeof window.CF.open === 'function') {
+            window.CF.open();
+          }
+          return;
+        }
         if (tabId === 'tab-admin' && typeof adminRefreshList === 'function') adminRefreshList();
         if (tabId === 'tab-chart') {
           if (typeof window.initChartTab === 'function') {
@@ -1557,11 +1564,11 @@ let sb = window.API;
         _tjDayDate = dateStr;
         tjDayCancelForm();
         const isReadOnly = !!window._journalViewingCode;
+        const modal = document.getElementById('tjDayModal');
+        if (!modal) return;
         const dayTrades = tjTrades.filter(t => t.date.slice(0, 10) === dateStr);
         try {
         if (!dayTrades.length) {
-          const modal = document.getElementById('tjDayModal');
-          if (!modal) return;
           const [y, m, d] = dateStr.split('-');
           const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
           const titleEl = document.getElementById('tjDayTitle');
@@ -1570,11 +1577,8 @@ let sb = window.API;
           if(summaryEl) summaryEl.innerHTML = 'Sin trades este día';
           const tradesEl = document.getElementById('tjDayTrades');
           if(tradesEl) tradesEl.innerHTML = '<div style="text-align:center;padding:20px;color:#645a78;font-size:0.85rem;">📭 No hay trades registrados para esta fecha.</div>';
-          modal.classList.add('vis');
           return;
         }
-        const modal = document.getElementById('tjDayModal');
-        if (!modal) return;
         const [y, m, d] = dateStr.split('-');
         const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
         const titleEl = document.getElementById('tjDayTitle');
@@ -1617,8 +1621,6 @@ let sb = window.API;
         } catch(e) { console.error('[openTjDay]', e); }
         modal.classList.add('vis');
       }
-
-      function closeTjDay() { document.getElementById('tjDayModal')?.classList.remove('vis'); }
 
       let _tjDayDate = null;
 
@@ -3543,6 +3545,7 @@ let sb = window.API;
           console.warn('[chat] activeConvId stale, limpiando:', activeConvId);
           activeConvId = null;
           chatLastMessageId = 0;
+          // Legacy: estos elementos fueron removidos cuando migramos al CF widget
           const stream = document.getElementById('chatStream');
           if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
           const nameEl = document.getElementById('chatHeaderName');
@@ -3588,8 +3591,9 @@ let sb = window.API;
           const data = await sb.getConversations(window.TNSVT_USER.code);
           if (data) {
             chatConversations = data;
-            chatUpdateUnreadBadge();
             renderConversations();
+            // Refrescar FAB badge del CF widget (si está disponible)
+            try { window.CF?.render?.(); } catch(_) {}
           }
         } catch(e) { console.warn('[chat] loadChats:', e); }
       }

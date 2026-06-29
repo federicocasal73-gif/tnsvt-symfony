@@ -2106,8 +2106,147 @@
       #chat-floating-panel { max-height: calc(100vh - 140px) !important; }
     }
     /* Safe areas for bottom-positioned widgets */
-    #chat-floating-widget {
-      bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-      right: calc(20px + env(safe-area-inset-right, 0px));
+    #cf-fab {
+      bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      right: calc(24px + env(safe-area-inset-right, 0px));
     }
   }
+
+/* ===================================================================
+   TNSVT v3.6 — Reposicionamiento UI v2 (mejorado)
+   Pegado al final de app.css el 2026-06-28
+   =================================================================== */
+
+/* HAMBURGER — integrado al topbar */
+.sidebar-toggle,
+.menu-hamburger,
+#hamburgerBtn,
+#hamburger-btn,
+button[onclick*="toggleSidebar"],
+button[onclick*="hamburger"] {
+  position: fixed !important;
+  top: 18px !important;
+  left: 20px !important;
+  z-index: 9980 !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+  background: rgba(20,8,42,0.7) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(212,175,55,0.35) !important;
+  color: #f0d97e !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.2rem !important;
+  cursor: pointer !important;
+  box-shadow: 0 0 18px rgba(212,175,55,0.15) !important;
+  transition: all .25s ease !important;
+}
+.sidebar-toggle:hover,
+.menu-hamburger:hover,
+#hamburgerBtn:hover,
+#hamburger-btn:hover,
+button[onclick*="toggleSidebar"]:hover,
+button[onclick*="hamburger"]:hover {
+  border-color: #f0d97e !important;
+  transform: scale(1.06) !important;
+  box-shadow: 0 0 24px rgba(212,175,55,0.4) !important;
+}
+
+/* MUSIC PLAYER — flotante con margen, look pildora premium */
+.music-player-bar,
+#musicPlayerBar,
+.player-bar {
+  position: fixed !important;
+  bottom: 14px !important;
+  left: 14px !important;
+  right: 108px !important;          /* reserva espacio para FAB del chat */
+  top: auto !important;
+  height: 64px !important;
+  padding: 0 18px !important;
+  background: rgba(10,5,22,0.92) !important;
+  backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(212,175,55,0.25) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(138,60,255,0.08) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  z-index: 9950 !important;
+}
+
+/* CHAT FAB + BURBUJAS + PANEL — encima del player */
+.cf-fab {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 9970 !important;
+  width: 62px !important;
+  height: 62px !important;
+  box-shadow: 0 8px 28px rgba(212,175,55,0.55), 0 0 0 6px rgba(212,175,55,0.08) !important;
+}
+.cf-presence {
+  position: fixed !important;
+  right: 33px !important;
+  bottom: 104px !important;
+  z-index: 9960 !important;
+}
+.cf-panel {
+  position: fixed !important;
+  bottom: 100px !important;
+  right: 24px !important;
+  z-index: 9965 !important;
+  max-height: calc(100vh - 140px) !important;
+}
+.cf-toast {
+  position: fixed !important;
+  bottom: 110px !important;
+  right: 100px !important;
+  z-index: 9955 !important;
+}
+
+/* Notificaciones bell */
+.notif-bell,
+.notification-bell {
+  z-index: 9970 !important;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .sidebar-toggle, .menu-hamburger, #hamburgerBtn, #hamburger-btn {
+    top: 12px !important;
+    left: 12px !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .music-player-bar, #musicPlayerBar, .player-bar {
+    left: 8px !important;
+    right: 80px !important;
+    bottom: 8px !important;
+    height: 58px !important;
+    padding: 0 12px !important;
+    gap: 10px !important;
+    border-radius: 12px !important;
+  }
+  .cf-fab {
+    bottom: 14px !important;
+    right: 14px !important;
+    width: 54px !important;
+    height: 54px !important;
+  }
+  .cf-presence {
+    right: 20px !important;
+    bottom: 80px !important;
+  }
+  .cf-panel {
+    bottom: 78px !important;
+    right: 8px !important;
+    left: 8px !important;
+    width: auto !important;
+  }
+  .cf-toast {
+    bottom: 80px !important;
+    right: 75px !important;
+  }
+}

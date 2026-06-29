@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.8.0">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.9.0">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=3.8.0"></script>
+    <script src="{{ asset('api.js') }}?v=3.9.0"></script>
     <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
-    <script src="{{ asset('chart.js') }}?v=3.8.0"></script>
+    <script src="{{ asset('chart.js') }}?v=3.9.0"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -345,12 +345,12 @@
     <!-- ==================== PANEL PRINCIPAL DEL CRISTO ÍNTEGRO ==================== -->
     <div id="trading-panel" style="display:none; width:100%;">
       <div class="inner-page" style="max-width:1150px; margin:0 auto; padding:20px;">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-          <div>
-            <h2 style="font-family:'Cinzel',serif; font-size:1.8rem; color:var(--gold-bright);">🏛️ EL CRISTO ÍNTEGRO</h2>
-            <p style="font-size:0.85rem; color:var(--violet); font-family:'Orbitron', sans-serif; margin-top:2px;">Edición Completa - Trading Neuro-Spiritual Value Theory (2026)</p>
+        <div class="section-header" style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; padding-right:8px;">
+          <div style="flex:1; min-width:0;">
+            <h2 style="font-family:'Cinzel',serif; font-size:1.8rem; color:var(--gold-bright); text-align:center; margin:0; padding-left:50px;">🏛️ EL CRISTO ÍNTEGRO</h2>
+            <p style="font-size:0.85rem; color:var(--violet); font-family:'Orbitron', sans-serif; margin-top:2px; text-align:center; padding-left:50px;">Edición Completa - Trading Neuro-Spiritual Value Theory (2026)</p>
           </div>
-          <button class="back-btn" onclick="closeTradingPanel()">🔒 Cerrar Estación</button>
+          <button class="back-btn" onclick="closeTradingPanel()" title="Cerrar Estación" aria-label="Cerrar Estación" style="width:42px;height:42px;padding:0;border-radius:12px;font-size:1.1rem;flex-shrink:0;">🔒</button>
         </div>
 
         <!-- Hamburger button + overlay for mobile sidebar drawer -->
@@ -3340,74 +3340,8 @@
   </div>
 </div>
 
-<!-- ==================== PESTAÑA CHAT DE EJECUTORES ==================== -->
-<div id="tab-chat" class="tab-content" style="display:none;">
+<!-- ==================== CHAT: Ahora es widget flotante CF (no necesita tab dedicado) ==================== -->
 
-  <!-- ⛧ HEADER MÍSTICO (mantenido por compat con deep link, pero UI ahora es widget flotante) -->
-  <div class="ch-mystic-header">
-    <div class="ch-mystic-eyebrow">
-      <span class="ch-mystic-line"></span>
-      <span class="ch-mystic-mark">⛧ CHAT DE EJECUTORES ⛧</span>
-      <span class="ch-mystic-line"></span>
-    </div>
-    <h1 class="ch-mystic-title">El Cónclave</h1>
-    <p class="ch-mystic-quote">"Donde se forjan los ejecutores en silencio."</p>
-  </div>
-
-  <div class="chat-layout">
-    <aside class="chat-sidebar">
-      <div class="chat-sidebar-header">
-        <span class="chat-sidebar-title">💬 Conversaciones</span>
-        <button type="button" onclick="openNewDmModal()" title="Mensaje privado" class="ch-new-btn">✉</button>
-      </div>
-      <div class="chat-search">
-        <input type="text" id="chatSearchInput" placeholder="🔍 Buscar conversación..." oninput="filterChatList()">
-      </div>
-      <div class="chat-conv-list" id="chatConvList">
-        <!-- JS-rendered -->
-      </div>
-    </aside>
-    <main class="chat-main">
-      <div class="chat-header" id="chatHeader">
-        <div class="chat-header-left">
-          <div id="chatHeaderAvatar" class="chat-header-avatar">?</div>
-          <div class="chat-header-info">
-            <span class="chat-header-name" id="chatHeaderName">—</span>
-            <span class="chat-header-sub" id="chatHeaderSub">Seleccioná una conversación</span>
-          </div>
-        </div>
-        <div class="chat-header-actions">
-          <button onclick="toggleChatSound()" id="chatSoundBtn" title="Sonido de mensajes">🔔</button>
-          <button onclick="openChatMenu()" id="chatMenuBtn" title="Opciones">⋯</button>
-        </div>
-      </div>
-      <div class="chat-stream" id="chatStream">
-        <div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>
-      </div>
-      <div class="chat-typing" id="chatTypingIndicator" style="display:none">
-        <div class="chat-typing-dots"><span></span><span></span><span></span></div>
-        <span id="chatTypingText">alguien está escribiendo</span>
-      </div>
-      <div class="chat-input-area">
-        <div class="chat-reply-context" id="chatReplyContext" style="display:none">
-          <span class="ch-reply-tag">Respondiendo a</span>
-          <span class="chat-reply-context-text" id="chatReplyPreview"></span>
-          <button type="button" onclick="cancelReply()" title="Cancelar">✕</button>
-        </div>
-        <div class="chat-photo-preview-row" id="chatPhotoPreviewRow" style="display:none">
-          <img id="chatPhotoPreview" class="chat-photo-preview" alt="preview">
-          <button class="chat-photo-remove" id="chatPhotoRemove" type="button" title="Quitar foto">✕</button>
-        </div>
-        <div class="chat-input-row">
-          <input type="file" id="chatPhotoInput" accept="image/*" hidden>
-          <button class="chat-photo-btn" id="chatPhotoBtn" type="button" title="Adjuntar foto (máx 10MB)">📷</button>
-          <input type="text" id="chatInput" class="chat-input" placeholder="Escribí un mensaje al cónclave..." onkeypress="if(event.key==='Enter') sendChatMessage()" oninput="onChatTyping()">
-          <button class="post-btn ch-send" id="chatSendBtn" type="button">ENVIAR</button>
-        </div>
-      </div>
-    </main>
-  </div>
-</div>
 
 <!-- ==================== SOCIAL TAB ==================== -->
 <div id="tab-social" class="tab-content">
@@ -4360,18 +4294,66 @@
           await window.selectConversation(convId);
         } catch (e) { console.warn('[CF] selectConversation:', e); }
       }
-      // Sincronizar el stream desde tu DOM existente
-      this._syncStream();
+      // Sincronizar el stream desde tu DOM existente (con retry porque es async)
+      const dst = document.getElementById('cfChatStream');
+      if (!dst) return;
+      const trySync = (attempt = 0) => {
+        const src = document.getElementById('chatStream');
+        if (src && src.children.length > 0 && !src.querySelector('.chat-empty')) {
+          // Mensajes ya están cargados en el DOM legacy → copiar
+          dst.innerHTML = '<div class="cf-date-sep">─ EN VIVO ─</div>' + src.innerHTML;
+          dst.scrollTop = dst.scrollHeight;
+        } else if (attempt < 5) {
+          // Reintentar — los mensajes aún no llegaron
+          setTimeout(() => trySync(attempt + 1), 300);
+        } else {
+          // Fallback: pedir mensajes directamente al backend
+          this._loadMessagesDirect(this.state.currentConv);
+        }
+      };
+      trySync();
     },
 
-    _syncStream() {
-      const src = document.getElementById('chatStream');
+    async _loadMessagesDirect(convId) {
+      if (!convId || !window.TNSVT_USER) return;
       const dst = document.getElementById('cfChatStream');
-      if (!src || !dst) return;
-      // Si tu app.js ya renderiza dentro de #chatStream, copiamos su HTML
-      // y lo adaptamos. Como atajo: mostramos el mismo contenido.
-      dst.innerHTML = '<div class="cf-date-sep">─ EN VIVO ─</div>' + src.innerHTML;
-      dst.scrollTop = dst.scrollHeight;
+      if (!dst) return;
+      try {
+        const res = await fetch(
+          (window.API && window.API.baseURL ? window.API.baseURL : '') +
+          `/api/chat/messages?conversation_id=${convId}&user_code=${encodeURIComponent(window.TNSVT_USER.code)}`,
+          { credentials: 'include' }
+        );
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const messages = Array.isArray(data) ? data : (data.messages || []);
+        if (!messages.length) {
+          dst.innerHTML = '<div class="cf-empty"><div class="cf-empty-ico">💬</div><div class="cf-empty-label">Elegí una conversación para empezar</div></div>';
+          return;
+        }
+        dst.innerHTML = '<div class="cf-date-sep">─ EN VIVO ─</div>' + messages.map(m => this._renderMsg(m)).join('');
+        dst.scrollTop = dst.scrollHeight;
+      } catch(e) {
+        console.warn('[CF] _loadMessagesDirect:', e);
+        dst.innerHTML = '<div class="cf-empty"><div class="cf-empty-ico">⚠</div><div class="cf-empty-label">No se pudieron cargar los mensajes</div></div>';
+      }
+    },
+
+    _renderMsg(m) {
+      const me = m.sender_code === window.TNSVT_USER?.code;
+      const initials = this._initials(m.sender_name || '?');
+      const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'}) : '';
+      const photoHtml = m.photo ? `<img src="${m.photo}" alt="">` : '';
+      return `<div class="cf-msg ${me ? 'cf-me' : ''}">
+        <div class="cf-msg-avatar">${this._esc(initials)}</div>
+        <div>
+          <div class="cf-msg-bubble">
+            ${this._esc(m.content || '')}
+            ${photoHtml}
+          </div>
+          <div class="cf-msg-meta">${this._esc(m.sender_name || '')} · ${time}</div>
+        </div>
+      </div>`;
     },
 
     /* === ENVIAR MENSAJE — proxy a tu función existente === */
