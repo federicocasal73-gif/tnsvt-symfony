@@ -27,6 +27,7 @@ class NotificationController extends AbstractController
         'access_rejected' => 'social',
         'connection_removed' => 'social',
         'permissions_changed' => 'social',
+        'economic_alert' => 'calendar',
     ];
 
     public function __construct(

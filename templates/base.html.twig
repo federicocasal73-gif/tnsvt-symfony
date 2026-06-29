@@ -437,7 +437,11 @@
       <div class="notif-panel" id="notifPanel">
         <div class="notif-panel-header">
           <span class="notif-panel-title">Notificaciones</span>
-          <button class="notif-mark-all" onclick="markAllRead()">Marcar todo leído</button>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button id="notifSoundToggle" onclick="toggleNotifSound()" title="Activar/desactivar sonido" style="background:transparent;border:none;color:#645a78;font-size:0.85rem;cursor:pointer;padding:2px 4px;line-height:1;">🔔</button>
+            <button id="notifHistoryToggle" onclick="toggleNotifHistory()" title="Ver historial" style="background:transparent;border:none;color:#645a78;font-size:0.75rem;cursor:pointer;padding:2px 4px;line-height:1;font-family:'Orbitron',sans-serif;">📋</button>
+            <button class="notif-mark-all" onclick="markAllRead()">Marcar todo leído</button>
+          </div>
         </div>
         <div class="notif-list" id="notifList">
           <div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad del feed<br>aparecerán aquí.</div>

@@ -4807,7 +4807,15 @@ let sb = window.API;
         const chartBtn = document.getElementById('chartSidebarBtn');
         if (chartBtn) chartBtn.style.display = isAdmin ? 'block' : 'none';
         const createGroupBtn = document.getElementById('cfCreateGroupBtn');
-        if (createGroupBtn) createGroupBtn.style.display = isAdmin ? 'flex' : 'none';
+          if (createGroupBtn) createGroupBtn.style.display = isAdmin ? 'flex' : 'none';
+        // Init notif sound toggle
+        const soundBtn = document.getElementById('notifSoundToggle');
+        if (soundBtn) {
+          const muted = localStorage.getItem('tnsvt_notif_sound_muted') === 'true';
+          soundBtn.textContent = muted ? '🔇' : '🔔';
+        }
+        const histBtn = document.getElementById('notifHistoryToggle');
+        if (histBtn) histBtn.style.opacity = window._notifShowHistory ? '1' : '0.5';
         // También actualizar window.TNSVT_USER.isAdmin
         if (window.TNSVT_USER) {
           window.TNSVT_USER.isAdmin = !!isAdmin;
@@ -5044,6 +5052,8 @@ let sb = window.API;
               text: n.text || '',
               ts: n.ts || new Date().toISOString(),
               read: !!n.read,
+              related_url: n.related_url || 'feed',
+              link: n.link || '',
               _fromBackend: true,
             }));
             saveNotifs();
@@ -5054,7 +5064,13 @@ let sb = window.API;
             list.innerHTML = '<div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad<br>aparecerán aquí.</div>';
             return;
           }
-          list.innerHTML = notifList.slice(0, 30).map(n => renderNotifItem(n)).join('');
+          const showAll = window._notifShowHistory === true;
+          const toRender = showAll ? notifList : notifList.filter(n => !n.read);
+          if (!toRender.length) {
+            list.innerHTML = '<div class="notif-empty">📋<br>Todo leído.<br>Activá historial para ver notificaciones pasadas.</div>';
+            return;
+          }
+          list.innerHTML = toRender.slice(0, showAll ? 50 : 30).map(n => renderNotifItem(n)).join('');
         } catch (e) {
           console.warn('[notif] failed to load from backend, using cache:', e);
           // Fallback a cache local si el backend no responde
@@ -5062,7 +5078,9 @@ let sb = window.API;
             list.innerHTML = '<div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad<br>aparecerán aquí.</div>';
             return;
           }
-          list.innerHTML = notifList.slice(0, 30).map(n => renderNotifItem(n)).join('');
+          const showAll = window._notifShowHistory === true;
+          const toRender = showAll ? notifList : notifList.filter(n => !n.read);
+          list.innerHTML = toRender.slice(0, showAll ? 50 : 30).map(n => renderNotifItem(n)).join('');
         }
       }
 
@@ -5084,8 +5102,9 @@ let sb = window.API;
         const preview = n.preview || n.text || '';
         const hasNumericId = /^\d+$/.test(String(n.id));
 
+        const link = n.link || '';
         return `
-          <div class="notif-item ${n.read ? '' : 'unread'} type-${type}" data-type="${type}" data-related-url="${escapeHtml(n.related_url || 'feed')}" onclick="markOneRead('${idEscaped}')">
+          <div class="notif-item ${n.read ? '' : 'unread'} type-${type} ${n.read ? 'history' : ''}" data-type="${type}" data-related-url="${escapeHtml(n.related_url || 'feed')}" data-link="${escapeHtml(link)}" onclick="markOneRead('${idEscaped}')">
             <div class="notif-icon ${type}">${avatar}</div>
             <div class="notif-body">
               <div class="notif-title">${escapeHtml(title)} ${sender}</div>
@@ -5124,13 +5143,63 @@ let sb = window.API;
         return 'hace ' + Math.floor(diff/1440) + 'd';
       }
 
+      // ---- Sonido de notificación (Web Audio API) ----
+      let _notifAudioCtx = null;
+      function _getAudioCtx() {
+        if (!_notifAudioCtx) {
+          try { _notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(_) { return null; }
+        }
+        if (_notifAudioCtx.state === 'suspended') _notifAudioCtx.resume().catch(() => {});
+        return _notifAudioCtx;
+      }
+      function playNotifSound() {
+        const muted = localStorage.getItem('tnsvt_notif_sound_muted') === 'true';
+        if (muted) return;
+        const ctx = _getAudioCtx();
+        if (!ctx) return;
+        try {
+          // Two-tone chime: C5 (523Hz) + E5 (659Hz)
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = 'sine'; osc1.frequency.value = 523;
+          gain1.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+          osc1.connect(gain1); gain1.connect(ctx.destination);
+          osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.12);
+
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine'; osc2.frequency.value = 659;
+          gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.1);
+          gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+          osc2.connect(gain2); gain2.connect(ctx.destination);
+          osc2.start(ctx.currentTime + 0.1); osc2.stop(ctx.currentTime + 0.25);
+        } catch(_) {}
+      }
+
+      window.toggleNotifSound = function() {
+        const muted = localStorage.getItem('tnsvt_notif_sound_muted') === 'true';
+        localStorage.setItem('tnsvt_notif_sound_muted', muted ? 'false' : 'true');
+        const btn = document.getElementById('notifSoundToggle');
+        if (btn) btn.textContent = muted ? '🔇' : '🔔';
+        showToast(muted ? '🔔 Sonido activado' : '🔇 Sonido desactivado');
+      };
+
+      window.toggleNotifHistory = function() {
+        window._notifShowHistory = !window._notifShowHistory;
+        const btn = document.getElementById('notifHistoryToggle');
+        if (btn) btn.style.opacity = window._notifShowHistory ? '1' : '0.5';
+        renderNotifPanel();
+      };
+
       // ---- Agregar notificación ----
       function addNotif(type, text) {
         const n = { id: Date.now() + '_' + Math.random().toString(36).slice(2), type, text, ts: new Date().toISOString(), read: false };
         notifList.unshift(n);
-        if (notifList.length > 50) notifList = notifList.slice(0, 50);
+        if (notifList.length > 100) notifList = notifList.slice(0, 100);
         saveNotifs();
         updateBadge();
+        playNotifSound();
         showPushToast(type, text);
         if (pushPermGranted) fireBrowserNotif(type, text);
       }
@@ -5179,7 +5248,18 @@ let sb = window.API;
 
       function markOneRead(id) {
         const n = notifList.find(x => x.id === id);
-        if (n) { n.read = true; saveNotifs(); updateBadge(); }
+        if (!n) return;
+        n.read = true;
+        saveNotifs();
+        updateBadge();
+
+        // Fade-out animation on the notification item
+        const itemEl = document.querySelector(`.notif-item[onclick*="'${id}'"]`);
+        if (itemEl) {
+          itemEl.classList.add('fade-out');
+          setTimeout(() => { itemEl.remove(); }, 350);
+        }
+
         // Persistir en backend si el id es numérico (id real de DB)
         if (window.TNSVT_USER?.code && /^\d+$/.test(String(id))) {
           fetch(`/api/notifications/${id}/read?user_code=${encodeURIComponent(window.TNSVT_USER.code)}`, {
@@ -5189,8 +5269,10 @@ let sb = window.API;
         }
         // Cerrar panel
         document.getElementById('notifPanel')?.classList.remove('open');
-        // Ir al tab correcto segun related_url
-        const relatedUrl = n?.related_url || 'feed';
+
+        // === DEEP-LINKING: navegar a la sección correspondiente ===
+        const relatedUrl = n.related_url || 'feed';
+        const link = n.link || '';
         const tabMap = {
           'feed': 'tab-posts',
           'chat': 'tab-chat',
@@ -5202,18 +5284,35 @@ let sb = window.API;
           'social': 'tab-social',
         };
         const tabId = tabMap[relatedUrl] || 'tab-posts';
+
         if (typeof switchTab === 'function') {
           switchTab(tabId);
         } else {
-          // Fallback: solo highlight el boton correspondiente
           document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
           const btn = document.querySelector(`[onclick*="${tabId}"]`);
           if (btn) btn.classList.add('active');
         }
-        // Si es feed con categoria senales, filtrar
+
+        // Si es DM, abrir la conversación específica en el CF widget
+        if (relatedUrl === 'chat' && n.type === 'dm') {
+          const convId = link ? (link.startsWith('chat:') ? parseInt(link.slice(5), 10) : parseInt(link, 10)) : null;
+          if (convId && window.CF && typeof CF.openConv === 'function') {
+            setTimeout(() => { CF.openConv(convId); }, 200);
+          }
+        }
+
+        // Si es feed con categoría señales, filtrar
         if (relatedUrl === 'signals' && typeof filterFeed === 'function') {
           const btnSenales = document.querySelector('[onclick*="filterFeed"][onclick*="señales"]');
           if (btnSenales) btnSenales.click();
+        }
+
+        // Si es social, abrir el panel de solicitudes si es access_request
+        if (relatedUrl === 'social' && n.type === 'access_request') {
+          setTimeout(() => {
+            const reqBtn = document.querySelector('[onclick*="showAccessRequests"]');
+            if (reqBtn) reqBtn.click();
+          }, 300);
         }
       }
 
@@ -5230,18 +5329,29 @@ let sb = window.API;
         if (!toastQueue.length) { toastShowing = false; return; }
         toastShowing = true;
         const { type, text } = toastQueue.shift();
-        const iconMap = { signal: '📊', like: '♥', comment: '💬', post: '✨' };
-        const titleMap = { signal: 'Nueva Señal', like: 'Nuevo Like', comment: 'Nuevo Comentario', post: 'Nuevo Post' };
+        const iconMap = { signal: '📊', like: '♥', comment: '💬', post: '✨', dm: '💬', task: '✅', academia: '🎓', access_request: '🔗' };
+        const titleMap = { signal: 'Nueva Señal', like: 'Nuevo Like', comment: 'Nuevo Comentario', post: 'Nuevo Post', dm: 'Mensaje Directo', task: 'Nueva Tarea', academia: 'Academia', access_request: 'Solicitud de Acceso' };
+        const relatedUrls = { signal: 'signals', dm: 'chat', task: 'tasks', academia: 'academia', access_request: 'social', access_accepted: 'social', access_rejected: 'social' };
         const el = document.createElement('div');
         el.className = 'push-toast';
+        const toastRelated = relatedUrls[type] || 'feed';
         el.innerHTML = `
           <div class="push-toast-icon">${iconMap[type] || '🔔'}</div>
           <div>
             <div class="push-toast-title">${titleMap[type] || 'Notificación'}</div>
             <div class="push-toast-msg">${text}</div>
           </div>
-          <button class="push-toast-close" onclick="this.closest('.push-toast').remove()">✕</button>`;
-        el.onclick = (e) => { if (!e.target.classList.contains('push-toast-close')) { switchTab('tab-feed'); el.remove(); } };
+          <button class="push-toast-close" onclick="event.stopPropagation();this.closest('.push-toast').remove()">✕</button>`;
+        el.dataset.relatedUrl = toastRelated;
+        el.onclick = (e) => {
+          if (e.target.classList.contains('push-toast-close')) return;
+          const relatedUrl = el.dataset.relatedUrl || 'feed';
+          const tabMap = { 'feed':'tab-posts', 'chat':'tab-chat', 'signals':'tab-posts', 'academia':'tab-academia', 'tasks':'tab-tasks', 'journal':'tab-journal', 'calendar':'tab-calendar', 'social':'tab-social' };
+          const tabId = tabMap[relatedUrl] || 'tab-posts';
+          if (typeof switchTab === 'function') switchTab(tabId);
+          el.remove();
+        };
+        playNotifSound();
         document.body.appendChild(el);
         setTimeout(() => {
           if (el.parentNode) {

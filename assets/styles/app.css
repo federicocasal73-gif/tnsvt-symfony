@@ -690,6 +690,10 @@
   .notif-text strong { color: #fff; }
   .notif-time { font-size: 0.6rem; color: #645a78; font-family: 'Orbitron', sans-serif; }
   .notif-empty { text-align: center; padding: 40px 20px; color: #645a78; font-size: 0.82rem; line-height: 1.8; }
+  .notif-item.fade-out { animation: notifFadeOut 0.35s ease forwards; pointer-events: none; }
+  @keyframes notifFadeOut { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(30px); max-height: 0; padding: 0 16px; } }
+  .notif-item.history { opacity: 0.5; }
+  .notif-item.history:hover { opacity: 0.8; }
   /* Push toast flotante */
   .push-toast {
     position: fixed; bottom: 24px; left: 24px; z-index: 100001;
