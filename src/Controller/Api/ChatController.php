@@ -20,13 +20,30 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/chat')]
 class ChatController extends AbstractController
 {
+    private string $avatarDir;
+    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
     public function __construct(
         private EntityManagerInterface $em,
         private ConversationRepository $conversationRepository,
         private MessageRepository $messageRepository,
         private UserRepository $userRepository,
         private PushService $pushService,
-    ) {}
+    ) {
+        $this->avatarDir = dirname(__DIR__, 3) . '/public/uploads/avatars';
+    }
+
+    private function getAvatarUrl(?string $userCode): ?string
+    {
+        if (!$userCode) return null;
+        foreach (self::ALLOWED_EXTENSIONS as $ext) {
+            $path = "$this->avatarDir/$userCode.$ext";
+            if (is_file($path)) {
+                return "/uploads/avatars/$userCode.$ext";
+            }
+        }
+        return null;
+    }
 
     private function resolveUser(Request $request): ?User
     {
@@ -57,9 +74,12 @@ class ChatController extends AbstractController
             'id' => $conv->getId(),
             'type' => $conv->getType(),
             'title' => $conv->getTitle(),
+            'is_group' => $conv->getType() === 'group',
             'ai_user_code' => $conv->getAiUserCode(),
             'other_user_code' => $otherUser?->getCode(),
             'other_user_name' => $otherUser?->getName(),
+            'other_user_avatar_url' => $this->getAvatarUrl($otherUser?->getCode()),
+            'online' => false,
             'created_at' => $conv->getCreatedAt()?->format('c'),
             'unread_count' => $unreadCount,
             'last_message' => $lastMessage ? [

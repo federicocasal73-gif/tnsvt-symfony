@@ -2800,7 +2800,7 @@
           <option value="Pacific/Auckland">🇳🇿 Auckland</option>
           <option value="UTC">🌐 UTC</option>
         </datalist>
-        <div id="cal-reminder-badge" style="display:none;display:flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(52,199,89,0.15);border:1px solid rgba(52,199,89,0.4);border-radius:6px;font-size:0.62rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;cursor:pointer;" title="Click para ver recordatorio" onclick="calShowActiveReminder()">
+        <div id="cal-reminder-badge" style="display:flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(52,199,89,0.15);border:1px solid rgba(52,199,89,0.4);border-radius:6px;font-size:0.62rem;color:#34c759;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;cursor:pointer;" title="Click para ver recordatorio" onclick="calShowActiveReminder()">
           <span style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px #34c759;display:inline-block;"></span>
           <span id="cal-reminder-badge-text">RECORDATORIO ACTIVO</span>
         </div>
@@ -4211,7 +4211,7 @@
 </style>
 
 <!-- MARKUP DEL WIDGET -->
-<div class="cf-presence" id="cfPresence"></div>
+<div class="cf-presence" id="cfPresence" style="display:none;"></div>
 
 <div class="cf-toast" id="cfToast" onclick="CF.openConv(this.dataset.convId)">
   <div class="cf-toast-av" id="cfToastAv">?</div>
@@ -4221,7 +4221,7 @@
   </div>
 </div>
 
-<button class="cf-fab" id="cfFab" onclick="CF.toggle()" title="Chat de Ejecutores">
+<button class="cf-fab" id="cfFab" style="display:none;" onclick="CF.toggle()" title="Chat de Ejecutores">
   <span class="cf-ico" id="cfFabIco">💬</span>
   <span class="cf-badge cf-hide" id="cfFabBadge">0</span>
 </button>
@@ -4234,6 +4234,7 @@
       <span class="cf-sub" id="cfHeaderSub">EN VIVO</span>
     </div>
     <div class="cf-panel-actions">
+      <button class="cf-action" onclick="if(typeof openNewDmModal==='function') openNewDmModal(); else document.getElementById('newDmOverlay').style.display='flex';" title="Nuevo mensaje">✉️</button>
       <button class="cf-action" onclick="CF.toggleSound()" title="Sonido" id="cfSoundBtn">🔔</button>
       <button class="cf-action cf-danger" onclick="CF.toggle()" title="Cerrar">✕</button>
     </div>
@@ -4346,20 +4347,25 @@
       }
     },
 
-    /* === CARGA DE DATOS — usa las funciones que YA tenés === */
+    /* === CARGA DE DATOS — usa la API directamente === */
     async loadConversations() {
+      if (!window.TNSVT_USER?.code) { this.render(); return; }
       try {
-        // Intentá usar tu función existente
-        if (typeof window.loadChatConversations === 'function') {
-          await window.loadChatConversations();
-        }
-        // Tomamos las conversaciones de tu DOM existente o variable global
-        if (window.chatConversations && Array.isArray(window.chatConversations)) {
-          this.state.conversations = window.chatConversations;
-        } else if (document.getElementById('chatConvList')) {
-          // Fallback: parsear del DOM existente
-          this.state.conversations = this._parseFromDom();
-        }
+        const res = await window.API.getConversations(window.TNSVT_USER.code);
+        const data = Array.isArray(res) ? res : (res?.conversations || []);
+        this.state.conversations = data.map(c => ({
+          id: c.id,
+          name: c.type === 'group' ? (c.title || 'Grupo')
+               : c.type === 'ai' ? '🤖 T.N.S.V.T Coach'
+               : (c.other_user_name || c.other_user_code || 'Conversación'),
+          avatar: c.other_user_avatar_url || '',
+          online: c.online || false,
+          isGroup: c.type === 'group',
+          time: c.last_message?.created_at || c.created_at || '',
+          preview: c.last_message?.content || '',
+          unread: c.unread_count || 0,
+        }));
+        window.chatConversations = data;
         this.render();
       } catch (e) {
         console.warn('[CF] loadConversations failed:', e);
@@ -4368,17 +4374,7 @@
     },
 
     _parseFromDom() {
-      const items = document.querySelectorAll('#chatConvList .chat-conv-item');
-      return [...items].map(el => ({
-        id: el.dataset.convId || el.id,
-        name: el.querySelector('.chat-conv-name')?.textContent || 'Sin nombre',
-        preview: el.querySelector('.chat-conv-preview')?.textContent || '',
-        unread: parseInt(el.querySelector('.chat-conv-unread')?.textContent || '0'),
-        online: !!el.querySelector('[data-online="1"]'),
-        isGroup: !!el.querySelector('.chat-conv-avatar.group'),
-        avatar: '',
-        time: el.querySelector('.chat-conv-time')?.textContent || '',
-      }));
+      return [];
     },
 
     render() {
@@ -4461,30 +4457,14 @@
       }
       document.getElementById('cfPanel').classList.add('cf-in-chat');
 
-      // Llamar tu función existente
+      // Llamar función existente de app.js para mantener estado
       if (typeof window.selectConversation === 'function') {
         try {
           await window.selectConversation(convId);
         } catch (e) { console.warn('[CF] selectConversation:', e); }
       }
-      // Sincronizar el stream desde tu DOM existente (con retry porque es async)
-      const dst = document.getElementById('cfChatStream');
-      if (!dst) return;
-      const trySync = (attempt = 0) => {
-        const src = document.getElementById('chatStream');
-        if (src && src.children.length > 0 && !src.querySelector('.chat-empty')) {
-          // Mensajes ya están cargados en el DOM legacy → copiar
-          dst.innerHTML = '<div class="cf-date-sep">─ EN VIVO ─</div>' + src.innerHTML;
-          dst.scrollTop = dst.scrollHeight;
-        } else if (attempt < 5) {
-          // Reintentar — los mensajes aún no llegaron
-          setTimeout(() => trySync(attempt + 1), 300);
-        } else {
-          // Fallback: pedir mensajes directamente al backend
-          this._loadMessagesDirect(this.state.currentConv);
-        }
-      };
-      trySync();
+      // Cargar mensajes directamente de la API
+      this._loadMessagesDirect(this.state.currentConv);
     },
 
     async _loadMessagesDirect(convId) {
@@ -4492,15 +4472,8 @@
       const dst = document.getElementById('cfChatStream');
       if (!dst) return;
       try {
-        const res = await fetch(
-          (window.API && window.API.baseURL ? window.API.baseURL : '') +
-          `/api/chat/messages?conversation_id=${convId}&user_code=${encodeURIComponent(window.TNSVT_USER.code)}`,
-          { credentials: 'include' }
-        );
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        const messages = Array.isArray(data) ? data : (data.messages || []);
-        if (!messages.length) {
+        const messages = await window.API.getMessages(convId, window.TNSVT_USER.code, null);
+        if (!messages || !messages.length) {
           dst.innerHTML = '<div class="cf-empty"><div class="cf-empty-ico">💬</div><div class="cf-empty-label">Elegí una conversación para empezar</div></div>';
           return;
         }
@@ -4516,7 +4489,7 @@
       const me = m.sender_code === window.TNSVT_USER?.code;
       const initials = this._initials(m.sender_name || '?');
       const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'}) : '';
-      const photoHtml = m.photo ? `<img src="${m.photo}" alt="">` : '';
+      const photoHtml = m.photo ? `<img src="${this._esc(m.photo)}" alt="">` : '';
       return `<div class="cf-msg ${me ? 'cf-me' : ''}">
         <div class="cf-msg-avatar">${this._esc(initials)}</div>
         <div>
@@ -4612,7 +4585,7 @@
 </script>
 
     <!-- ==================== MODAL: NUEVO MENSAJE PRIVADO ==================== -->
-    <div id="newDmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; align-items:center; justify-content:center; padding:20px;">
+    <div id="newDmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100020; align-items:center; justify-content:center; padding:20px;">
       <div style="background:rgba(13,8,24,0.99); border:1px solid rgba(212,175,55,0.3); border-radius:16px; width:100%; max-width:480px; max-height:80vh; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid rgba(212,175,55,0.15);">
           <span style="font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold-bright);">✉️ Nuevo mensaje</span>
@@ -4631,7 +4604,7 @@
 <audio id="bgMusicAudio" preload="auto" style="display:none;"></audio>
 
 <!-- BARRA INFERIOR PERSISTENTE (tipo Spotify) - siempre visible después del login, en cualquier sección -->
-<div id="musicPlayerBar" aria-label="Reproductor de música">
+<div id="musicPlayerBar" style="display:none;" aria-label="Reproductor de música">
   <div class="mpb-track">
     <div class="mpb-cover" id="mpbCover" aria-hidden="true">🎵</div>
     <div class="mpb-info">

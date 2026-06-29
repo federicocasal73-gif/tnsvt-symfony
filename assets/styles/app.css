@@ -103,7 +103,7 @@
 .hub-view {
     display: flex; flex-direction: column; align-items: center;
     min-height: 100dvh; width: 100%; max-width: 1200px; margin: 0 auto;
-    padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)) 20px;
+    padding: calc(76px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)) 20px;
   }
   .diagram-container {
     position: relative; width: 100%; max-width: 1000px; flex-shrink: 0;
@@ -2309,7 +2309,7 @@ button[onclick*="hamburger"]:hover {
   color: #f0d97e; margin: 0;
   letter-spacing: 3px; line-height: 1;
   text-shadow: 0 0 12px rgba(212,175,55,0.3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; flex-shrink: 0;
 }
 .tnsvt-brand-sub {
   font-family: 'Orbitron', sans-serif;

@@ -213,6 +213,11 @@ let sb = window.API;
           if (typeof initAllPanels === 'function') initAllPanels();
           // Mostrar la barra persistente de música en cualquier sección
           musicShowBar();
+          // Mostrar FAB del chat y burbujas de presencia
+          const cfFab = document.querySelector('.cf-fab');
+          const cfPres = document.querySelector('.cf-presence');
+          if (cfFab) cfFab.style.display = '';
+          if (cfPres) cfPres.style.display = '';
           // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
           applyAdminFeatures(isAdmin);
         } catch (e) {
@@ -229,6 +234,7 @@ let sb = window.API;
         tjTrades = [];
         notifList = [];
         chatConversations = [];
+        window.chatConversations = chatConversations;
         activeConvId = null;
         acadCoursesCache = [];
         postPhotoData = null;
@@ -237,6 +243,11 @@ let sb = window.API;
         musicHideFullPlayer();
         const a = document.getElementById('bgMusicAudio');
         if (a) { try { a.pause(); } catch (_) {} }
+        // Ocultar FAB del chat y burbujas de presencia
+        const cfFab = document.querySelector('.cf-fab');
+        const cfPres = document.querySelector('.cf-presence');
+        if (cfFab) cfFab.style.display = 'none';
+        if (cfPres) cfPres.style.display = 'none';
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('gateKey').value = '';
@@ -247,11 +258,6 @@ let sb = window.API;
         document.getElementById('gatePassWrap').style.display = 'none';
         const hint = document.getElementById('adminPassHint');
         if (hint) hint.style.display = 'none';
-        // Ocultar chat flotante
-        const chatPanel = document.getElementById('chat-floating-panel');
-        const chatBubble = document.getElementById('chat-floating-bubble');
-        if (chatPanel) chatPanel.style.display = 'none';
-        if (chatBubble) chatBubble.style.display = 'none';
         document.getElementById('adminSidebarBtn').style.display = 'none';
         document.getElementById('hub-view').style.display = 'flex';
         document.getElementById('module-panel').style.display = 'none';
@@ -457,8 +463,6 @@ let sb = window.API;
           document.body.style.overflow = '';
         }
       }
-      function switchTradingTab(tabId) { switchTab(tabId); }
-
       // ==================== FONDO DIVINO ====================
       const canvas = document.getElementById('divineCanvas');
       const ctx = canvas.getContext('2d');
@@ -3290,6 +3294,7 @@ let sb = window.API;
       // ==================== CHAT ====================
       const CHAT_MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
       let chatConversations = [];
+      window.chatConversations = chatConversations;
       let activeConvId = null;
       let chatPhotoData = null;
       let chatLastMessageId = 0;
@@ -3364,6 +3369,7 @@ let sb = window.API;
         try {
           const data = await sb.getConversations(window.TNSVT_USER.code);
           chatConversations = data || [];
+          window.chatConversations = chatConversations;
           renderConversations();
           // Auto-select first conv if none active (only if widget panel is open)
           // Check CF widget state instead of deleted chatIsOpen()
@@ -3600,6 +3606,7 @@ let sb = window.API;
             if (e.message && /404|Conversaci.n no encontrada|No encontrada/i.test(e.message)) {
               console.warn('[chat] conversacion ya no existe:', activeConvId);
               chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+              window.chatConversations = chatConversations;
               activeConvId = null;
               chatLastMessageId = 0;
               renderConversations();
@@ -3613,6 +3620,7 @@ let sb = window.API;
           const data = await sb.getConversations(window.TNSVT_USER.code);
           if (data) {
             chatConversations = data;
+            window.chatConversations = chatConversations;
             renderConversations();
             // Refrescar FAB badge del CF widget (si está disponible)
             try { window.CF?.render?.(); } catch(_) {}
@@ -4287,6 +4295,7 @@ let sb = window.API;
           await sb.deleteConversation(activeConvId, window.TNSVT_USER.code);
           // Quitar del array local
           chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+          window.chatConversations = chatConversations;
           activeConvId = null;
           // Limpiar UI
           const stream = document.getElementById('chatStream');
@@ -4313,70 +4322,9 @@ let sb = window.API;
       }
       window.onChatTyping = onChatTyping;
 
-      let chatReplyToId = null;
-      function cancelReply(){
-        chatReplyToId = null;
-        const ctx = document.getElementById('chatReplyContext');
-        if(ctx) ctx.style.display = 'none';
-        const input = document.getElementById('chatInput');
-        if(input) input.focus();
-      }
-      window.cancelReply = cancelReply;
+      
 
-      function openChatMenu(){
-        // Dropdown modal con opciones de la conversacion activa
-        const existing = document.getElementById('chatMenuDropdown');
-        if(existing){ existing.remove(); return; }
-        if(!activeConvId){
-          showToast('Selecciona una conversación primero', 2000);
-          return;
-        }
-        const conv = chatConversations.find(c => c.id === activeConvId);
-        if(!conv) return;
-        const dropdown = document.createElement('div');
-        dropdown.id = 'chatMenuDropdown';
-        dropdown.style.cssText = 'position:absolute;top:50px;right:16px;background:rgba(13,8,24,.97);border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:6px;z-index:200;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.6);font-family:Inter,sans-serif;';
-        const items = [
-          { icon:'🔔', label: chatSoundOn ? 'Silenciar' : 'Activar sonido', action: ()=>{ toggleChatSound(); dropdown.remove(); } },
-          { icon:'✓', label:'Marcar como leído', action: async ()=>{ try{ await sb.markChatRead(window.TNSVT_USER.code, activeConvId); showToast('✓ Marcado como leído'); }catch(e){} dropdown.remove(); } },
-          { icon:'🚪', label: conv.type === 'group' ? 'Salir del grupo' : 'Cerrar conversación', action: async ()=>{
-              if(!confirm(conv.type === 'group' ? '¿Salir del grupo "' + convDisplayName(conv) + '"?' : '¿Cerrar la conversación con "' + convDisplayName(conv) + '"?')) return;
-              try{
-                if(conv.type === 'group'){ await sb.leaveConversation(activeConvId, window.TNSVT_USER.code); showToast('🚪 Saliste del grupo'); }
-                else { await sb.markChatRead(activeConvId, window.TNSVT_USER.code); showToast('✓ Conversación cerrada'); }
-                chatConversations = chatConversations.filter(c => c.id !== activeConvId);
-                activeConvId = null;
-                renderConversations();
-              }catch(e){ showToast('❌ ' + (e.message||'error')); }
-              dropdown.remove();
-            }
-          },
-          { icon:'🗑️', label:'Eliminar conversación', danger:true, action: async ()=>{ dropdown.remove(); await deleteConversation(); } },
-          { icon:'ℹ️', label:'Información', action: ()=>{ alert('Conversación: ' + convDisplayName(conv) + '\nTipo: ' + conv.type + '\nID: ' + conv.id); dropdown.remove(); } },
-        ];
-        dropdown.innerHTML = items.map((it,i)=>`<div data-i="${i}" style="padding:8px 12px;cursor:pointer;border-radius:6px;display:flex;gap:10px;align-items:center;font-size:0.82rem;color:${it.danger?'#f87171':'#e2dcf0'};transition:background .15s"><span style="font-size:1rem">${it.icon}</span> ${it.label}</div>`).join('');
-        // Eventos
-        Array.from(dropdown.children).forEach((el,i)=>{
-          el.addEventListener('mouseenter', ()=>el.style.background='rgba(138,60,255,.18)');
-          el.addEventListener('mouseleave', ()=>el.style.background='transparent');
-          el.addEventListener('click', ()=>items[i].action());
-        });
-        // Cerrar al hacer click fuera
-        setTimeout(()=>{
-          const closeOnOutside = (e)=>{
-            if(!dropdown.contains(e.target) && e.target.id !== 'chatMenuBtn'){
-              dropdown.remove();
-              document.removeEventListener('click', closeOnOutside);
-            }
-          };
-          document.addEventListener('click', closeOnOutside);
-        }, 50);
-        // Posicionar relativo al chatHeader
-        const header = document.getElementById('chatHeader');
-        if(header){ header.style.position='relative'; header.appendChild(dropdown); }
-        else document.body.appendChild(dropdown);
-      }
-      window.openChatMenu = openChatMenu;
+      
       window.initAllPanels = initAllPanels;
       window.musicToggle = musicToggle;
       window.musicSetVolume = musicSetVolume;
@@ -4505,15 +4453,7 @@ let sb = window.API;
           p.style.display = 'none';
         }
       }
-      function musicSetAudioSrc(trackId) {
-        const a = musicGetAudio();
-        if (!a) return;
-        const newSrc = trackId ? ('/api/music/stream?id=' + encodeURIComponent(trackId) + '&t=' + Date.now())
-                              : ('/api/music/stream?t=' + Date.now());
-        a.src = newSrc;
-        bgAudioSrc = newSrc;
-        a.load();
-      }
+      
       async function musicLoad(preservePlayback) {
         const a = musicGetAudio();
         if (!a) return;
@@ -4857,10 +4797,7 @@ let sb = window.API;
         musicVizActive = true;
         musicDrawViz();
       }
-      function musicStopViz() {
-        musicVizActive = false;
-        if (musicVizRAF) cancelAnimationFrame(musicVizRAF);
-      }
+      
       function musicInit() {
         const a = musicGetAudio();
         const savedVol = parseInt(localStorage.getItem('tnsvt_music_vol') || '35', 10);
