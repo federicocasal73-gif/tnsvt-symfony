@@ -207,12 +207,13 @@
 .tab-content.active { display: block; }
 
 /* Safe-area padding override for .inner-page (inline in template) */
-.inner-page {
+  .inner-page {
     padding-top: calc(20px + env(safe-area-inset-top, 0px)) !important;
     padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
     border: 1px solid rgba(212,175,55,0.08);
     border-radius: 8px;
   }
+  .section-header { padding-top: 60px; }
 
   /* ===== ESTILOS DE MACROECONOMÍA, JOURNAL, FEED, ETC. ===== */
   /* (Aquí empiezan los estilos del archivo original TNSVT_con_macro (7).html) */
@@ -2088,7 +2089,6 @@
     }
     #hamburger-btn { display: flex !important; }
     .trading-layout { flex-direction: column; }
-    .section-header { padding-top: 60px; }
     /* Font min 16px on inputs to prevent iOS auto-zoom */
     input, textarea, select { font-size: 16px !important; }
     /* Reduce large min-heights for Z Fold 6 / mobile */
