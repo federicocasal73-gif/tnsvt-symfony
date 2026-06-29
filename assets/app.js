@@ -504,6 +504,8 @@ let sb = window.API;
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
           musicShowBar();
+          let el = document.querySelector('.cf-fab'); if(el) el.style.display = '';
+          el = document.querySelector('.cf-presence'); if(el) el.style.display = '';
           const cachedUser = localStorage.getItem('tnsv_user');
           if (cachedUser) {
             activeUserSession = JSON.parse(cachedUser);
