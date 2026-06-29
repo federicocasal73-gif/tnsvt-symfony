@@ -546,12 +546,19 @@
   .tj-cal-days{display:flex;margin-bottom:6px;}
   .tj-cal-days span{flex:1;text-align:center;font-family:'Orbitron',sans-serif;font-size:0.52rem;letter-spacing:1px;text-transform:uppercase;color:#645a78;padding:6px 0;}
   .tj-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-  .tj-cal-cell{aspect-ratio:1;border-radius:6px;background:rgba(0,0,0,0.15);border:1px solid rgba(212,175,55,0.06);display:flex;align-items:center;justify-content:center;font-size:0.72rem;color:#645a78;position:relative;cursor:pointer;transition:all 0.15s;}
+  .tj-cal-cell{aspect-ratio:1;border-radius:6px;background:rgba(0,0,0,0.15);border:1px solid rgba(212,175,55,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.72rem;color:#645a78;position:relative;cursor:pointer;transition:all 0.15s;gap:2px;}
   .tj-cal-cell:hover:not(.empty){background:rgba(212,175,55,0.06);border-color:rgba(212,175,55,0.2);}
   .tj-cal-cell.has-trades{cursor:pointer;font-weight:600;color:#a499b8;}
-  .tj-cal-cell.today{border-color:var(--gold-bright);color:var(--gold-bright);}
-  .tj-cal-cell.has-win::after{content:'';position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:#34c759;}
-  .tj-cal-cell.has-loss::after{content:'';position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:var(--red-impact);}
+  .tj-cal-cell.today{border-color:var(--gold-bright);color:var(--gold-bright);background:rgba(212,175,55,0.08);}
+  .tj-cal-cell.has-win{border-color:rgba(52,199,89,0.5);background:rgba(52,199,89,0.10);color:#fff;}
+  .tj-cal-cell.has-loss{border-color:rgba(255,59,48,0.5);background:rgba(255,59,48,0.10);color:#fff;}
+  .tj-cal-cell.has-be{border-color:rgba(212,175,55,0.3);background:rgba(212,175,55,0.06);color:var(--gold-bright);}
+  .tj-cal-cell .tj-cal-day{font-weight:700;line-height:1;}
+  .tj-cal-cell .tj-cal-pnl{font-family:'JetBrains Mono','SF Mono',Menlo,monospace;font-size:0.55rem;font-weight:700;line-height:1;letter-spacing:0.2px;}
+  .tj-cal-cell .tj-cal-pnl-win{color:#34c759;}
+  .tj-cal-cell .tj-cal-pnl-loss{color:#ff3b30;}
+  .tj-cal-cell .tj-cal-pnl-be{color:var(--gold-bright);}
+  .tj-cal-cell .tj-cal-today{font-family:'Orbitron',sans-serif;font-size:0.45rem;font-weight:700;letter-spacing:0.5px;color:var(--gold-bright);line-height:1;}
   .tj-cal-cell.empty{background:transparent;border-color:transparent;}
   .tj-del-btn{background:transparent;border:none;color:#645a78;cursor:pointer;font-size:0.75rem;padding:2px 6px;border-radius:4px;transition:color 0.2s;}
   .tj-del-btn:hover{color:var(--red-impact);}
@@ -870,12 +877,19 @@
               .tj-cal-days{display:flex;margin-bottom:6px;}
               .tj-cal-days span{flex:1;text-align:center;font-family:'Orbitron',sans-serif;font-size:0.52rem;letter-spacing:1px;text-transform:uppercase;color:#645a78;padding:6px 0;}
               .tj-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-              .tj-cal-cell{aspect-ratio:1;border-radius:6px;background:rgba(0,0,0,0.15);border:1px solid rgba(212,175,55,0.06);display:flex;align-items:center;justify-content:center;font-size:0.72rem;color:#645a78;position:relative;cursor:pointer;transition:all 0.15s;}
+              .tj-cal-cell{aspect-ratio:1;border-radius:6px;background:rgba(0,0,0,0.15);border:1px solid rgba(212,175,55,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.72rem;color:#645a78;position:relative;cursor:pointer;transition:all 0.15s;gap:2px;}
               .tj-cal-cell:hover:not(.empty){background:rgba(212,175,55,0.06);border-color:rgba(212,175,55,0.2);}
               .tj-cal-cell.has-trades{cursor:pointer;font-weight:600;color:#a499b8;}
-              .tj-cal-cell.today{border-color:var(--gold-bright);color:var(--gold-bright);}
-              .tj-cal-cell.has-win::after{content:'';position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:#34c759;}
-              .tj-cal-cell.has-loss::after{content:'';position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:var(--red-impact);}
+              .tj-cal-cell.today{border-color:var(--gold-bright);color:var(--gold-bright);background:rgba(212,175,55,0.08);}
+              .tj-cal-cell.has-win{border-color:rgba(52,199,89,0.5);background:rgba(52,199,89,0.10);color:#fff;}
+              .tj-cal-cell.has-loss{border-color:rgba(255,59,48,0.5);background:rgba(255,59,48,0.10);color:#fff;}
+              .tj-cal-cell.has-be{border-color:rgba(212,175,55,0.3);background:rgba(212,175,55,0.06);color:var(--gold-bright);}
+              .tj-cal-cell .tj-cal-day{font-weight:700;line-height:1;}
+              .tj-cal-cell .tj-cal-pnl{font-family:'JetBrains Mono','SF Mono',Menlo,monospace;font-size:0.55rem;font-weight:700;line-height:1;letter-spacing:0.2px;}
+              .tj-cal-cell .tj-cal-pnl-win{color:#34c759;}
+              .tj-cal-cell .tj-cal-pnl-loss{color:#ff3b30;}
+              .tj-cal-cell .tj-cal-pnl-be{color:var(--gold-bright);}
+              .tj-cal-cell .tj-cal-today{font-family:'Orbitron',sans-serif;font-size:0.45rem;font-weight:700;letter-spacing:0.5px;color:var(--gold-bright);line-height:1;}
               .tj-cal-cell.empty{background:transparent;border-color:transparent;}
               .tj-del-btn{background:transparent;border:none;color:#645a78;cursor:pointer;font-size:0.75rem;padding:2px 6px;border-radius:4px;transition:color 0.2s;}
               .tj-del-btn:hover{color:var(--red-impact);}
@@ -1997,129 +2011,6 @@
       .dp-editor-footer { padding:14px 20px 16px; }
       .dp-entries-grid { grid-template-columns:1fr; }
     }
-
-  /* ===== CHAT FLOTANTE (Burbuja + Panel) ===== */
-  #chat-floating-widget { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); z-index: 9999; font-family: inherit; }
-  #chat-floating-bubble { 
-    width: 60px; height: 60px; border-radius: 50%; 
-    background: linear-gradient(135deg, #d4af37, #b8941f); 
-    border: 2px solid rgba(255, 255, 255, 0.15); 
-    box-shadow: 0 6px 24px rgba(212, 175, 55, 0.5), 0 0 0 6px rgba(212, 175, 55, 0.08); 
-    display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
-    position: relative; padding: 0; -webkit-tap-highlight-color: transparent;
-    animation: cfbPulseContinuous 3s ease-in-out infinite;
-  }
-  @keyframes cfbPulseContinuous {
-    0%, 100% { box-shadow: 0 6px 24px rgba(212, 175, 55, 0.5), 0 0 0 6px rgba(212, 175, 55, 0.08); }
-    50% { box-shadow: 0 6px 28px rgba(212, 175, 55, 0.7), 0 0 0 14px rgba(212, 175, 55, 0.04); }
-  }
-  #chat-floating-bubble:hover { transform: scale(1.08) rotate(-5deg); }
-  #chat-floating-bubble:active { transform: scale(0.95); }
-  .cfb-icon { font-size: 28px; pointer-events: none; transition: transform 0.3s; }
-  #chat-floating-bubble.open .cfb-icon { transform: rotate(45deg); }
-  .cfb-badge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; border-radius: 11px; background: #ff3b30; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 5px; border: 2px solid #0a0712; pointer-events: none; line-height: 1; }
-  .cfb-badge.cfb-pulse { animation: cfbPulse 1.5s ease-out; }
-  @keyframes cfbPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); } 50% { transform: scale(1.3); box-shadow: 0 0 0 12px rgba(255, 59, 48, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
-  #chat-floating-panel { 
-    position: absolute; bottom: 75px; right: 0; 
-    width: 380px; max-width: calc(100vw - 24px); 
-    height: calc(100vh - 200px); max-height: calc(100vh - 200px); 
-    background: rgba(10, 5, 22, 0.85); 
-    backdrop-filter: blur(12px); 
-    border: 1px solid rgba(212, 175, 55, 0.25); 
-    border-radius: 18px; 
-    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(138, 60, 255, 0.1); 
-    display: flex; flex-direction: column; overflow: hidden; 
-    transform-origin: bottom right;
-    animation: cfpPanelOpen 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes cfpPanelOpen {
-    0% { opacity: 0; transform: scale(0.7) translateY(20px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  .cfp-header { 
-    display: flex; align-items: center; gap: 10px; 
-    padding: 14px 18px; 
-    background: linear-gradient(180deg, rgba(30, 15, 55, 0.6), rgba(10, 5, 22, 0.4)); 
-    border-bottom: 1px solid rgba(212, 175, 55, 0.15); 
-    flex-shrink: 0;
-  }
-  .cfp-title { font-family: 'Orbitron', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 1px; color: var(--gold-bright); text-transform: uppercase; flex: 1; }
-  .cfp-action, .cfp-close { background: transparent; border: 1px solid rgba(212, 175, 55, 0.3); color: var(--gold-bright); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; padding: 0; -webkit-tap-highlight-color: transparent; }
-  .cfp-close { border-color: rgba(255, 59, 48, 0.4); color: #ff7066; }
-  .cfp-close:hover { background: rgba(255, 59, 48, 0.1); }
-  .cfp-action:hover { background: rgba(212, 175, 55, 0.1); }
-  
-  /* Toast notification cuando llega mensaje y panel cerrado */
-  .chat-toast {
-    position: fixed; bottom: calc(140px + env(safe-area-inset-bottom, 0px)); 
-    right: calc(115px + env(safe-area-inset-right, 0px)); 
-    z-index: 9998;
-    background: rgba(10, 5, 22, 0.95); 
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(212, 175, 55, 0.3); 
-    border-radius: 14px;
-    padding: 10px 14px; max-width: 280px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    animation: chatToastIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), chatToastFade 4s ease forwards;
-    display: flex; gap: 10px; align-items: center;
-  }
-  @keyframes chatToastIn {
-    0% { opacity: 0; transform: translateY(20px) scale(0.9); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  @keyframes chatToastFade {
-    0%, 80% { opacity: 1; }
-    100% { opacity: 0; transform: translateX(30px); }
-  }
-  .chat-toast-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--violet), var(--violet-deep));
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Orbitron', sans-serif; font-weight: 700; color: #fff;
-    font-size: 0.68rem; flex-shrink: 0;
-  }
-  .chat-toast-content { flex: 1; }
-  .chat-toast-name { 
-    font-family: 'Orbitron', sans-serif; font-size: 0.62rem; 
-    color: var(--gold-bright); letter-spacing: 0.5px; font-weight: 700; 
-  }
-  .chat-toast-text { 
-    font-size: 0.78rem; color: #e2dcf0; margin-top: 2px; 
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  
-  /* Online indicator para avatares */
-  .conv-avatar {
-    position: relative;
-  }
-  .conv-avatar.online::after {
-    content: ""; position: absolute; bottom: -1px; right: -1px;
-    width: 11px; height: 11px; border-radius: 50%;
-    background: var(--green); border: 2px solid #0a0712;
-    box-shadow: 0 0 6px var(--green);
-  }
-  .cfp-body { display: flex; flex: 1; min-height: 0; }
-  .cfp-sidebar { width: 38%; border-right: 1px solid rgba(212, 175, 55, 0.1); display: flex; flex-direction: column; background: rgba(20, 8, 42, 0.5); }
-  .cfp-search { padding: 8px; border-bottom: 1px solid rgba(212, 175, 55, 0.08); }
-  .cfp-search input { width: 100%; padding: 6px 10px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 6px; color: #fff; font-size: 0.75rem; font-family: inherit; outline: none; min-height: 32px; }
-  .cfp-sidebar .chat-conv-list { flex: 1; overflow-y: auto; }
-  .cfp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  @media (max-width: 760px) { #chat-floating-panel { width: calc(100vw - 20px); height: calc(100vh - 180px); max-height: none; } .cfp-sidebar { width: 42%; } }
-  @media (max-width: 420px) { #chat-floating-panel { width: calc(100vw - 16px); right: -4px; bottom: 70px; height: calc(100vh - 160px); } .cfp-sidebar { width: 100%; height: 35%; border-right: none; border-bottom: 1px solid rgba(212, 175, 55, 0.1); } .cfp-main { width: 100%; height: 65%; } }
-
-  @media (max-width: 360px) {
-    .inner-page { padding: 12px 10px !important; }
-    .section-header h2 { font-size: 1.2rem !important; }
-    .section-header p { font-size: 0.7rem !important; }
-    .trading-main { padding: 12px !important; }
-    #chat-floating-bubble { width: 50px; height: 50px; }
-    #chat-floating-panel { width: calc(100vw - 12px); height: calc(100vh - 140px); }
-    .cfp-header { padding: 8px 10px; }
-    .cfp-search input { padding: 4px 8px; font-size: 0.7rem; }
-    .cfp-sidebar { width: 40%; }
-  }
 
   /* ===== TOUCH TARGETS 44px (Mobile) ===== */
   .back-btn { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; }

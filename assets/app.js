@@ -412,6 +412,21 @@ let sb = window.API;
         if (tabId === 'tab-diary') {
           if (typeof Diary !== 'undefined' && Diary.init) Diary.init();
         }
+        if (tabId === 'tab-journal') {
+          // Recargar el journal para que el calendario se renderice
+          // loadJournalFromApi() llama a tjRefresh() que incluye tjRenderCal()
+          if (typeof loadJournalFromApi === 'function') {
+            // Solo recargar si no estamos viendo el journal de otro usuario
+            // (viewUserJournal ya llama a loadJournalFromApi por su cuenta)
+            if (!window._journalViewingCode) {
+              loadJournalFromApi();
+            } else if (typeof tjRefresh === 'function') {
+              tjRefresh();
+            }
+          } else if (typeof tjRefresh === 'function') {
+            tjRefresh();
+          }
+        }
         // Close drawer on tab switch (mobile)
         if (window.innerWidth <= 950) {
           const s = document.querySelector('.trading-sidebar');
@@ -1493,16 +1508,29 @@ let sb = window.API;
           const ds = tjCalYear + '-' + String(tjCalMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
           const isToday = d === today.getDate() && tjCalMonth === today.getMonth() && tjCalYear === today.getFullYear();
           let cls = 'tj-cal-cell';
-          if (isToday) cls += ' today';
           let clickAttr = '';
+          let pnlHtml = '';
           const dayPnl = tradeDates[ds];
           if (dayPnl !== undefined) {
             cls += ' has-trades';
-            if (dayPnl > 0) cls += ' has-win';
-            else if (dayPnl < 0) cls += ' has-loss';
+            const pnlStr = (dayPnl >= 0 ? '+' : '') + '$' + dayPnl.toFixed(0);
+            if (dayPnl > 0) {
+              cls += ' has-win';
+              pnlHtml = `<span class="tj-cal-pnl tj-cal-pnl-win">${pnlStr}</span>`;
+            } else if (dayPnl < 0) {
+              cls += ' has-loss';
+              pnlHtml = `<span class="tj-cal-pnl tj-cal-pnl-loss">${pnlStr}</span>`;
+            } else {
+              cls += ' has-be';
+              pnlHtml = `<span class="tj-cal-pnl tj-cal-pnl-be">$0</span>`;
+            }
             clickAttr = ` onclick="openTjDay('${ds}')"`;
           }
-          html += `<div class="${cls}"${clickAttr}>${d}</div>`;
+          let bodyHtml = `<span class="tj-cal-day">${d}</span>${pnlHtml}`;
+          if (isToday && dayPnl === undefined) {
+            bodyHtml = `<span class="tj-cal-day">${d}</span><span class="tj-cal-today">⛧ HOY</span>`;
+          }
+          html += `<div class="${cls}"${clickAttr}>${bodyHtml}</div>`;
         }
         grid.innerHTML = html;
       }
@@ -3648,76 +3676,66 @@ let sb = window.API;
         }
       }
 
-      // ==================== CHAT FLOTANTE (Burbuja + Panel) ====================
-      function chatToggle() {
-        const bubble = document.getElementById('chat-floating-bubble');
-        const panel = document.getElementById('chat-floating-panel');
-        if (!bubble || !panel) return;
-        const isOpen = panel.style.display === 'flex';
-        if (isOpen) {
-          panel.style.display = 'none';
-          bubble.style.display = 'flex';
-        } else {
-          panel.style.display = 'flex';
-          bubble.style.display = 'none';
-          if (!chatConversations || chatConversations.length === 0) {
-            loadConversations();
-          }
-          // If no active conv, auto-select first
-          if (!activeConvId && chatConversations.length > 0) {
-            const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
-            selectConversation(groupConv.id);
-          }
-        }
-      }
-      function chatIsOpen() {
-        const panel = document.getElementById('chat-floating-panel');
-        return panel && panel.style.display === 'flex';
-      }
-      window.chatToggle = chatToggle;
-      window.chatIsOpen = chatIsOpen;
+      // ==================== WIDGET CHAT FLOTANTE v3.6 (CF.notify) ====================
+      // El widget nuevo (CF) se autocarga en el template. Acá exponemos
+      // la función de polling que dispara toasts para mensajes nuevos
+      // de CUALQUIER conversación (no solo la activa).
 
-      function filterChatList() {
-        const input = document.getElementById('cfpChatSearch');
-        const q = (input ? input.value : '').toLowerCase().trim();
-        const items = document.querySelectorAll('.chat-conv-item');
-        items.forEach(item => {
-          const text = item.textContent.toLowerCase();
-          item.style.display = (!q || text.includes(q)) ? '' : 'none';
+      // Tracking del último ID de mensaje conocido por conversación
+      // Se inicializa con los IDs que ya trae la API al cargar la lista
+      function _cfSeedLastIds() {
+        if (!window.chatConversations) return;
+        window.chatConversations.forEach(c => {
+          if (c._cfLastId == null) {
+            const last = c.last_message && c.last_message.id;
+            c._cfLastId = last || 0;
+          }
         });
       }
-      window.filterChatList = filterChatList;
-      function chatShowBubble() {
-        const bubble = document.getElementById('chat-floating-bubble');
-        if (bubble) bubble.style.display = 'flex';
-      }
-      function chatHideBubble() {
-        const bubble = document.getElementById('chat-floating-bubble');
-        if (bubble) bubble.style.display = 'none';
-      }
-      function chatUpdateUnreadBadge() {
-        const badge = document.getElementById('chat-floating-badge');
-        if (!badge) return;
-        const totalUnread = (chatConversations || []).reduce((sum, c) => {
-          if (chatIsOpen() && c.id === activeConvId) return sum;  // current conv counts as read
-          return sum + (parseInt(c.unread_count || c.unread || 0) || 0);
-        }, 0);
-        if (totalUnread > 0) {
-          badge.style.display = 'flex';
-          badge.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
-        } else {
-          badge.style.display = 'none';
+
+      async function pollAllConversations() {
+        if (!window.TNSVT_USER) return;
+        if (!window.sb || !window.sb.getMessages) return;
+        const convs = window.chatConversations || [];
+        _cfSeedLastIds();
+        for (const conv of convs) {
+          const convId = conv.id;
+          try {
+            const messages = await window.sb.getMessages(convId, window.TNSVT_USER.code, null);
+            if (!messages || !messages.length) continue;
+            const maxId = Math.max(...messages.map(m => m.id || 0));
+            if (maxId > (conv._cfLastId || 0)) {
+              const newMsgs = messages.filter(m => (m.id || 0) > (conv._cfLastId || 0));
+              for (const m of newMsgs) {
+                // Solo notificar mensajes de OTROS usuarios
+                if (m.sender_code && m.sender_code !== window.TNSVT_USER.code) {
+                  // Solo si el panel NO está abierto en esa conversación
+                  if (!window.CF?.state?.open || window.CF.state.currentConv != convId) {
+                    if (window.CF && typeof window.CF.notify === 'function') {
+                      window.CF.notify(
+                        m.sender_name || 'Mensaje',
+                        m.content || (m.photo ? '📎 Foto' : '...'),
+                        convId,
+                        null
+                      );
+                    }
+                  }
+                }
+              }
+              conv._cfLastId = maxId;
+            }
+          } catch(e) {
+            // Silenciar errores individuales de cada conversación
+            console.warn('[CF-poll]', convId, e.message);
+          }
         }
       }
-      function chatTriggerPulse() {
-        const badge = document.getElementById('chat-floating-badge');
-        if (!badge) return;
-        badge.classList.remove('cfb-pulse');
-        // Force reflow to restart animation
-        void badge.offsetWidth;
-        badge.classList.add('cfb-pulse');
-        setTimeout(() => badge.classList.remove('cfb-pulse'), 1600);
-      }
+
+      // Exponer al window para que el widget pueda llamarlo
+      window.pollAllConversations = pollAllConversations;
+
+      // Iniciar polling global cada 5s
+      setInterval(pollAllConversations, 5000);
 
       // ==================== INICIALIZACIÓN GENERAL ====================
       async function initAllPanels() {
