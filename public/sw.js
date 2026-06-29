@@ -1,7 +1,7 @@
 // TNSVT Service Worker - PWA + Offline fallback
 // v41: multi-trading-accounts (max 3 per user, soft-delete)
-const CACHE_NAME = 'tnsvt-v48';
-const RUNTIME_CACHE = 'tnsvt-runtime-v48';
+const CACHE_NAME = 'tnsvt-v49';
+const RUNTIME_CACHE = 'tnsvt-runtime-v49';
 
 // No precacheamos nada que pueda 404. En debug mode Symfony sirve
 // assets/ directamente, en prod los compila con hash. El runtime cache
