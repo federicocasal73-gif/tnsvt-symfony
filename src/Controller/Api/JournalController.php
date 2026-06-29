@@ -326,6 +326,22 @@ class JournalController extends AbstractController
 
     private function mapTrade(Trade $t, $perm, string $scope): array
     {
+        $account = null;
+        $accountId = null;
+        $accountName = null;
+        try {
+            if (method_exists($t, 'getAccount')) {
+                $account = $t->getAccount();
+                if ($account) {
+                    $accountId = $account->getId();
+                    $accountName = $account->getName();
+                }
+            }
+        } catch (\Throwable $e) {
+            // TradingAccount referenciada no existe (account_id huérfano).
+            // Retornamos null sin romper la request.
+            $account = null;
+        }
         $entry = [
             'id' => $t->getId(),
             'asset' => $t->getAsset(),
@@ -333,8 +349,8 @@ class JournalController extends AbstractController
             'result' => $t->getResult(),
             'pnl' => (float) $t->getPnl(),
             'date' => $t->getDate()?->format('c'),
-            'account_id' => $t->getAccount()?->getId(),
-            'account_name' => $t->getAccount()?->getName(),
+            'account_id' => $accountId,
+            'account_name' => $accountName,
         ];
 
         if ($scope === 'owner') {

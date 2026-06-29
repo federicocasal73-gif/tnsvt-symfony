@@ -38,6 +38,10 @@ let sb = window.API;
       let _calCountdownTimer = null;
       let _calNowTimer = null;
       let _calReminderKey = null;
+      const CAL_FLAG = { US:'\uD83C\uDDFA\uD83C\uDDF8', EU:'\uD83C\uDDEA\uD83C\uDDFA', GB:'\uD83C\uDDEC\uD83C\uDDE7', JP:'\uD83C\uDDEF\uD83C\uDDF5', CA:'\uD83C\uDDE8\uD83C\uDDE6', AU:'\uD83C\uDDE6\uD83C\uDDFA', CH:'\uD83C\uDDE8\uD83C\uDDED', CN:'\uD83C\uDDE8\uD83C\uDDF3', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9', ES:'\uD83C\uDDEA\uD83C\uDDF8' };
+
+      // NotifList se inicializa temprano para evitar TDZ cuando updateBadge() se llama antes que la sección SISTEMA DE NOTIFICACIONES se ejecute
+      let notifList = [];
 
       // ── Multi-trading-accounts ──
       let _tjAccounts = [];
@@ -1621,6 +1625,8 @@ let sb = window.API;
         } catch(e) { console.error('[openTjDay]', e); }
         modal.classList.add('vis');
       }
+
+      function closeTjDay() { document.getElementById('tjDayModal')?.classList.remove('vis'); }
 
       let _tjDayDate = null;
 
@@ -4884,7 +4890,11 @@ let sb = window.API;
       }
 
       // ==================== SISTEMA DE NOTIFICACIONES ====================
-      var notifList = JSON.parse(localStorage.getItem('tnsvt_notifs') || '[]');
+      // Nota: notifList se inicializa al INICIO del archivo para evitar TDZ
+      // cuando addNotifs() / updateBadge() se llaman antes que esta sección
+      // se ejecute. Ver declaración temprana en la parte superior.
+      // Acá solo recargamos datos desde localStorage.
+      notifList = JSON.parse(localStorage.getItem('tnsvt_notifs') || '[]');
       var notifChannel = null;
       var pushPermGranted = false;
 
@@ -5432,7 +5442,7 @@ let sb = window.API;
         CHF: ['USDCHF','EURCHF','CHFJPY'],
         CNY: ['USDCNH'],
       };
-      const CAL_FLAG = { US:'\uD83C\uDDFA\uD83C\uDDF8', EU:'\uD83C\uDDEA\uD83C\uDDFA', GB:'\uD83C\uDDEC\uD83C\uDDE7', JP:'\uD83C\uDDEF\uD83C\uDDF5', CA:'\uD83C\uDDE8\uD83C\uDDE6', AU:'\uD83C\uDDE6\uD83C\uDDFA', CH:'\uD83C\uDDE8\uD83C\uDDED', CN:'\uD83C\uDDE8\uD83C\uDDF3', DE:'\uD83C\uDDE9\uD83C\uDDEA', FR:'\uD83C\uDDEB\uD83C\uDDF7', IT:'\uD83C\uDDEE\uD83C\uDDF9', ES:'\uD83C\uDDEA\uD83C\uDDF8' };
+      // CAL_FLAG ya está declarado al inicio del archivo (evita TDZ)
       function _calLoadFilters() {
         try {
           const raw = localStorage.getItem(CAL_LS_FILTERS);
