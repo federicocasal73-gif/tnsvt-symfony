@@ -1469,7 +1469,7 @@
       padding:14px 18px !important;
       background:rgba(10,5,22,0.7) !important;
       backdrop-filter:blur(4px);
-      border:1px solid rgba(212,175,55,0.15) !important;
+      border:1.5px solid rgba(212,175,55,0.2) !important;
       border-radius:12px !important;
       color:#a499b8 !important;
       cursor:pointer;
@@ -1483,6 +1483,7 @@
       display:flex;
       align-items:center;
       gap:6px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.2);
     }
     .sidebar-btn::before{
       content:"";
@@ -2025,23 +2026,28 @@
     position: fixed;
     top: calc(16px + env(safe-area-inset-top, 0px));
     left: calc(16px + env(safe-area-inset-left, 0px));
-    z-index: 10000;
-    width: 48px; height: 48px;
-    border-radius: 12px;
-    background: rgba(10,5,22,0.85);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(212,175,55,0.3);
+    z-index: 10001;
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    background: rgba(10,5,22,0.9);
+    backdrop-filter: blur(10px);
+    border: 2.5px solid rgba(212,175,55,0.55);
     color: var(--gold-bright);
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     cursor: pointer;
     align-items: center;
     justify-content: center;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.2s, transform 0.15s;
+    transition: background 0.2s, transform 0.15s, border-color 0.2s, box-shadow 0.2s;
     padding: 0;
     line-height: 1;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 0 16px rgba(212,175,55,0.2), inset 0 0 0 1px rgba(255,255,255,0.05);
   }
-  #hamburger-btn:hover { background: rgba(35,18,65,0.9); }
+  #hamburger-btn:hover {
+    background: rgba(35,18,65,0.95);
+    border-color: var(--gold-bright);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.5), 0 0 22px rgba(212,175,55,0.4), inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
   #hamburger-btn:active { transform: scale(0.92); }
 
   #sidebar-overlay {
@@ -2080,7 +2086,7 @@
     .trading-sidebar.open {
       transform: translateX(0);
     }
-    #hamburger-btn { display: flex; }
+    #hamburger-btn { display: flex !important; }
     .trading-layout { flex-direction: column; }
     .section-header { padding-top: 60px; }
     /* Font min 16px on inputs to prevent iOS auto-zoom */

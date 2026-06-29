@@ -1558,6 +1558,7 @@ let sb = window.API;
         tjDayCancelForm();
         const isReadOnly = !!window._journalViewingCode;
         const dayTrades = tjTrades.filter(t => t.date.slice(0, 10) === dateStr);
+        try {
         if (!dayTrades.length) {
           const modal = document.getElementById('tjDayModal');
           if (!modal) return;
@@ -1585,6 +1586,8 @@ let sb = window.API;
         if(summaryEl) summaryEl.innerHTML = dayTrades.length+' trade'+(dayTrades.length>1?'s':'')+' · '+dayWins+'W / '+dayLosses+'L · PNL: <strong style="color:'+(dayPnl>=0?'#34c759':'var(--red-impact)')+';">$'+(dayPnl>=0?'+':'')+dayPnl.toFixed(2)+'</strong>';
         const tradesEl = document.getElementById('tjDayTrades');
         if(tradesEl) tradesEl.innerHTML = dayTrades.map(t => {
+          // Fix defensivo: si isReadOnly no estuviera definido por alguna razón, asumir false
+          const _isRO = (typeof isReadOnly !== 'undefined') ? isReadOnly : false;
           const rColor=t.pnl>0?'#34c759':t.pnl<0?'var(--red-impact)':'';
           const rIcon=t.pnl>0?'✅':t.pnl<0?'❌':'↔️';
           const dirColor=t.dir==='BUY'?'#34c759':'var(--red-impact)';
@@ -1604,13 +1607,14 @@ let sb = window.API;
               +(t.ratio?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">R:B</div><div class="tj-day-lvl-val" style="color:var(--gold-bright);">'+t.ratio+'</div></div>':'')
             +'</div>'
             +(t.notes?'<div class="tj-day-notes">📝 '+t.notes.replace(/</g,'&lt;')+'</div>':'')
-            +photosHtml
-            +(isReadOnly ? '' : '<div style="display:flex;gap:6px;margin-top:8px;">'
-              +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️ Editar</button>'
-              +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑 Eliminar</button>'
-            +'</div>')
-          +'</div>';
+             +photosHtml
+             +(_isRO ? '' : '<div style="display:flex;gap:6px;margin-top:8px;">'
+               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️ Editar</button>'
+               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑 Eliminar</button>'
+             +'</div>')
+           +'</div>';
         }).join('');
+        } catch(e) { console.error('[openTjDay]', e); }
         modal.classList.add('vis');
       }
 
@@ -3337,8 +3341,9 @@ let sb = window.API;
           const data = await sb.getConversations(window.TNSVT_USER.code);
           chatConversations = data || [];
           renderConversations();
-          // Auto-select first conv if none active (only if panel is open)
-          if (!activeConvId && chatConversations.length > 0 && chatIsOpen()) {
+          // Auto-select first conv if none active (only if widget panel is open)
+          // Check CF widget state instead of deleted chatIsOpen()
+          if (!activeConvId && chatConversations.length > 0 && window.CF?.state?.open) {
             const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
             selectConversation(groupConv.id);
           }
