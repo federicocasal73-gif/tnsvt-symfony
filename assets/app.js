@@ -205,6 +205,8 @@ let sb = window.API;
           // (sin esperar a que cargue el profile del backend)
           renderHeaderAvatar();
           if (typeof bindAvatarEvents === 'function') bindAvatarEvents();
+          // Mostrar el topbar nuevo (hamburger + brand + notif + admin block)
+          if (typeof window.refreshTopbar === 'function') window.refreshTopbar();
           // Cargar foto de perfil (en background)
           loadMyProfile();
           loaderInitWatch();

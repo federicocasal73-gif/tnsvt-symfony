@@ -2434,3 +2434,9 @@ button[onclick*="hamburger"]:hover {
   .tnsvt-topbar { gap: 6px; padding: 8px 10px; }
 }
 
+/* === Ocultar viejo .app-header (reemplazado por .tnsvt-topbar) === */
+.app-header { display: none !important; }
+/* Mantener visibles elementos del avatar menu que están dentro del viejo header */
+#avatarFileInput { display: none; }
+#avatarMenu { z-index: 200; }
+

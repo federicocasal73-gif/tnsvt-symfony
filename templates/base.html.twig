@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.0.1">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.0.2">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=4.0.1"></script>
+    <script src="{{ asset('api.js') }}?v=4.0.2"></script>
     <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
-    <script src="{{ asset('chart.js') }}?v=4.0.1"></script>
+    <script src="{{ asset('chart.js') }}?v=4.0.2"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -266,39 +266,84 @@
     var logoutBtn = document.getElementById('tnsvtLogoutBtn');
     if (!topbar) return;
 
-    if (user && (user.username || user.code)) {
+    if (user && (user.username || user.code || user.name)) {
       var isAdmin = !!user.isAdmin;
       var tag = document.getElementById('tnsvtUserTag');
       var sub = document.getElementById('tnsvtUserSub');
       var av = document.getElementById('tnsvtUserAvatar');
 
-      if (tag) tag.textContent = isAdmin
-        ? '👑 ADMIN'
-        : '⛧ ' + String(user.username || user.code).toUpperCase();
-      if (sub) sub.textContent = isAdmin
-        ? 'Administrador'
-        : (user.role || 'Ejecutor');
-
-      if (av) {
-        av.innerHTML = '';
-        if (user.avatar) {
-          var img = document.createElement('img');
-          img.src = user.avatar;
-          img.alt = 'avatar';
-          av.appendChild(img);
+      // Tag del usuario: ADMIN si es admin, sino nombre con ⛧
+      if (tag) {
+        if (isAdmin) {
+          tag.textContent = '👑 ADMIN';
         } else {
-          av.textContent = '⛧';
+          var displayName = user.username || user.code || 'USUARIO';
+          tag.textContent = '⛧ ' + String(displayName).toUpperCase();
         }
       }
 
+      // Sub: rol
+      if (sub) {
+        if (isAdmin) {
+          sub.textContent = 'Administrador';
+        } else if (user.role) {
+          sub.textContent = user.role;
+        } else {
+          // Auto-generar rol según permisos
+          sub.textContent = (user.isPro || user.pro) ? 'Ejecutor Pro' : 'Ejecutor';
+        }
+      }
+
+      // Avatar: usar avatar_url (no avatar), con fallback a iniciales
+      if (av) {
+        av.innerHTML = '';
+        av.style.background = '';
+        // Intentar avatar_url primero (del backend), luego avatar (legacy)
+        var avatarSrc = user.avatar_url || user.avatar;
+        if (avatarSrc && typeof avatarSrc === 'string' && avatarSrc.length > 0) {
+          // Solo usar como <img> si parece una URL válida
+          if (avatarSrc.indexOf('http') === 0 || avatarSrc.indexOf('/') === 0 || avatarSrc.indexOf('data:') === 0) {
+            var img = document.createElement('img');
+            img.src = avatarSrc + (avatarSrc.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
+            img.alt = 'avatar';
+            img.onerror = function() {
+              // Si falla la imagen, mostrar iniciales
+              av.innerHTML = '';
+              av.textContent = getInitials(user.name || user.username || user.code);
+              av.style.background = user.avatar_color || '#9353ff';
+            };
+            av.appendChild(img);
+          } else {
+            av.textContent = avatarSrc.toUpperCase().slice(0, 2);
+            av.style.background = user.avatar_color || '#9353ff';
+          }
+        } else {
+          // Sin avatar: usar iniciales
+          av.textContent = getInitials(user.name || user.username || user.code);
+          av.style.background = user.avatar_color || '#9353ff';
+        }
+      }
+
+      // Mostrar topbar y elementos del usuario
       topbar.style.display = '';
       if (userBlock) userBlock.style.display = '';
       if (logoutBtn) logoutBtn.style.display = '';
     } else {
+      // Sin sesión: ocultar topbar
       topbar.style.display = 'none';
       if (userBlock) userBlock.style.display = 'none';
       if (logoutBtn) logoutBtn.style.display = 'none';
     }
+  }
+
+  // Helper: obtener iniciales del nombre
+  function getInitials(name) {
+    if (!name || typeof name !== 'string') return '⛧';
+    var clean = name.replace(/[^\p{L}\p{N}\s]/gu, '').trim();
+    var parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '⛧';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   function renderTopbarBadge() {
