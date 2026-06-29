@@ -2301,7 +2301,7 @@ button[onclick*="hamburger"]:hover {
   text-decoration: none;
   display: flex; flex-direction: column; gap: 3px;
   color: inherit; line-height: 1;
-  flex: 1; min-width: 0;
+  flex: 1;
 }
 .tnsvt-brand h1 {
   font-family: 'Cinzel', serif;
@@ -2310,6 +2310,7 @@ button[onclick*="hamburger"]:hover {
   letter-spacing: 3px; line-height: 1;
   text-shadow: 0 0 12px rgba(212,175,55,0.3);
   white-space: nowrap; flex-shrink: 0;
+  padding-left: 2px;
 }
 .tnsvt-brand-sub {
   font-family: 'Orbitron', sans-serif;

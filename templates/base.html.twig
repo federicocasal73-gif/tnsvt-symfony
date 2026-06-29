@@ -428,26 +428,27 @@
       <div id="appLoadingCounter" style="font-size:0.7rem; color:#645a78; margin-top:10px; font-family:'Orbitron',sans-serif;">0/0</div>
     </div>
 
+    <!-- CAMPANA DE NOTIFICACIONES (fuera del app-header oculto) -->
+    <div class="notif-bell-wrap" id="notifBellWrap">
+      <div class="notif-bell-btn" id="notifBellBtnOld" onclick="toggleNotifPanel()" style="display:none;">
+        🔔
+        <span class="notif-badge" id="notifBadge">0</span>
+      </div>
+      <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-header">
+          <span class="notif-panel-title">Notificaciones</span>
+          <button class="notif-mark-all" onclick="markAllRead()">Marcar todo leído</button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad del feed<br>aparecerán aquí.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- HEADER -->
     <div class="app-header">
       <div class="logo-area"><h1>T.N.S.V.T</h1><p>Reino del Cristo Íntegro</p></div>
       <div class="user-badge">
-        <!-- CAMPANA DE NOTIFICACIONES -->
-        <div class="notif-bell-wrap" id="notifBellWrap">
-          <div class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifPanel()">
-            🔔
-            <span class="notif-badge" id="notifBadge">0</span>
-          </div>
-          <div class="notif-panel" id="notifPanel">
-            <div class="notif-panel-header">
-              <span class="notif-panel-title">Notificaciones</span>
-              <button class="notif-mark-all" onclick="markAllRead()">Marcar todo leído</button>
-            </div>
-            <div class="notif-list" id="notifList">
-              <div class="notif-empty">🔔<br>Sin notificaciones aún.<br>Las señales y actividad del feed<br>aparecerán aquí.</div>
-            </div>
-          </div>
-        </div>
         <div class="user-info"><div class="user-codename" id="profileCodename">Alma Electa</div><div class="user-status" id="profileRole">Conexión Divina</div></div>
 
         <!-- AVATAR del usuario actual — click = menú perfil -->
@@ -524,7 +525,6 @@
             <h2 style="font-family:'Cinzel',serif; font-size:1.8rem; color:var(--gold-bright); text-align:center; margin:0; padding-left:50px;">🏛️ EL CRISTO ÍNTEGRO</h2>
             <p style="font-size:0.85rem; color:var(--violet); font-family:'Orbitron', sans-serif; margin-top:2px; text-align:center; padding-left:50px;">Edición Completa - Trading Neuro-Spiritual Value Theory (2026)</p>
           </div>
-          <button class="back-btn" onclick="closeTradingPanel()" title="Cerrar Estación" aria-label="Cerrar Estación" style="width:42px;height:42px;padding:0;border-radius:12px;font-size:1.1rem;flex-shrink:0;">🔒</button>
         </div>
 
         <!-- Sidebar drawer overlay (hamburger está integrado en el topbar) -->
@@ -4517,7 +4517,7 @@
       }
       inp.value = '';
       // Re-sincronizar después de un instante
-      setTimeout(() => this._syncStream(), 200);
+      setTimeout(() => this._loadMessagesDirect(this.state.currentConv), 200);
     },
 
     /* === NOTIFICACIÓN TOAST === */
