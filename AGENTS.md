@@ -193,3 +193,112 @@
 - Set journal to connections => connected user can see, non-connected gets 403 ✓
 - Export CSV with/without can_download_csv ✓
 - Create/update/delete trade ownership checks ✓
+
+## Session 2026-06-29 — 15 Fixes Consolidados + Hotfixes
+### Commits
+- `e4a66fe` — 15 fixes: CF chat widget rewrite, topbar, pre-login, dead code
+- `48d9445` — hotfix: candado button, _syncStream, notif panel, topbar visual
+
+### What was fixed
+
+#### Fase 1 — Bugs críticos (6 fixes)
+- **`cal-reminder-badge`**: eliminado `display:none` duplicado (estaba siempre visible)
+- **`z-index` newDmModal**: 10001 → 100020 (no solapaba con music player)
+- **`CF.loadConversations()`**: rewrite usando `window.API.getConversations()` directamente (antes buscaba `window.loadChatConversations` que no existía)
+- **`chatConversations` expuesto a window**: ahora compartido via `window.chatConversations` para notificaciones toast (antes era `let` local y `pollAllConversations` siempre retornaba)
+- **`_loadMessagesDirect` URL**: reemplazado fetch directo por `window.API.getMessages()` (URL correcta era `/api/chat/conversations/{id}/messages`)
+- **XSS**: `m.photo` escapado con `this._esc()`
+
+#### Fase 2 — Shape mismatch (2 fixes)
+- **`serializeConversation`**: agregados `is_group`, `other_user_avatar_url`, `online` + método `getAvatarUrl()`
+- **Botón "+"**: nuevo mensaje privado en CF widget header
+
+#### Fase 3 — Topbar + Login (3 fixes)
+- **T cortada**: `overflow:hidden;text-overflow:ellipsis` reemplazado por `flex-shrink:0;padding-left:2px`
+- **DIOS/IDENTIDAD tapado**: `.hub-view` padding-top 20px → 76px
+- **Widgets pre-login**: `musicPlayerBar`, `cf-fab`, `cf-presence` ahora ocultos por defecto (`display:none`), mostrados post-login via `musicShowBar()` + `style.display = ''`
+
+#### Fase 4 — Dead code cleanup
+- Eliminadas funciones: `switchTradingTab`, `musicSetAudioSrc`, `musicStopViz`, `openChatMenu`, `cancelReply`
+- Eliminadas referencias legacy `chat-floating-panel`/`chat-floating-bubble` en `logout()`
+
+#### Hotfixes (commit `48d9445`)
+- **Candado 🔒**: removido botón `closeTradingPanel()` del trading header
+- **`_syncStream`**: reemplazado por `_loadMessagesDirect()` en `CF.send()`
+- **Notif panel**: movido `#notifBellWrap` fuera del `.app-header` oculto (`display:none`) para que el panel de notificaciones sea visible. Oculto el `#notifBellBtn` duplicado dentro del wrap.
+- **Topbar brand**: quitado `min-width:0` para evitar que el contenedor se encoja
+
+### APK
+- Rebuild v1.8.3 → `public/downloads/tnsvt-app.apk` + `public/apk/tnsvt-v1.8.3.apk`
+- VersionCode incrementado, cache-bust pendiente
+
+### Files changed
+- `assets/app.js` — ~103 líneas eliminadas (dead code + fixes)
+- `assets/styles/app.css` — topbar brand fix, hub-view padding
+- `src/Controller/Api/ChatController.php` — avatarUrl + shape fields
+- `templates/base.html.twig` — candidato button, notifPanel moved, CF widget fixes, pre-login hiding
+
+## Session 2026-06-29 — Chat Premium (Fases 1+3+4) + Sound System + N+1 fix + Dead code cleanup
+### Commits
+- `1832063` — Fase 1+3+4: Chat Premium — backend typing/edit/delete/N+1 + sonidos 10 opciones + attachments + dead code cleanup
+
+### Fase 3 — CSS inline → app.css (premium)
+- Moved full CF widget CSS (~368 líneas) from inline `<style>` in `base.html.twig` to `assets/styles/app.css`
+- **Premium enhancements**: glassmorphism panel (blur 18px + animated gradient border via `::before`), inner-glow message bubbles, glass composer with focus-glow, custom gold scrollbar
+- Removed legacy chat CSS (~52 líneas) from `app.css`
+
+### Fase 0 — Dead code cleanup en `app.js`
+- Removed ~500 líneas de funciones legacy que manipulaban DOM que no existe: `formatChatTime`, `convDisplayName`, `convAvatar`, `renderConversations`, `loadConversations`, `renderMessage`, `loadMessages`, `selectConversation`, `renderStream`, `appendMessage`, `attachChatPhoto`, `removeChatPhoto`, `sendChatMessage`, `openChatLightbox`, `pollChat`, `initChatPolling`
+- Refactored `CF.send()` → usa `window.API.sendMessage` directo (sin proxy a legacy)
+- Refactored `startDmWith()`, `deleteConversation()`, `onChatTyping()`, `logout()`, `loadChats()` para usar CF/state API
+
+### Fase 1 — Backend improvements
+- **Message entity**: agregado `editedAt` (DATETIME_IMMUTABLE, nullable) y `attachment` (JSON, nullable) + getters/setters
+- **User entity**: agregado `notificationSound` field (VARCHAR(50), default 'chime')
+- **Migration** `Version20260629123000` aplicada
+- **ChatController**: 5 endpoints nuevos:
+  - `POST /api/chat/typing` — broadcasting typing via push notifications
+  - `PUT /api/chat/conversations/{id}/messages/{msgId}` — edit (solo autor)
+  - `DELETE /api/chat/conversations/{id}/messages/{msgId}` — delete (solo autor)
+  - `DELETE /api/chat/conversations/{id}` — delete conversation
+- **ConversationRepository::findByParticipant()**: refactor de N+1 (3 queries por conv = `2+3N` total) a 6 queries fijos total con batch joins + `GROUP BY`
+
+### Sound System — 10 sonidos Web Audio API
+- **`UserSoundController`** (`GET/PUT /api/user/sound`) — persistencia server-side del sonido elegido
+- **`assets/api.js`**: agregados `getNotificationSound()`, `setNotificationSound()`
+- **CF widget**: `_playSound()` reemplaza `_beep()` con 10 sonidos:
+  - chime (default TNSVT C5→E5→G), mario_coin, zelda_secret, sonic_ring, apple_tritone, pixel_popcorn, pokemon_levelup, deus_ex_scan, indiana_jones_whip, msn_message, swoosh
+- **Sound settings modal** (`CF.showSoundSettings()`) — selector con Preview button
+- **Persistencia dual**: localStorage (`tnsvt_cf_sound`) + backend (User.notificationSound)
+- **Toggling** del botón 🔔 ahora abre el selector de sonidos
+
+### Fase 4 — Attachments (file upload)
+- **`ChatUploadController`** (`POST /api/chat/upload`) — multipart upload a `public/uploads/chat/`, 20MB límite, MIME allowlist (image/jpeg,png,gif,webp, video/mp4,webm, audio/mpeg,ogg,wav, application/pdf)
+- **`assets/api.js`**: `uploadChatFile(file, userCode)` via FormData
+- **CF widget**: replace `cfPhotoInput` (solo image) con `cfFileInput` (image/video/audio/pdf), botón 📷 → 📎
+- **`send()`** method: sube el archivo primero (si hay), luego envía el mensaje
+
+### Typing indicator
+- **`onTyping()`** method en CF: throttle 2s, send a `API.sendTyping(convId, userCode)`
+- Backend notifica a otros participantes via `PushService` con tipo `'typing'`
+
+### Edit/Delete messages UI
+- **`_renderMsg()`**: agrega botones ✏️ 🗑 en hover para mensajes propios, indicador "(editado)" cuando aplica, attachment link preview, photo clickable
+- **`_editMsg()`** y `_deleteMsg()` methods nuevos — prompt para edit, confirm para delete
+
+### APK
+- Rebuild v1.9.0 → `public/downloads/tnsvt-app.apk` + `public/apk/tnsvt-v1.9.0.apk`
+- Web assets re-compiled y bundled vía gradle
+
+### Files changed
+- `assets/api.js` — 6 nuevos métodos (sendTyping, editMessage, deleteMessage, uploadChatFile, getNotificationSound, setNotificationSound)
+- `assets/app.js` — ~423 líneas eliminadas (dead code)
+- `assets/styles/app.css` — +496 líneas CF widget premium CSS
+- `src/Controller/Api/ChatController.php` — +102 líneas (5 endpoints nuevos + serializeMessage extendido)
+- `src/Controller/Api/ChatUploadController.php` (new) — file upload endpoint
+- `src/Controller/Api/UserSoundController.php` (new) — sound preferences endpoint
+- `src/Entity/Message.php` — +12 líneas (editedAt + attachment)
+- `src/Entity/User.php` — +6 líneas (notificationSound)
+- `src/Repository/ConversationRepository.php` — N+1 fix (refactor a 6 queries fijos)
+- `templates/base.html.twig` — CF widget completamente rediseñado (-569 líneas netas)
+- `migrations/Version20260629123000.php` (new) — schema migration
