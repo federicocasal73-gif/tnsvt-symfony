@@ -79,7 +79,7 @@ class ChatController extends AbstractController
             'other_user_code' => $otherUser?->getCode(),
             'other_user_name' => $otherUser?->getName(),
             'other_user_avatar_url' => $this->getAvatarUrl($otherUser?->getCode()),
-            'online' => false,
+            'online' => $otherUser?->isOnline() ?? false,
             'created_at' => $conv->getCreatedAt()?->format('c'),
             'unread_count' => $unreadCount,
             'last_message' => $lastMessage ? [
@@ -260,9 +260,189 @@ class ChatController extends AbstractController
                 'code' => $u->getCode(),
                 'name' => $u->getName(),
                 'is_me' => $u->getId() === $me->getId(),
+                'is_admin' => in_array('ROLE_ADMIN', $u->getRoles()),
+                'online' => $u->isOnline(),
             ];
         }, $users);
 
         return $this->json($data);
+    }
+
+    #[Route('/ping', name: 'api_chat_ping', methods: ['POST'])]
+    public function ping(Request $request): JsonResponse
+    {
+        $me = $this->resolveUser($request);
+        if (!$me) return $this->json(['error' => 'user_code requerido'], 400);
+
+        $me->setLastActivityAt(new \DateTimeImmutable());
+        $this->em->flush();
+
+        return $this->json(['success' => true, 'online' => true]);
+    }
+
+    // ==================== GROUP MANAGEMENT (ADMIN ONLY) ====================
+
+    private function resolveAdmin(Request $request): ?User
+    {
+        $user = $this->resolveUser($request);
+        if (!$user || !in_array('ROLE_ADMIN', $user->getRoles())) return null;
+        return $user;
+    }
+
+    #[Route('/groups', name: 'api_chat_groups_create', methods: ['POST'])]
+    public function createGroup(Request $request): JsonResponse
+    {
+        $admin = $this->resolveAdmin($request);
+        if (!$admin) return $this->json(['error' => 'No autorizado (se requiere admin)'], 403);
+
+        $data = json_decode($request->getContent(), true);
+        $name = trim($data['name'] ?? '');
+        if ($name === '') return $this->json(['error' => 'Nombre del grupo requerido'], 400);
+
+        // Max 3 groups
+        $existingCount = $this->conversationRepository->count(['type' => Conversation::TYPE_GROUP]);
+        if ($existingCount >= 3) {
+            return $this->json(['error' => 'Máximo 3 grupos permitidos'], 400);
+        }
+
+        $conv = new Conversation();
+        $conv->setType(Conversation::TYPE_GROUP);
+        $conv->setTitle($name);
+        $this->em->persist($conv);
+
+        $p = new ConversationParticipant();
+        $p->setConversation($conv);
+        $p->setUser($admin);
+        $this->em->persist($p);
+
+        $this->em->flush();
+
+        return $this->json($this->serializeConversation($conv, null, 0, $admin), 201);
+    }
+
+    #[Route('/groups/{id}/add', name: 'api_chat_groups_add', methods: ['POST'])]
+    public function addToGroup(int $id, Request $request): JsonResponse
+    {
+        $admin = $this->resolveAdmin($request);
+        if (!$admin) return $this->json(['error' => 'No autorizado (se requiere admin)'], 403);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv || $conv->getType() !== Conversation::TYPE_GROUP) {
+            return $this->json(['error' => 'Grupo no encontrado'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $targetCode = strtoupper(trim($data['target_code'] ?? ''));
+        if ($targetCode === '') return $this->json(['error' => 'target_code requerido'], 400);
+
+        $user = $this->userRepository->findByCode($targetCode);
+        if (!$user) return $this->json(['error' => 'Usuario no encontrado'], 404);
+
+        // Check if already participant
+        if ($this->isParticipant($conv, $user)) {
+            return $this->json(['error' => 'El usuario ya es miembro del grupo'], 400);
+        }
+
+        $p = new ConversationParticipant();
+        $p->setConversation($conv);
+        $p->setUser($user);
+        $this->em->persist($p);
+        $this->em->flush();
+
+        return $this->json(['success' => true, 'user_code' => $targetCode]);
+    }
+
+    #[Route('/groups/{id}/remove', name: 'api_chat_groups_remove', methods: ['POST'])]
+    public function removeFromGroup(int $id, Request $request): JsonResponse
+    {
+        $admin = $this->resolveAdmin($request);
+        if (!$admin) return $this->json(['error' => 'No autorizado (se requiere admin)'], 403);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv || $conv->getType() !== Conversation::TYPE_GROUP) {
+            return $this->json(['error' => 'Grupo no encontrado'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $targetCode = strtoupper(trim($data['target_code'] ?? ''));
+        if ($targetCode === '') return $this->json(['error' => 'target_code requerido'], 400);
+
+        $user = $this->userRepository->findByCode($targetCode);
+        if (!$user) return $this->json(['error' => 'Usuario no encontrado'], 404);
+
+        $participant = $this->getParticipant($conv, $user);
+        if (!$participant) return $this->json(['error' => 'El usuario no es miembro del grupo'], 400);
+
+        $this->em->remove($participant);
+        $this->em->flush();
+
+        return $this->json(['success' => true, 'user_code' => $targetCode]);
+    }
+
+    #[Route('/groups/{id}/rename', name: 'api_chat_groups_rename', methods: ['POST'])]
+    public function renameGroup(int $id, Request $request): JsonResponse
+    {
+        $admin = $this->resolveAdmin($request);
+        if (!$admin) return $this->json(['error' => 'No autorizado (se requiere admin)'], 403);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv || $conv->getType() !== Conversation::TYPE_GROUP) {
+            return $this->json(['error' => 'Grupo no encontrado'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $name = trim($data['name'] ?? '');
+        if ($name === '') return $this->json(['error' => 'Nombre requerido'], 400);
+
+        $conv->setTitle($name);
+        $this->em->flush();
+
+        return $this->json(['success' => true, 'title' => $name]);
+    }
+
+    #[Route('/groups/{id}', name: 'api_chat_groups_delete', methods: ['DELETE'])]
+    public function deleteGroup(int $id, Request $request): JsonResponse
+    {
+        $admin = $this->resolveAdmin($request);
+        if (!$admin) return $this->json(['error' => 'No autorizado (se requiere admin)'], 403);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv || $conv->getType() !== Conversation::TYPE_GROUP) {
+            return $this->json(['error' => 'Grupo no encontrado'], 404);
+        }
+
+        $this->em->remove($conv);
+        $this->em->flush();
+
+        return $this->json(['success' => true]);
+    }
+
+    #[Route('/groups/{id}/members', name: 'api_chat_groups_members', methods: ['GET'])]
+    public function listGroupMembers(int $id, Request $request): JsonResponse
+    {
+        $me = $this->resolveUser($request);
+        if (!$me) return $this->json(['error' => 'user_code requerido'], 400);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv || $conv->getType() !== Conversation::TYPE_GROUP) {
+            return $this->json(['error' => 'Grupo no encontrado'], 404);
+        }
+        if (!$this->isParticipant($conv, $me)) return $this->json(['error' => 'No autorizado'], 403);
+
+        $members = [];
+        foreach ($conv->getParticipants() as $p) {
+            $u = $p->getUser();
+            if ($u) {
+                $members[] = [
+                    'code' => $u->getCode(),
+                    'name' => $u->getName(),
+                    'is_admin' => in_array('ROLE_ADMIN', $u->getRoles()),
+                    'online' => $u->isOnline(),
+                    'avatar_url' => $this->getAvatarUrl($u->getCode()),
+                ];
+            }
+        }
+
+        return $this->json($members);
     }
 }

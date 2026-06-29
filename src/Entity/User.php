@@ -34,6 +34,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $lastLogin = null;
 
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $lastActivityAt = null;
+
     #[ORM\Column(type: Types::JSON)]
     private array $roles = ['ROLE_USER'];
 
@@ -91,6 +94,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getLastLogin(): ?\DateTimeImmutable { return $this->lastLogin; }
     public function setLastLogin(?\DateTimeImmutable $lastLogin): static { $this->lastLogin = $lastLogin; return $this; }
+
+    public function getLastActivityAt(): ?\DateTimeImmutable { return $this->lastActivityAt; }
+    public function setLastActivityAt(?\DateTimeImmutable $lastActivityAt): static { $this->lastActivityAt = $lastActivityAt; return $this; }
+
+    public function isOnline(): bool
+    {
+        if (!$this->lastActivityAt) return false;
+        return $this->lastActivityAt > new \DateTimeImmutable('-2 minutes');
+    }
 
     public function getRoles(): array { return $this->roles; }
     public function setRoles(array $roles): static { $this->roles = $roles; return $this; }

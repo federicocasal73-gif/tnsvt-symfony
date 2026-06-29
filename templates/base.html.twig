@@ -4233,8 +4233,10 @@
       <span class="cf-name" id="cfHeaderName">⚔ Mensajes</span>
       <span class="cf-sub" id="cfHeaderSub">EN VIVO</span>
     </div>
+    <button class="cf-action" id="cfManageGroupBtn" onclick="if(window.manageGroupConvId) openManageGroupModal(window.manageGroupConvId)" title="Gestionar grupo" style="display:none;">⚙️</button>
     <div class="cf-panel-actions">
       <button class="cf-action" onclick="if(typeof openNewDmModal==='function') openNewDmModal(); else document.getElementById('newDmOverlay').style.display='flex';" title="Nuevo mensaje">✉️</button>
+      <button class="cf-action" id="cfCreateGroupBtn" onclick="openCreateGroupModal()" title="Crear grupo" style="display:none;">👥</button>
       <button class="cf-action" onclick="CF.toggleSound()" title="Sonido" id="cfSoundBtn">🔔</button>
       <button class="cf-action cf-danger" onclick="CF.toggle()" title="Cerrar">✕</button>
     </div>
@@ -4320,6 +4322,8 @@
       panel.classList.remove('cf-in-chat');
       document.getElementById('cfHeaderName').textContent = '⚔ Mensajes';
       document.getElementById('cfHeaderSub').textContent = 'EN VIVO';
+      const mgrBtn = document.getElementById('cfManageGroupBtn');
+      if (mgrBtn) mgrBtn.style.display = 'none';
     },
 
     tab(name) {
@@ -4454,6 +4458,17 @@
       if (conv) {
         document.getElementById('cfHeaderName').textContent = conv.name;
         document.getElementById('cfHeaderSub').textContent = conv.online ? 'EN LÍNEA' : 'DESCONECTADO';
+        // Show manage group button for admin if it's a group
+        const mgrBtn = document.getElementById('cfManageGroupBtn');
+        const isAdmin = window.TNSVT_USER?.isAdmin;
+        if (mgrBtn) {
+          if (isAdmin && conv.isGroup) {
+            mgrBtn.style.display = 'flex';
+            window.manageGroupConvId = conv.id;
+          } else {
+            mgrBtn.style.display = 'none';
+          }
+        }
       }
       document.getElementById('cfPanel').classList.add('cf-in-chat');
 
@@ -4588,17 +4603,55 @@
     <div id="newDmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100020; align-items:center; justify-content:center; padding:20px;">
       <div style="background:rgba(13,8,24,0.99); border:1px solid rgba(212,175,55,0.3); border-radius:16px; width:100%; max-width:480px; max-height:80vh; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid rgba(212,175,55,0.15);">
-          <span style="font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold-bright);">✉️ Nuevo mensaje</span>
+          <span style="font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold-bright);">✉️ Nuevo mensaje <span id="onlineCountDisplay" style="font-size:0.65rem; color:#00ff88; font-family:'Orbitron',sans-serif; margin-left:8px;">0</span></span>
           <button onclick="closeNewDmModal()" style="background:none; border:none; color:#645a78; font-size:1.4rem; cursor:pointer;">✕</button>
         </div>
-        <div style="padding:12px 20px;">
-          <input type="text" id="newDmSearch" placeholder="Buscar usuario..." oninput="filterNewDmList()" style="width:100%; padding:10px 14px; background:rgba(0,0,0,0.5); border:1px solid rgba(212,175,55,0.2); border-radius:8px; color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
+        <div style="padding:12px 20px; display:flex; gap:8px;">
+          <input type="text" id="newDmSearch" placeholder="Buscar usuario..." oninput="filterNewDmList()" style="flex:1; padding:10px 14px; background:rgba(0,0,0,0.5); border:1px solid rgba(212,175,55,0.2); border-radius:8px; color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
         </div>
         <div id="newDmUserList" style="flex:1; overflow-y:auto; padding:0 12px 16px;">
           <div style="padding:20px; text-align:center; color:#645a78;">Cargando usuarios...</div>
          </div>
        </div>
      </div>
+
+    <!-- ==================== MODAL: CREAR GRUPO (ADMIN) ==================== -->
+    <div id="createGroupOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100021; align-items:center; justify-content:center; padding:20px;">
+      <div style="background:rgba(13,8,24,0.99); border:1px solid rgba(212,175,55,0.3); border-radius:16px; width:100%; max-width:440px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid rgba(212,175,55,0.15);">
+          <span style="font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold-bright);">👥 Crear Grupo</span>
+          <button onclick="closeCreateGroupModal()" style="background:none; border:none; color:#645a78; font-size:1.4rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:20px;">
+          <label style="display:block; font-size:0.7rem; color:#645a78; font-family:'Orbitron',sans-serif; margin-bottom:6px;">NOMBRE DEL GRUPO</label>
+          <input type="text" id="createGroupNameInput" placeholder="Ej: Grupo Alpha" maxlength="100" style="width:100%; padding:10px 14px; background:rgba(0,0,0,0.5); border:1px solid rgba(212,175,55,0.2); border-radius:8px; color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
+          <button id="createGroupBtn" onclick="handleCreateGroup()" style="margin-top:16px; width:100%; padding:12px; background:linear-gradient(135deg,var(--violet),var(--gold)); border:none; border-radius:10px; color:#fff; font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; letter-spacing:1px; cursor:pointer; transition:0.2s;">CREAR GRUPO</button>
+          <div id="createGroupError" style="margin-top:8px; font-size:0.75rem; color:#ff3b30; display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: GESTIÓN DE GRUPO (ADMIN) ==================== -->
+    <div id="manageGroupOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100022; align-items:center; justify-content:center; padding:20px;">
+      <div style="background:rgba(13,8,24,0.99); border:1px solid rgba(212,175,55,0.3); border-radius:16px; width:100%; max-width:480px; max-height:80vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid rgba(212,175,55,0.15);">
+          <span id="manageGroupTitle" style="font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold-bright);">👥 Gestionar Grupo</span>
+          <button onclick="closeManageGroupModal()" style="background:none; border:none; color:#645a78; font-size:1.4rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:12px 20px; display:flex; gap:8px;">
+          <input type="text" id="manageGroupSearch" placeholder="Agregar usuario por código..." style="flex:1; padding:10px 14px; background:rgba(0,0,0,0.5); border:1px solid rgba(212,175,55,0.2); border-radius:8px; color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
+          <button onclick="handleAddToGroup()" style="padding:10px 18px; background:linear-gradient(135deg,var(--violet),var(--gold)); border:none; border-radius:8px; color:#fff; font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; cursor:pointer;">AGREGAR</button>
+        </div>
+        <div id="manageGroupMemberList" style="flex:1; overflow-y:auto; padding:0 12px 16px;">
+          <div style="padding:20px; text-align:center; color:#645a78;">Cargando miembros...</div>
+        </div>
+        <div style="padding:10px 20px; border-top:1px solid rgba(212,175,55,0.1); display:flex; gap:8px;">
+          <button onclick="handleRenameGroup()" style="flex:1; padding:8px; background:rgba(138,60,255,0.1); border:1px solid rgba(138,60,255,0.3); border-radius:8px; color:#c4a0ff; font-family:'Orbitron',sans-serif; font-size:0.65rem; cursor:pointer;">RENOMBRAR</button>
+          <button onclick="handleDeleteGroup()" style="flex:1; padding:8px; background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.3); border-radius:8px; color:#ff3b30; font-family:'Orbitron',sans-serif; font-size:0.65rem; cursor:pointer;">ELIMINAR GRUPO</button>
+        </div>
+        <div id="manageGroupError" style="padding:0 20px 12px; font-size:0.75rem; color:#ff3b30; display:none;"></div>
+      </div>
+    </div>
 
 <!-- ==================== MÚSICA: PLAYER + BARRA PERSISTENTE (BODY LEVEL) ==================== -->
 <audio id="bgMusicAudio" preload="auto" style="display:none;"></audio>

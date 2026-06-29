@@ -218,6 +218,13 @@ let sb = window.API;
           const cfPres = document.querySelector('.cf-presence');
           if (cfFab) cfFab.style.display = '';
           if (cfPres) cfPres.style.display = '';
+          // Heartbeat para chat online presence
+          if (window.chatPingTimer) clearInterval(window.chatPingTimer);
+          window.chatPingTimer = setInterval(() => {
+            if (window.sb && window.TNSVT_USER?.code) {
+              sb.ping(window.TNSVT_USER.code).catch(() => {});
+            }
+          }, 60000);
           // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
           applyAdminFeatures(isAdmin);
         } catch (e) {
@@ -506,6 +513,12 @@ let sb = window.API;
           musicShowBar();
           let el = document.querySelector('.cf-fab'); if(el) el.style.display = '';
           el = document.querySelector('.cf-presence'); if(el) el.style.display = '';
+          if (window.chatPingTimer) clearInterval(window.chatPingTimer);
+          window.chatPingTimer = setInterval(() => {
+            if (window.sb && window.TNSVT_USER?.code) {
+              sb.ping(window.TNSVT_USER.code).catch(() => {});
+            }
+          }, 60000);
           const cachedUser = localStorage.getItem('tnsv_user');
           if (cachedUser) {
             activeUserSession = JSON.parse(cachedUser);
@@ -3675,13 +3688,19 @@ let sb = window.API;
           list.innerHTML = '<div style="padding:20px; text-align:center; color:#645a78;">No hay usuarios disponibles</div>';
           return;
         }
+        const totalOnline = users.filter(u => u.online && !u.is_me).length;
+        document.getElementById('onlineCountDisplay').innerText = totalOnline;
         list.innerHTML = users.map(u => {
           const initial = (u.name || u.code || '?').charAt(0).toUpperCase();
+          const onlineDot = u.online ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#00ff88;box-shadow:0 0 8px #00ff88;margin-left:6px;vertical-align:middle;"></span>' : '';
           return `
             <div class="chat-conv-item" style="cursor:pointer; padding:10px 12px;" onclick="startDmWith('${escapeAttr(u.code)}')">
-              <div class="chat-conv-avatar">${initial}</div>
+              <div class="chat-conv-avatar" style="position:relative;">
+                ${initial}
+                ${u.online ? '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:#00ff88;border:2px solid #0a0712;"></span>' : ''}
+              </div>
               <div class="chat-conv-info">
-                <div class="chat-conv-name">${escapeHtml(u.name || u.code)}</div>
+                <div class="chat-conv-name">${escapeHtml(u.name || u.code)}${onlineDot}</div>
                 <div class="chat-conv-preview">${escapeHtml(u.code)}${u.is_admin ? ' · 👑 Admin' : ''}</div>
               </div>
             </div>`;
@@ -3705,6 +3724,130 @@ let sb = window.API;
         } catch(e) {
           showToast('❌ Error: ' + e.message);
         }
+      }
+
+      // ==================== GROUP MANAGEMENT (ADMIN) ====================
+      window.manageGroupConvId = null;
+
+      function openCreateGroupModal() {
+        const overlay = document.getElementById('createGroupOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        const err = document.getElementById('createGroupError');
+        if (err) err.style.display = 'none';
+        const input = document.getElementById('createGroupNameInput');
+        if (input) { input.value = ''; setTimeout(() => input.focus(), 100); }
+      }
+      function closeCreateGroupModal() {
+        document.getElementById('createGroupOverlay').style.display = 'none';
+      }
+
+      async function handleCreateGroup() {
+        const btn = document.getElementById('createGroupBtn');
+        const err = document.getElementById('createGroupError');
+        const name = document.getElementById('createGroupNameInput')?.value?.trim();
+        if (!name) { err.textContent = 'Ingresá un nombre para el grupo'; err.style.display = 'block'; return; }
+        btn.disabled = true; btn.textContent = 'CREANDO...';
+        try {
+          const result = await sb.createGroup(window.TNSVT_USER.code, name);
+          if (result.error) { err.textContent = result.error; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'CREAR GRUPO'; return; }
+          closeCreateGroupModal();
+          showToast('👥 Grupo "' + name + '" creado');
+          // Refresh conversations
+          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+        } catch(e) {
+          err.textContent = 'Error: ' + e.message; err.style.display = 'block';
+        }
+        btn.disabled = false; btn.textContent = 'CREAR GRUPO';
+      }
+
+      function openManageGroupModal(convId) {
+        window.manageGroupConvId = convId;
+        const overlay = document.getElementById('manageGroupOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        document.getElementById('manageGroupSearch').value = '';
+        document.getElementById('manageGroupError').style.display = 'none';
+        // Find group name
+        const convs = window.chatConversations || [];
+        const conv = convs.find(c => c.id === convId);
+        if (conv) document.getElementById('manageGroupTitle').textContent = '👥 ' + (conv.title || 'Grupo');
+        loadManageGroupMembers();
+      }
+      function closeManageGroupModal() {
+        document.getElementById('manageGroupOverlay').style.display = 'none';
+        window.manageGroupConvId = null;
+      }
+
+      async function loadManageGroupMembers() {
+        const list = document.getElementById('manageGroupMemberList');
+        if (!list || !window.manageGroupConvId) return;
+        list.innerHTML = '<div style="padding:20px; text-align:center; color:#645a78;">Cargando miembros...</div>';
+        try {
+          const members = await sb.listGroupMembers(window.TNSVT_USER.code, window.manageGroupConvId);
+          list.innerHTML = members.map(m => {
+            const onlineDot = m.online ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-left:4px;"></span>' : '';
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 4px; border-bottom:1px solid rgba(212,175,55,0.08);">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:rgba(138,60,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--gold-bright);">${(m.name||m.code||'?').charAt(0).toUpperCase()}</div>
+                <div>
+                  <div style="font-size:0.8rem;color:#e0d5f0;">${m.name}${onlineDot}</div>
+                  <div style="font-size:0.65rem;color:#645a78;">${m.code} ${m.is_admin ? '👑' : ''}</div>
+                </div>
+              </div>
+              ${!m.is_admin ? `<button onclick="handleRemoveFromGroup('${escapeAttr(m.code)}')" style="background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);color:#ff6b6b;border-radius:6px;padding:4px 10px;font-size:0.65rem;cursor:pointer;">SACAR</button>` : '<span style="font-size:0.6rem;color:var(--gold-bright);">Admin</span>'}
+            </div>`;
+          }).join('');
+        } catch(e) {
+          list.innerHTML = '<div style="padding:20px; text-align:center; color:#ff3b30;">Error: ' + e.message + '</div>';
+        }
+      }
+
+      async function handleAddToGroup() {
+        const err = document.getElementById('manageGroupError');
+        const code = document.getElementById('manageGroupSearch')?.value?.trim().toUpperCase();
+        if (!code) { err.textContent = 'Ingresá el código del usuario'; err.style.display = 'block'; return; }
+        try {
+          const result = await sb.addToGroup(window.TNSVT_USER.code, window.manageGroupConvId, code);
+          if (result.error) { err.textContent = result.error; err.style.display = 'block'; return; }
+          document.getElementById('manageGroupSearch').value = '';
+          err.style.display = 'none';
+          loadManageGroupMembers();
+          showToast('✅ ' + code + ' agregado al grupo');
+          // Refresh conversations for the added user (they'll see it on next poll)
+          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+        } catch(e) { err.textContent = 'Error: ' + e.message; err.style.display = 'block'; }
+      }
+
+      async function handleRemoveFromGroup(targetCode) {
+        if (!confirm('¿Sacar a ' + targetCode + ' del grupo?')) return;
+        try {
+          await sb.removeFromGroup(window.TNSVT_USER.code, window.manageGroupConvId, targetCode);
+          loadManageGroupMembers();
+          showToast('👋 ' + targetCode + ' sacado del grupo');
+          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+        } catch(e) { showToast('❌ Error: ' + e.message); }
+      }
+
+      async function handleRenameGroup() {
+        const err = document.getElementById('manageGroupError');
+        const newName = prompt('Nuevo nombre del grupo:');
+        if (!newName || !newName.trim()) return;
+        try {
+          await sb.renameGroup(window.TNSVT_USER.code, window.manageGroupConvId, newName.trim());
+          document.getElementById('manageGroupTitle').textContent = '👥 ' + newName.trim();
+          err.style.display = 'none';
+          showToast('✏️ Grupo renombrado');
+          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+        } catch(e) { err.textContent = 'Error: ' + e.message; err.style.display = 'block'; }
+      }
+
+      async function handleDeleteGroup() {
+        if (!confirm('¿Eliminar este grupo definitivamente? Se borrarán todos los mensajes.')) return;
+        try {
+          await sb.deleteGroup(window.TNSVT_USER.code, window.manageGroupConvId);
+          closeManageGroupModal();
+          showToast('🗑️ Grupo eliminado');
+          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+        } catch(e) { showToast('❌ Error: ' + e.message); }
       }
 
       function loadChats() {
@@ -4663,6 +4806,8 @@ let sb = window.API;
         if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
         const chartBtn = document.getElementById('chartSidebarBtn');
         if (chartBtn) chartBtn.style.display = isAdmin ? 'block' : 'none';
+        const createGroupBtn = document.getElementById('cfCreateGroupBtn');
+        if (createGroupBtn) createGroupBtn.style.display = isAdmin ? 'flex' : 'none';
         // También actualizar window.TNSVT_USER.isAdmin
         if (window.TNSVT_USER) {
           window.TNSVT_USER.isAdmin = !!isAdmin;

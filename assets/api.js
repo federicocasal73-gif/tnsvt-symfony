@@ -196,6 +196,35 @@ async getNotifCount(userCode) {
     return this.get(`/api/chat/users?user_code=${userCode}`);
   },
 
+  async ping(userCode) {
+    return this.post('/api/chat/ping', { user_code: userCode });
+  },
+
+  // Admin group management
+  async createGroup(userCode, name) {
+    return this.post('/api/chat/groups', { user_code: userCode, name: name });
+  },
+
+  async addToGroup(userCode, groupId, targetCode) {
+    return this.post(`/api/chat/groups/${groupId}/add`, { user_code: userCode, target_code: targetCode });
+  },
+
+  async removeFromGroup(userCode, groupId, targetCode) {
+    return this.post(`/api/chat/groups/${groupId}/remove`, { user_code: userCode, target_code: targetCode });
+  },
+
+  async renameGroup(userCode, groupId, name) {
+    return this.post(`/api/chat/groups/${groupId}/rename`, { user_code: userCode, name: name });
+  },
+
+  async deleteGroup(userCode, groupId) {
+    return this.del(`/api/chat/groups/${groupId}?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async listGroupMembers(userCode, groupId) {
+    return this.get(`/api/chat/groups/${groupId}/members?user_code=${encodeURIComponent(userCode)}`);
+  },
+
   // Profile (foto de perfil)
   async getProfile(code) {
     return this.get(`/api/profile/${encodeURIComponent(code)}`);
