@@ -3903,8 +3903,9 @@
       <span id="cfTypingText">alguien está escribiendo…</span>
     </div>
     <div class="cf-input-area">
+      <div id="cfFilePreview" style="display:none;padding:6px 10px;margin-bottom:6px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;align-items:center;gap:8px;font-size:0.7rem;"></div>
       <div class="cf-input-row">
-        <input type="file" id="cfFileInput" accept="image/*,video/*,audio/*,.pdf" hidden>
+        <input type="file" id="cfFileInput" accept="image/*,video/*,audio/*,.pdf" hidden onchange="CF._onFileSelect(this.files[0])">
         <button class="cf-icon-btn" onclick="document.getElementById('cfFileInput').click()" title="Adjuntar archivo (img/video/audio/pdf)">📎</button>
         <input type="text" id="cfInput" class="cf-input-text" placeholder="Escribí al cónclave…"
           onkeypress="if(event.key==='Enter') CF.send()" oninput="CF.onTyping()">
@@ -4144,7 +4145,27 @@
       const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'}) : '';
       const photoHtml = m.photo ? `<img src="${this._esc(m.photo)}" alt="" style="max-width:100%;border-radius:8px;margin-top:4px;cursor:pointer;" onclick="window.open('${this._esc(m.photo)}','_blank')">` : '';
       const editedHtml = m.edited_at ? ` <span style="font-size:0.55rem;color:#645a78;font-style:italic;">(editado)</span>` : '';
-      const attachmentHtml = m.attachment ? `<div style="margin-top:4px;"><a href="${this._esc(m.attachment.url||'#')}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#f0d97e;font-size:0.7rem;text-decoration:none;">📎 ${this._esc(m.attachment.name||'Archivo')}</a></div>` : '';
+      // Attachment: image preview inline OR chip for other files
+      let attachmentHtml = '';
+      if (m.attachment) {
+        const url = m.attachment.url || '#';
+        const name = m.attachment.name || 'Archivo';
+        const mime = m.attachment.mime || '';
+        const sizeKb = m.attachment.size ? Math.round(m.attachment.size / 1024) : null;
+        const sizeStr = sizeKb ? ` · ${sizeKb < 1024 ? sizeKb + 'KB' : (sizeKb/1024).toFixed(1) + 'MB'}` : '';
+        if (mime.startsWith('image/')) {
+          // Inline image preview
+          attachmentHtml = `<div style="margin-top:6px;"><a href="${this._esc(url)}" target="_blank" rel="noopener"><img src="${this._esc(url)}" alt="${this._esc(name)}" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid rgba(212,175,55,0.25);cursor:pointer;display:block;"></a><div style="font-size:0.6rem;color:#a499b8;margin-top:3px;display:flex;align-items:center;gap:4px;">🖼 ${this._esc(name)}${sizeStr}</div></div>`;
+        } else if (mime.startsWith('video/')) {
+          attachmentHtml = `<div style="margin-top:6px;"><video src="${this._esc(url)}" controls style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid rgba(212,175,55,0.25);display:block;"></video><div style="font-size:0.6rem;color:#a499b8;margin-top:3px;">🎬 ${this._esc(name)}${sizeStr}</div></div>`;
+        } else if (mime.startsWith('audio/')) {
+          attachmentHtml = `<div style="margin-top:6px;"><audio src="${this._esc(url)}" controls style="width:100%;max-width:240px;"></audio><div style="font-size:0.6rem;color:#a499b8;margin-top:3px;">🎵 ${this._esc(name)}${sizeStr}</div></div>`;
+        } else {
+          // Generic file chip (PDF, etc.)
+          const icon = mime === 'application/pdf' ? '📄' : '📎';
+          attachmentHtml = `<div style="margin-top:4px;"><a href="${this._esc(url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.25);border-radius:6px;color:#f0d97e;font-size:0.72rem;text-decoration:none;max-width:100%;"><span>${icon}</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">${this._esc(name)}</span>${sizeKb ? `<span style="color:#a499b8;font-size:0.6rem;">${sizeStr.trim()}</span>` : ''}</a></div>`;
+        }
+      }
       const actionsHtml = me ? `<span style="float:right;margin-left:8px;font-size:0.65rem;opacity:0.4;cursor:pointer;transition:opacity 0.2s;" class="cf-msg-actions" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4"><span onclick="event.stopPropagation();CF._editMsg(this,'${this._esc(m.id)}')" title="Editar" style="margin-right:4px;">✏️</span><span onclick="event.stopPropagation();CF._deleteMsg('${this._esc(m.id)}')" title="Eliminar">🗑</span></span>` : '';
       return `<div class="cf-msg ${me ? 'cf-me' : ''}" data-msg-id="${this._esc(m.id)}">
         <div class="cf-msg-avatar">${this._esc(initials)}</div>
@@ -4191,16 +4212,18 @@
       if (file) {
         try {
           if (file.size > 20 * 1024 * 1024) { this._showError('Archivo muy grande (máx 20MB)'); return; }
+          this._showError('⏳ Subiendo archivo…');
           const uploadRes = await window.API.uploadChatFile(file, window.TNSVT_USER.code);
           if (uploadRes?.url) attachment = uploadRes;
+          else { this._showError('Error al subir archivo'); return; }
         } catch(e) { console.warn('[CF] upload:', e); this._showError('Error al subir archivo'); return; }
         fileInput.value = '';
-        document.getElementById('cfFileName')?.remove();
+        document.getElementById('cfFilePreview')?.remove();
       }
       try {
-        await window.API.sendMessage(this.state.currentConv, window.TNSVT_USER.code, txt, null);
+        await window.API.sendMessage(this.state.currentConv, window.TNSVT_USER.code, txt, null, attachment);
         this._loadMessagesDirect(this.state.currentConv);
-      } catch(e) { console.warn('[CF] send:', e); }
+      } catch(e) { console.warn('[CF] send:', e); this._showError('Error al enviar mensaje'); }
     },
     _showError(msg) {
       const toast = document.getElementById('cfToast');
@@ -4212,6 +4235,34 @@
       toast.classList.add('cf-show');
       clearTimeout(this._toastTimer);
       this._toastTimer = setTimeout(() => toast.classList.remove('cf-show'), 3500);
+    },
+
+    _onFileSelect(file) {
+      const preview = document.getElementById('cfFilePreview');
+      if (!preview) return;
+      if (!file) { preview.style.display = 'none'; preview.innerHTML = ''; return; }
+      const sizeKb = Math.round(file.size / 1024);
+      const sizeStr = sizeKb < 1024 ? `${sizeKb}KB` : `${(sizeKb/1024).toFixed(1)}MB`;
+      let thumb = '';
+      if (file.type.startsWith('image/')) {
+        const objUrl = URL.createObjectURL(file);
+        thumb = `<img src="${objUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid rgba(212,175,55,0.3);">`;
+      } else if (file.type.startsWith('video/')) {
+        thumb = `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,0.15);border-radius:6px;font-size:1.1rem;">🎬</div>`;
+      } else if (file.type.startsWith('audio/')) {
+        thumb = `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(138,60,255,0.15);border-radius:6px;font-size:1.1rem;">🎵</div>`;
+      } else {
+        thumb = `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,0.15);border-radius:6px;font-size:1.1rem;">${file.type === 'application/pdf' ? '📄' : '📎'}</div>`;
+      }
+      preview.style.display = 'flex';
+      preview.innerHTML = `${thumb}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2dcf0;">${this._esc(file.name)}</span><span style="color:#a499b8;font-size:0.62rem;">${sizeStr}</span><button onclick="CF._clearFile()" title="Quitar" style="background:rgba(255,59,48,0.15);border:1px solid rgba(255,59,48,0.3);border-radius:6px;color:#ff7066;width:22px;height:22px;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>`;
+    },
+
+    _clearFile() {
+      const inp = document.getElementById('cfFileInput');
+      if (inp) inp.value = '';
+      const preview = document.getElementById('cfFilePreview');
+      if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
     },
 
     /* === NOTIFICACIÓN TOAST === */

@@ -85,3 +85,5 @@ yarn-error.log
 # Game app TNSVT Market Instinct (separado a su propio repo: tnsvt-market-instinct)
 /game-app/
 public/downloads/*.bundle
+
+public/uploads/chat/

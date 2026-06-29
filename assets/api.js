@@ -174,9 +174,10 @@ async getNotifCount(userCode) {
     return this.get(`/api/chat/conversations/${convId}/messages?${params}`);
   },
 
-  async sendMessage(convId, userCode, content, photo = null) {
+  async sendMessage(convId, userCode, content, photo = null, attachment = null) {
     const body = { user_code: userCode, content: content || '' };
     if (photo) body.photo = photo;
+    if (attachment) body.attachment = attachment;
     return this.post(`/api/chat/conversations/${convId}/messages`, body);
   },
 

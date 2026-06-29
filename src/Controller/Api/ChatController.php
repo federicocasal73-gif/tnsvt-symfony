@@ -195,11 +195,15 @@ class ChatController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $content = trim($data['content'] ?? '');
         $photo = $data['photo'] ?? null;
-        if ($content === '' && empty($photo)) {
+        $attachment = $data['attachment'] ?? null;
+        if ($content === '' && empty($photo) && empty($attachment)) {
             return $this->json(['error' => 'Mensaje vacío'], 400);
         }
         if (is_string($photo) && strlen($photo) > 14_000_000) {
             return $this->json(['error' => 'Foto demasiado grande (máx 10MB)'], 413);
+        }
+        if (!empty($attachment) && (!isset($attachment['url']) || !is_string($attachment['url']))) {
+            return $this->json(['error' => 'Adjunto inválido'], 400);
         }
 
         $msg = new Message();
@@ -207,6 +211,7 @@ class ChatController extends AbstractController
         $msg->setSender($me);
         $msg->setContent($content !== '' ? $content : null);
         if (!empty($photo)) $msg->setPhoto($photo);
+        if (!empty($attachment)) $msg->setAttachment($attachment);
 
         $this->em->persist($msg);
         $this->em->flush();
@@ -216,7 +221,8 @@ class ChatController extends AbstractController
             foreach ($conv->getParticipants() as $p) {
                 $other = $p->getUser();
                 if ($other && $other->getId() !== $me->getId()) {
-                    $preview = $content !== '' ? mb_substr($content, 0, 80) : '?? Foto';
+                    $preview = $content !== '' ? mb_substr($content, 0, 80)
+                        : (!empty($attachment) ? '📎 ' . ($attachment['name'] ?? 'Archivo') : '📷 Foto');
                     $this->pushService->notify(
                         $other,
                         'dm',

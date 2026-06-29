@@ -67,6 +67,8 @@ class ChatUploadController extends AbstractController
             bin2hex(random_bytes(4)),
             $ext
         );
+        $originalSize = $file->getSize();
+        $originalName = $file->getClientOriginalName();
 
         $file->move($this->uploadDir, $filename);
         $url = '/uploads/chat/' . $filename;
@@ -75,8 +77,8 @@ class ChatUploadController extends AbstractController
             'success' => true,
             'url' => $url,
             'mime' => $mime,
-            'size' => $file->getSize(),
-            'name' => $file->getClientOriginalName(),
+            'size' => $originalSize,
+            'name' => $originalName,
         ], 201);
     }
 }
