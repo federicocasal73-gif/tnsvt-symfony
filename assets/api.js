@@ -11,13 +11,19 @@ const API = {
   // - En Capacitor (WebView): el WebView carga desde https://localhost
   //   (assets locales), y los fetch('/api/...') no van a ningun lado. Hay
   //   que apuntarlos a la URL absoluta del server.
+  // IMPORTANTE: Usar SIEMPRE HTTPS (Tailscale fuerza HTTPS) para evitar
+  // Mixed Content errors desde una página HTTPS.
   baseURL: (function() {
     try {
       const loc = window.location;
       // Si el origin es el scheme interno de Capacitor (https://localhost),
-      // forzamos la URL del server.
+      // forzamos la URL HTTPS del server.
       if (loc.hostname === 'localhost' && loc.protocol === 'https:') {
         return 'https://laptop-ebgqig6j.tailf43f87.ts.net';
+      }
+      // Si el WebView ya está en HTTPS (caso edge), usamos same-origin
+      if (loc.protocol === 'https:' && loc.hostname !== 'localhost') {
+        return loc.origin;
       }
     } catch (_) {}
     return '';

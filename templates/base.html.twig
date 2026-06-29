@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.7.5">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=3.8.0">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=3.7.5"></script>
+    <script src="{{ asset('api.js') }}?v=3.8.0"></script>
     <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
-    <script src="{{ asset('chart.js') }}?v=3.7.5"></script>
+    <script src="{{ asset('chart.js') }}?v=3.8.0"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -4067,9 +4067,9 @@
 
   /* ════════ TOAST ════════ */
   .cf-toast {
-    position:fixed; bottom:120px; right:115px; z-index:9955;
+    position:fixed; bottom:116px; right:20px; z-index:9955;
     background:rgba(10,5,22,0.95); backdrop-filter:blur(8px);
-    border:1px solid rgba(212,175,55,0.3); border-radius:14px;
+    border:1.5px solid rgba(212,175,55,0.4); border-radius:14px;
     padding:10px 14px; max-width:300px; cursor:pointer;
     box-shadow:0 4px 20px rgba(0,0,0,0.4);
     display:flex; gap:10px; align-items:center;
