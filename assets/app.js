@@ -509,10 +509,28 @@ let sb = window.API;
       }
 
       function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.innerText = msg;
-        t.style.display = 'block';
-        setTimeout(() => t.style.display = 'none', 3000);
+        // Usar el toast viejo si existe (backward compat)
+        const old = document.getElementById('toast');
+        if (old) {
+          old.innerText = msg;
+          old.style.display = 'block';
+          setTimeout(() => old.style.display = 'none', 3000);
+          return;
+        }
+        // Fallback al toast del CF widget (si existe)
+        const cfText = document.getElementById('cfToastText');
+        const cfName = document.getElementById('cfToastName');
+        const cfToast = document.getElementById('cfToast');
+        if (cfToast && cfText) {
+          if (cfName) cfName.textContent = '🔔 Sistema';
+          cfText.textContent = msg;
+          cfToast.classList.add('cf-show');
+          if (window.CF && window.CF._toastTimer) clearTimeout(window.CF._toastTimer);
+          setTimeout(() => cfToast.classList.remove('cf-show'), 3000);
+          return;
+        }
+        // Si no hay ningún toast disponible, log a consola
+        console.log('[toast]', msg);
       }
 
       // ==================== LOADER GLOBAL DE INICIALIZACIÓN ====================
@@ -3318,8 +3336,6 @@ let sb = window.API;
           const data = await sb.getConversations(window.TNSVT_USER.code);
           chatConversations = data || [];
           renderConversations();
-          // Update floating chat badge with total unread
-          chatUpdateUnreadBadge();
           // Auto-select first conv if none active (only if panel is open)
           if (!activeConvId && chatConversations.length > 0 && chatIsOpen()) {
             const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
@@ -3652,7 +3668,6 @@ let sb = window.API;
       function loadChats() {
         loadConversations();
         initChatPolling();
-        chatShowBubble();
         // Wire up input area
         const photoBtn = document.getElementById('chatPhotoBtn');
         const photoInput = document.getElementById('chatPhotoInput');
