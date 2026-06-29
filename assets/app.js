@@ -3599,7 +3599,7 @@ let sb = window.API;
       // Version actual de la app, hardcodeada en el bundle. El backend
       // devuelve la version "actual" en /api/app/version. Si la del server
       // es mayor, mostramos el modal de update.
-      const APP_LOCAL_VERSION_CODE = 17;
+      const APP_LOCAL_VERSION_CODE = 18;
 
       async function appCheckForUpdates() {
         try {
@@ -4037,6 +4037,16 @@ let sb = window.API;
       window.closeNewDmModal = closeNewDmModal;
       window.filterNewDmList = filterNewDmList;
       window.startDmWith = startDmWith;
+      window.openCreateGroupModal = openCreateGroupModal;
+      window.closeCreateGroupModal = closeCreateGroupModal;
+      window.handleCreateGroup = handleCreateGroup;
+      window.openManageGroupModal = openManageGroupModal;
+      window.closeManageGroupModal = closeManageGroupModal;
+      window.loadManageGroupMembers = loadManageGroupMembers;
+      window.handleAddToGroup = handleAddToGroup;
+      window.handleRemoveFromGroup = handleRemoveFromGroup;
+      window.handleRenameGroup = handleRenameGroup;
+      window.handleDeleteGroup = handleDeleteGroup;
 
 
       // Chat UI extras (silenciar, reply, menu, typing indicator)

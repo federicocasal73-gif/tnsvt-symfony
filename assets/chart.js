@@ -400,7 +400,25 @@
     fetch(`/api/mercure/subscribe?exchange=${encodeURIComponent(exchange)}&symbol=${encodeURIComponent(symbol)}`)
       .then(r => r.json())
       .then(data => {
-        mercureES = new EventSource(data.url);
+        // Si el hub Mercure está en un host que el WebView no puede alcanzar
+        // (ej: 192.168.x.x cuando el Capacitor carga desde Tailscale), el
+        // EventSource va a fallar con ERR_CONNECTION_TIMED_OUT. Detectamos
+        // esto comparando el hostname y caemos a polling inmediatamente.
+        try {
+          const mercureUrl = new URL(data.url, window.location.origin);
+          const pageUrl = new URL(window.location.href);
+          if (mercureUrl.hostname !== pageUrl.hostname && mercureUrl.hostname !== 'localhost') {
+            console.warn('[mercure] hub en host diferente, uso polling');
+            mercureConnected = false;
+            return;
+          }
+        } catch (_) {}
+        try {
+          mercureES = new EventSource(data.url);
+        } catch (e) {
+          console.warn('[mercure] EventSource init failed:', e.message);
+          return;
+        }
         mercureES.onopen = () => { mercureConnected = true; };
         mercureES.addEventListener('candles', e => {
           try {
@@ -422,7 +440,17 @@
     fetch('/api/mercure/ticker')
       .then(r => r.json())
       .then(data => {
-        tickerES = new EventSource(data.url);
+        // Detect cross-host hub: si Mercure está en otro hostname, polling ya cubre
+        try {
+          const mercureUrl = new URL(data.url, window.location.origin);
+          const pageUrl = new URL(window.location.href);
+          if (mercureUrl.hostname !== pageUrl.hostname && mercureUrl.hostname !== 'localhost') {
+            return; // silencioso, polling ya está activo
+          }
+        } catch (_) {}
+        try {
+          tickerES = new EventSource(data.url);
+        } catch (e) { return; }
         tickerES.addEventListener('ticker', e => {
           try {
             const msg = JSON.parse(e.data);
