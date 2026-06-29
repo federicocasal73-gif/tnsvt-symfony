@@ -255,7 +255,15 @@ let sb = window.API;
         document.getElementById('module-panel').style.display = 'none';
         document.getElementById('trading-panel').style.display = 'none';
         showToast("🔒 Sesión cerrada.");
-        try { fetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+        // Refrescar topbar (ocultar)
+        if (typeof window.refreshTopbar === 'function') window.refreshTopbar();
+        try {
+          // Usar API baseURL para evitar Mixed Content (HTTPS -> HTTP)
+          const logoutUrl = (window.API && typeof window.API._resolve === 'function')
+            ? window.API._resolve('/api/auth/logout')
+            : '/api/auth/logout';
+          fetch(logoutUrl, { method: 'POST', credentials: 'include' });
+        } catch(e) {}
       }
 
       // ==================== DIAGRAMA Y NODOS ====================
@@ -2954,6 +2962,12 @@ let sb = window.API;
         }
       }
       window.toggleAvatarMenu = toggleAvatarMenu;
+      // Alias solicitado por el topbar (admin block click)
+      window.openProfileMenu = function() {
+        if (typeof window.toggleAvatarMenu === 'function') {
+          window.toggleAvatarMenu();
+        }
+      };
 
       // NOTA: zoom nativo del browser (pinch-to-zoom) ya habilitado via viewport meta.
       // El widget con botones fue eliminado porque transform:scale() causaba clipping.

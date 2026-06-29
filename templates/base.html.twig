@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.0.0">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.0.1">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=4.0.0"></script>
+    <script src="{{ asset('api.js') }}?v=4.0.1"></script>
     <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
-    <script src="{{ asset('chart.js') }}?v=4.0.0"></script>
+    <script src="{{ asset('chart.js') }}?v=4.0.1"></script>
    {% block javascripts %}
      {% block importmap %}{{ importmap('app') }}{% endblock %}
    {% endblock %}
@@ -248,8 +248,8 @@
             onclick="logout()"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
-            style="display:none; padding:8px 14px; background:rgba(255,59,48,0.12); color:#ff7066; border:1px solid rgba(255,59,48,0.4); border-radius:10px; font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:1.5px; cursor:pointer; transition:all .2s; text-transform:uppercase;">
-      🔒 CERRAR SESIÓN
+            style="display:none; padding:8px 14px; background:rgba(212,175,55,0.08); color:var(--gold-bright); border:1px solid rgba(212,175,55,0.4); border-radius:10px; font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:1.5px; cursor:pointer; transition:all .2s; text-transform:uppercase;">
+      Salir
     </button>
 
   </div>

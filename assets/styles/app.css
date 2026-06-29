@@ -2258,11 +2258,11 @@ button[onclick*="hamburger"]:hover {
 
 .tnsvt-topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 9990;
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 16px;
   padding: 16px 28px;
   padding-top: max(16px, env(safe-area-inset-top));
-  padding-left: max(20px, env(safe-area-inset-left));
-  padding-right: max(28px, env(safe-area-inset-right));
+  padding-left: max(24px, env(safe-area-inset-left, 24px));
+  padding-right: max(28px, env(safe-area-inset-right, 28px));
   background: linear-gradient(180deg,
     rgba(10,5,22,0.92) 0%,
     rgba(10,5,22,0.5) 70%,
@@ -2287,6 +2287,7 @@ button[onclick*="hamburger"]:hover {
   flex-shrink: 0;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  margin-right: 4px;
 }
 @media (hover: hover) {
   .tnsvt-hamburger:hover {
@@ -2301,6 +2302,7 @@ button[onclick*="hamburger"]:hover {
   text-decoration: none;
   display: flex; flex-direction: column; gap: 3px;
   color: inherit; line-height: 1;
+  padding-left: 8px;
 }
 .tnsvt-brand h1 {
   font-family: 'Cinzel', serif;
@@ -2308,6 +2310,7 @@ button[onclick*="hamburger"]:hover {
   color: #f0d97e; margin: 0;
   letter-spacing: 3px; line-height: 1;
   text-shadow: 0 0 12px rgba(212,175,55,0.3);
+  padding-left: 4px;
 }
 .tnsvt-brand-sub {
   font-family: 'Orbitron', sans-serif;
