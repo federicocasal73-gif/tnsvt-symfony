@@ -1556,6 +1556,7 @@ let sb = window.API;
       function openTjDay(dateStr) {
         _tjDayDate = dateStr;
         tjDayCancelForm();
+        const isReadOnly = !!window._journalViewingCode;
         const dayTrades = tjTrades.filter(t => t.date.slice(0, 10) === dateStr);
         if (!dayTrades.length) {
           const modal = document.getElementById('tjDayModal');
