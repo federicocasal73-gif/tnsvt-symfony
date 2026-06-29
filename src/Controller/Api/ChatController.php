@@ -105,6 +105,8 @@ class ChatController extends AbstractController
             'photo' => $m->getPhoto(),
             'is_ai' => $m->isAi(),
             'metadata' => $m->getMetadata(),
+            'edited_at' => $m->getEditedAt()?->format('c'),
+            'attachment' => $m->getAttachment(),
             'created_at' => $m->getCreatedAt()?->format('c'),
         ];
     }
@@ -229,6 +231,59 @@ class ChatController extends AbstractController
         return $this->json($this->serializeMessage($msg), 201);
     }
 
+    #[Route('/conversations/{id}/messages/{msgId}', name: 'api_chat_edit', methods: ['PUT'])]
+    public function editMessage(int $id, int $msgId, Request $request): JsonResponse
+    {
+        $me = $this->resolveUser($request);
+        if (!$me) return $this->json(['error' => 'user_code requerido'], 400);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv) return $this->json(['error' => 'Conversación no encontrada'], 404);
+        if (!$this->isParticipant($conv, $me)) return $this->json(['error' => 'No autorizado'], 403);
+
+        $msg = $this->messageRepository->find($msgId);
+        if (!$msg || $msg->getConversation()?->getId() !== $conv->getId()) {
+            return $this->json(['error' => 'Mensaje no encontrado'], 404);
+        }
+        if ($msg->getSender()?->getId() !== $me->getId()) {
+            return $this->json(['error' => 'Solo podés editar tus mensajes'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $content = trim($data['content'] ?? '');
+        if ($content === '') return $this->json(['error' => 'Mensaje vacío'], 400);
+
+        $msg->setContent($content);
+        $msg->setEditedAt(new \DateTimeImmutable());
+        $this->em->flush();
+
+        return $this->json($this->serializeMessage($msg));
+    }
+
+    #[Route('/conversations/{id}/messages/{msgId}', name: 'api_chat_delete', methods: ['DELETE'])]
+    public function deleteMessage(int $id, int $msgId, Request $request): JsonResponse
+    {
+        $me = $this->resolveUser($request);
+        if (!$me) return $this->json(['error' => 'user_code requerido'], 400);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv) return $this->json(['error' => 'Conversación no encontrada'], 404);
+        if (!$this->isParticipant($conv, $me)) return $this->json(['error' => 'No autorizado'], 403);
+
+        $msg = $this->messageRepository->find($msgId);
+        if (!$msg || $msg->getConversation()?->getId() !== $conv->getId()) {
+            return $this->json(['error' => 'Mensaje no encontrado'], 404);
+        }
+        if ($msg->getSender()?->getId() !== $me->getId()) {
+            return $this->json(['error' => 'Solo podés eliminar tus mensajes'], 403);
+        }
+
+        $this->em->remove($msg);
+        $this->em->flush();
+
+        return $this->json(['success' => true, 'deleted_id' => $msgId]);
+    }
+
     #[Route('/conversations/{id}/read', name: 'api_chat_read', methods: ['POST'])]
     public function markRead(int $id, Request $request): JsonResponse
     {
@@ -243,6 +298,53 @@ class ChatController extends AbstractController
         if ($participant) {
             $participant->setLastReadAt(new \DateTimeImmutable());
             $this->em->flush();
+        }
+
+        return $this->json(['success' => true]);
+    }
+
+    #[Route('/conversations/{id}', name: 'api_chat_delete_conv', methods: ['DELETE'])]
+    public function deleteConversation(int $id, Request $request): JsonResponse
+    {
+        $me = $this->resolveUser($request);
+        if (!$me) return $this->json(['error' => 'user_code requerido'], 400);
+
+        $conv = $this->conversationRepository->find($id);
+        if (!$conv) return $this->json(['error' => 'Conversación no encontrada'], 404);
+        if (!$this->isParticipant($conv, $me)) return $this->json(['error' => 'No autorizado'], 403);
+
+        $this->em->remove($conv);
+        $this->em->flush();
+
+        return $this->json(['success' => true]);
+    }
+
+    #[Route('/typing', name: 'api_chat_typing', methods: ['POST'])]
+    public function typing(Request $request): JsonResponse
+    {
+        $me = $this->resolveUser($request);
+        if (!$me) return $this->json(['error' => 'user_code requerido'], 400);
+
+        $data = json_decode($request->getContent(), true);
+        $convId = $data['conversation_id'] ?? null;
+        if (!$convId) return $this->json(['error' => 'conversation_id requerido'], 400);
+
+        $conv = $this->conversationRepository->find($convId);
+        if (!$conv) return $this->json(['error' => 'Conversación no encontrada'], 404);
+        if (!$this->isParticipant($conv, $me)) return $this->json(['error' => 'No autorizado'], 403);
+
+        // Notify other participants via push
+        foreach ($conv->getParticipants() as $p) {
+            $other = $p->getUser();
+            if ($other && $other->getId() !== $me->getId()) {
+                $this->pushService->notify(
+                    $other,
+                    'typing',
+                    sprintf('%s está escribiendo…', $me->getName()),
+                    ['conversation_id' => (string) $conv->getId(), 'sender_code' => (string) $me->getCode()],
+                    link: 'chat:' . $conv->getId()
+                );
+            }
         }
 
         return $this->json(['success' => true]);

@@ -200,6 +200,33 @@ async getNotifCount(userCode) {
     return this.post('/api/chat/ping', { user_code: userCode });
   },
 
+  async sendTyping(convId, userCode) {
+    return this.post('/api/chat/typing', { user_code: userCode, conversation_id: convId });
+  },
+
+  async editMessage(convId, msgId, userCode, content) {
+    return this.put(`/api/chat/conversations/${convId}/messages/${msgId}`, { user_code: userCode, content: content });
+  },
+
+  async deleteMessage(convId, msgId, userCode) {
+    return this.del(`/api/chat/conversations/${convId}/messages/${msgId}?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async uploadChatFile(file, userCode) {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('user_code', userCode);
+    return this.post('/api/chat/upload', form, { headers: {} });
+  },
+
+  async getNotificationSound(userCode) {
+    return this.get(`/api/user/sound?user_code=${encodeURIComponent(userCode)}`);
+  },
+
+  async setNotificationSound(userCode, sound) {
+    return this.put('/api/user/sound', { user_code: userCode, sound: sound });
+  },
+
   // Admin group management
   async createGroup(userCode, name) {
     return this.post('/api/chat/groups', { user_code: userCode, name: name });

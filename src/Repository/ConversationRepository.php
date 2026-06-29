@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
+use App\Entity\Message;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -36,7 +37,7 @@ class ConversationRepository extends ServiceEntityRepository
     {
         $em = $this->getEntityManager();
 
-        // Subquery: ids of conversations the user participates in
+        // 1) Get conversation IDs where user participates (1 query)
         $participantConvIds = $em->createQueryBuilder()
             ->select('IDENTITY(p.conversation)')
             ->from(ConversationParticipant::class, 'p')
@@ -45,57 +46,99 @@ class ConversationRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleColumnResult();
 
-        if (empty($participantConvIds)) {
-            return [];
-        }
+        if (empty($participantConvIds)) return [];
 
-        // Load conversations
+        // 2) Load all conversations WITH participants joined (1 query, eager)
         $convs = $this->createQueryBuilder('c')
+            ->leftJoin('c.participants', 'cp')
+            ->addSelect('cp')
+            ->leftJoin('cp.user', 'cu')
+            ->addSelect('cu')
             ->andWhere('c.id IN (:ids)')
             ->setParameter('ids', $participantConvIds)
             ->orderBy('c.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
 
+        // 3) Batch load last messages for all conversations (1 query)
+        $lastMessageData = $em->createQueryBuilder()
+            ->select('m, IDENTITY(m.conversation) AS conv_id')
+            ->from(Message::class, 'm')
+            ->andWhere('m.conversation IN (:ids)')
+            ->setParameter('ids', $participantConvIds)
+            ->orderBy('m.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $lastMsgByConv = [];
+        foreach ($lastMessageData as $row) {
+            $cid = is_array($row) ? ($row['conv_id'] ?? null) : (method_exists($row, 'getConversation') ? $row->getConversation()?->getId() : null);
+            $msg = is_array($row) ? ($row[0] ?? null) : $row;
+            if ($cid && !isset($lastMsgByConv[$cid])) {
+                $lastMsgByConv[$cid] = $msg;
+            }
+        }
+
+        // 4) Get participant records for unread counts (1 query)
+        $participantRecords = $em->createQueryBuilder()
+            ->select('p')
+            ->from(ConversationParticipant::class, 'p')
+            ->andWhere('p.conversation IN (:ids)')
+            ->andWhere('p.user = :u')
+            ->setParameter('ids', $participantConvIds)
+            ->setParameter('u', $user)
+            ->getQuery()
+            ->getResult();
+
+        $partByConv = [];
+        foreach ($participantRecords as $p) {
+            $partByConv[$p->getConversation()?->getId()] = $p;
+        }
+
+        // 5) Batch count unread for all conversations (1 query)
+        $unreadData = $em->createQueryBuilder()
+            ->select('IDENTITY(m.conversation) AS cid, COUNT(m.id) AS cnt')
+            ->from(Message::class, 'm')
+            ->andWhere('m.conversation IN (:ids)')
+            ->andWhere('(m.sender != :u OR m.sender IS NULL)')
+            ->setParameter('ids', $participantConvIds)
+            ->setParameter('u', $user)
+            ->groupBy('m.conversation')
+            ->getQuery()
+            ->getResult();
+
+        $unreadByConv = [];
+        foreach ($unreadData as $row) {
+            $unreadByConv[$row['cid']] = (int) $row['cnt'];
+        }
+
+        // 6) Subtract read messages using lastReadAt
+        foreach ($participantRecords as $p) {
+            $lastRead = $p->getLastReadAt();
+            $cid = $p->getConversation()?->getId();
+            if ($lastRead && isset($unreadByConv[$cid])) {
+                $readBeforeLastRead = $em->createQueryBuilder()
+                    ->select('COUNT(m.id)')
+                    ->from(Message::class, 'm')
+                    ->andWhere('m.conversation = :c')
+                    ->andWhere('(m.sender != :u OR m.sender IS NULL)')
+                    ->andWhere('m.createdAt <= :lr')
+                    ->setParameter('c', $p->getConversation())
+                    ->setParameter('u', $user)
+                    ->setParameter('lr', $lastRead)
+                    ->getQuery()
+                    ->getSingleScalarResult();
+                $unreadByConv[$cid] = max(0, $unreadByConv[$cid] - (int) $readBeforeLastRead);
+            }
+        }
+
+        // Assemble result
         $result = [];
         foreach ($convs as $conv) {
-            // Last message
-            $lastMessage = $em->createQueryBuilder()
-                ->select('m')
-                ->from(\App\Entity\Message::class, 'm')
-                ->andWhere('m.conversation = :c')
-                ->setParameter('c', $conv)
-                ->orderBy('m.id', 'DESC')
-                ->setMaxResults(1)
-                ->getQuery()
-                ->getOneOrNullResult();
-
-            // Unread count: messages older than user's lastReadAt (or all if never read)
-            $participant = $em->createQueryBuilder()
-                ->select('p')
-                ->from(ConversationParticipant::class, 'p')
-                ->andWhere('p.conversation = :c')
-                ->andWhere('p.user = :u')
-                ->setParameter('c', $conv)
-                ->setParameter('u', $user)
-                ->getQuery()
-                ->getOneOrNullResult();
-
-            $unread = 0;
-            if ($lastMessage) {
-                $lastRead = $participant?->getLastReadAt();
-                $qb = $em->createQueryBuilder()
-                    ->select('COUNT(m.id)')
-                    ->from(\App\Entity\Message::class, 'm')
-                    ->andWhere('m.conversation = :c')
-                    ->andWhere('m.sender != :u OR m.sender IS NULL')
-                    ->setParameter('c', $conv)
-                    ->setParameter('u', $user);
-                if ($lastRead) {
-                    $qb->andWhere('m.createdAt > :lr')->setParameter('lr', $lastRead);
-                }
-                $unread = (int) $qb->getQuery()->getSingleScalarResult();
-            }
+            $cid = $conv->getId();
+            $lastMessage = $lastMsgByConv[$cid] ?? null;
+            $participant = $partByConv[$cid] ?? null;
+            $unread = $unreadByConv[$cid] ?? 0;
 
             $result[] = [
                 'conv' => $conv,

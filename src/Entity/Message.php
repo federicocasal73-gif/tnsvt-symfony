@@ -39,6 +39,12 @@ class Message
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $metadata = null;
 
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $editedAt = null;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $attachment = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -66,4 +72,10 @@ class Message
 
     public function getMetadata(): ?array { return $this->metadata; }
     public function setMetadata(?array $m): static { $this->metadata = $m; return $this; }
+
+    public function getEditedAt(): ?\DateTimeImmutable { return $this->editedAt; }
+    public function setEditedAt(?\DateTimeImmutable $d): static { $this->editedAt = $d; return $this; }
+
+    public function getAttachment(): ?array { return $this->attachment; }
+    public function setAttachment(?array $a): static { $this->attachment = $a; return $this; }
 }

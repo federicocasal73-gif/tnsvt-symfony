@@ -240,9 +240,7 @@ let sb = window.API;
         window.TNSVT_USER = null;
         tjTrades = [];
         notifList = [];
-        chatConversations = [];
-        window.chatConversations = chatConversations;
-        activeConvId = null;
+        window.chatConversations = [];
         acadCoursesCache = [];
         postPhotoData = null;
         signalPhotoData = null;
@@ -3306,348 +3304,8 @@ let sb = window.API;
         }
       }
 
-      // ==================== CHAT ====================
-      const CHAT_MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
-      let chatConversations = [];
-      window.chatConversations = chatConversations;
-      let activeConvId = null;
-      let chatPhotoData = null;
-      let chatLastMessageId = 0;
-      let chatPollTimer = null;
-
-      function formatChatTime(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '';
-        const now = new Date();
-        const sameDay = d.toDateString() === now.toDateString();
-        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-        const isYesterday = d.toDateString() === yesterday.toDateString();
-        const hh = String(d.getHours()).padStart(2, '0');
-        const mm = String(d.getMinutes()).padStart(2, '0');
-        if (sameDay) return `${hh}:${mm}`;
-        if (isYesterday) return `ayer ${hh}:${mm}`;
-        return `${d.getDate()}/${d.getMonth()+1} ${hh}:${mm}`;
-      }
-
-      function convDisplayName(conv) {
-        if (conv.type === 'group') return conv.title || 'Grupo';
-        if (conv.type === 'dm') return conv.other_user_name || conv.other_user_code || 'Conversación';
-        if (conv.type === 'ai') return '🤖 T.N.S.V.T Coach';
-        return 'Conversación';
-      }
-
-      function convAvatar(conv) {
-        if (conv.type === 'group') return { text: '#', cls: 'group' };
-        if (conv.type === 'ai') return { text: 'IA', cls: 'ai' };
-        const name = conv.other_user_name || conv.other_user_code || '?';
-        // Si el backend nos da avatar_url del otro user, devolvemos la URL para renderizar <img>
-        if (conv.other_user_avatar_url) {
-          return { image: conv.other_user_avatar_url, text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
-        }
-        return { text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
-      }
-
-      function renderConversations() {
-        const list = document.getElementById('chatConvList');
-        if (!list) return;
-        if (!chatConversations.length) {
-          list.innerHTML = '<div style="padding:20px;text-align:center;color:#a499b8;font-size:0.8rem;">Sin conversaciones</div>';
-          return;
-        }
-        list.innerHTML = chatConversations.map(c => {
-          const av = convAvatar(c);
-          const active = c.id === activeConvId ? ' active' : '';
-          const unread = c.unread_count > 0 ? `<span class="chat-unread-badge">${c.unread_count}</span>` : '';
-          let preview = '—';
-          if (c.last_message) {
-            const sender = c.last_message.sender_name || (c.last_message.is_ai ? 'IA' : '');
-            const text = c.last_message.has_photo
-              ? (sender ? `${sender}: 📷 Foto` : '📷 Foto')
-              : (sender ? `${sender}: ${c.last_message.content || ''}` : (c.last_message.content || ''));
-            preview = escapeHtml(text.length > 60 ? text.slice(0, 60) + '…' : text);
-          }
-          return `
-            <div class="chat-conv-item${active}" data-conv-id="${c.id}" onclick="selectConversation(${c.id})">
-              <div class="chat-conv-avatar ${av.cls}">${av.image ? `<img src="${escapeHtml(av.image)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.replaceWith(document.createTextNode('${av.text}'))">` : av.text}</div>
-              <div class="chat-conv-info">
-                <div class="chat-conv-name">${escapeHtml(convDisplayName(c))}</div>
-                <div class="chat-conv-preview">${preview}</div>
-              </div>
-              ${unread}
-            </div>`;
-        }).join('');
-      }
-
-      async function loadConversations() {
-        if (!window.TNSVT_USER) return;
-        try {
-          const data = await sb.getConversations(window.TNSVT_USER.code);
-          chatConversations = data || [];
-          window.chatConversations = chatConversations;
-          renderConversations();
-          // Auto-select first conv if none active (only if widget panel is open)
-          // Check CF widget state instead of deleted chatIsOpen()
-          if (!activeConvId && chatConversations.length > 0 && window.CF?.state?.open) {
-            const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
-            selectConversation(groupConv.id);
-          }
-        } catch(e) {
-          console.error('Error cargando conversaciones:', e);
-        }
-      }
-
-      function renderMessage(msg, position) {
-        const me = window.TNSVT_USER;
-        const isMe = msg.sender_code === me?.code;
-        const isSystem = !msg.sender_code;
-        const avatarChar = isSystem ? '⚙' : (isMe ? (me.name || '?').charAt(0).toUpperCase() : (msg.sender_name || '?').charAt(0).toUpperCase());
-        const photoHtml = msg.photo ? `<img class="chat-msg-photo" src="${escapeHtml(msg.photo)}" onclick="openChatLightbox('${encodeURIComponent(msg.photo)}')" alt="foto">` : '';
-        const textHtml = msg.content ? `<div class="chat-msg-text">${escapeHtml(msg.content)}</div>` : '';
-        const metaName = isSystem ? 'Sistema' : (msg.sender_name || '—');
-        const metaTime = formatChatTime(msg.created_at);
-
-        if (isSystem) {
-          return `<div class="chat-msg system">
-            <div class="chat-msg-avatar">${avatarChar}</div>
-            <div class="chat-msg-body">
-              <div class="chat-msg-meta"><strong>${escapeHtml(metaName)}</strong> · ${metaTime}</div>
-              <div class="chat-msg-bubble">${textHtml}${photoHtml}</div>
-            </div>
-          </div>`;
-        }
-        return `<div class="chat-msg ${isMe ? 'me' : 'other'}">
-          <div class="chat-msg-avatar">${avatarChar}</div>
-          <div class="chat-msg-body ${isMe ? 'chat-msg-me' : ''}">
-            <div class="chat-msg-meta"><strong>${escapeHtml(metaName)}</strong> · ${metaTime}</div>
-            <div class="chat-msg-bubble">${textHtml}${photoHtml}</div>
-          </div>
-        </div>`;
-      }
-
-      async function loadMessages(convId, beforeId = null) {
-        if (!window.TNSVT_USER) return;
-        try {
-          const data = await sb.getMessages(convId, window.TNSVT_USER.code, beforeId);
-          return data || [];
-        } catch(e) {
-          console.error('Error cargando mensajes:', e);
-          return [];
-        }
-      }
-
-      async function selectConversation(convId) {
-        if (!window.TNSVT_USER) return;
-        activeConvId = convId;
-        renderConversations();
-        const conv = chatConversations.find(c => c.id === convId);
-        if (!conv) return;
-
-        // Header
-        const nameEl = document.getElementById('chatHeaderName');
-        const subEl = document.getElementById('chatHeaderSub');
-        const avEl = document.getElementById('chatHeaderAvatar');
-        if (nameEl) nameEl.textContent = convDisplayName(conv);
-        if (subEl) {
-          if (conv.type === 'group') subEl.textContent = 'Conversación grupal';
-          else if (conv.type === 'ai') subEl.textContent = 'Coach IA';
-          else subEl.textContent = 'Mensaje directo';
-        }
-        // Avatar del header: mostrar foto del otro user si existe
-        if(avEl){
-          const av = convAvatar(conv);
-          if(av.image){
-            avEl.innerHTML = `<img src="${escapeHtml(av.image)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.replaceWith(document.createTextNode('${escapeHtml(av.text)}'))">`;
-            avEl.style.background = 'transparent';
-          } else {
-            avEl.innerHTML = av.text;
-            avEl.style.background = conv.type === 'group' ? 'linear-gradient(135deg, var(--gold), #b8860b)' : 'linear-gradient(135deg, var(--violet), #4a1a8a)';
-            avEl.style.color = conv.type === 'group' ? '#000' : '#fff';
-          }
-        }
-
-        const stream = document.getElementById('chatStream');
-        if (stream) {
-          stream.innerHTML = '<div class="chat-empty">Cargando…</div>';
-        }
-
-        // Mark as read
-        try { await sb.markChatRead(convId, window.TNSVT_USER.code); } catch(e) {}
-
-        // Load latest 50
-        const messages = await loadMessages(convId, null);
-        renderStream(messages);
-        chatLastMessageId = messages.length ? messages[messages.length - 1].id : 0;
-
-        // Update local unread
-        const c = chatConversations.find(x => x.id === convId);
-        if (c) c.unread_count = 0;
-        renderConversations();
-      }
-
-      function renderStream(messages) {
-        const stream = document.getElementById('chatStream');
-        if (!stream) return;
-        if (!messages || !messages.length) {
-          stream.innerHTML = '<div class="chat-empty">Sin mensajes todavía. ¡Sé el primero!</div>';
-          return;
-        }
-        stream.innerHTML = messages.map(m => renderMessage(m)).join('');
-        stream.scrollTop = stream.scrollHeight;
-      }
-
-      function appendMessage(msg) {
-        const stream = document.getElementById('chatStream');
-        if (!stream) return;
-        // Remove "empty" or "loading" placeholders
-        const empty = stream.querySelector('.chat-empty');
-        if (empty) empty.remove();
-        stream.insertAdjacentHTML('beforeend', renderMessage(msg));
-        stream.scrollTop = stream.scrollHeight;
-      }
-
-      function attachChatPhoto(input) {
-        const file = input.files?.[0];
-        if (!file) return;
-        if (file.size > CHAT_MAX_PHOTO_BYTES) {
-          showToast('❌ Foto demasiado grande (máx 10MB)');
-          input.value = '';
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = e => {
-          chatPhotoData = e.target.result;
-          const prev = document.getElementById('chatPhotoPreview');
-          const row = document.getElementById('chatPhotoPreviewRow');
-          if (prev) prev.src = chatPhotoData;
-          if (row) row.style.display = 'flex';
-        };
-        reader.readAsDataURL(file);
-      }
-
-      function removeChatPhoto() {
-        chatPhotoData = null;
-        const prev = document.getElementById('chatPhotoPreview');
-        const row = document.getElementById('chatPhotoPreviewRow');
-        const input = document.getElementById('chatPhotoInput');
-        if (prev) prev.src = '';
-        if (row) row.style.display = 'none';
-        if (input) input.value = '';
-      }
-
-      async function sendChatMessage() {
-        if (!window.TNSVT_USER) { showToast('⚠️ Iniciá sesión primero'); return; }
-        if (!activeConvId) { showToast('⚠️ Seleccioná una conversación'); return; }
-        const input = document.getElementById('chatInput');
-        const content = (input?.value || '').trim();
-        if (!content && !chatPhotoData) return;
-
-        const btn = document.getElementById('chatSendBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '…'; }
-
-        try {
-          const msg = await sb.sendMessage(activeConvId, window.TNSVT_USER.code, content, chatPhotoData);
-          input.value = '';
-          removeChatPhoto();
-          appendMessage(msg);
-          chatLastMessageId = msg.id;
-          // Update conversation's last message
-          const c = chatConversations.find(x => x.id === activeConvId);
-          if (c) {
-            c.last_message = {
-              id: msg.id, sender_code: msg.sender_code, sender_name: msg.sender_name,
-              content: msg.content, has_photo: !!msg.photo, is_ai: msg.is_ai, created_at: msg.created_at
-            };
-            c.unread_count = 0;
-            renderConversations();
-          }
-        } catch(e) {
-          showToast('❌ Error al enviar: ' + (e.message || ''));
-        } finally {
-          if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
-        }
-      }
-
-      function openChatLightbox(dataUrl) {
-        const existing = document.getElementById('chatLightbox');
-        if (existing) existing.remove();
-        const div = document.createElement('div');
-        div.id = 'chatLightbox';
-        div.className = 'chat-lightbox';
-        div.onclick = () => div.remove();
-        const img = document.createElement('img');
-        img.src = decodeURIComponent(dataUrl);
-        div.appendChild(img);
-        document.body.appendChild(div);
-      }
-
-      async function pollChat() {
-        if (!window.TNSVT_USER) return;
-        // Si la conversacion activa ya no existe (fue borrada, stale state), limpiarla.
-        if (activeConvId && !chatConversations.some(c => c.id === activeConvId)) {
-          console.warn('[chat] activeConvId stale, limpiando:', activeConvId);
-          activeConvId = null;
-          chatLastMessageId = 0;
-          // Legacy: estos elementos fueron removidos cuando migramos al CF widget
-          const stream = document.getElementById('chatStream');
-          if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
-          const nameEl = document.getElementById('chatHeaderName');
-          const subEl = document.getElementById('chatHeaderSub');
-          if (nameEl) nameEl.textContent = '—';
-          if (subEl) subEl.textContent = 'Seleccioná una conversación';
-        }
-        if (document.getElementById('tab-chat')?.classList.contains('active') && activeConvId) {
-          try {
-            const messages = await sb.getMessages(activeConvId, window.TNSVT_USER.code, null);
-            if (!messages || !messages.length) return;
-            const maxId = Math.max(...messages.map(m => m.id));
-            if (maxId > chatLastMessageId) {
-              const newMsgs = messages.filter(m => m.id > chatLastMessageId);
-              for (const m of newMsgs) appendMessage(m);
-              chatLastMessageId = maxId;
-              // Update sidebar preview
-              const last = messages[messages.length - 1];
-              const c = chatConversations.find(x => x.id === activeConvId);
-              if (c) {
-                c.last_message = {
-                  id: last.id, sender_code: last.sender_code, sender_name: last.sender_name,
-                  content: last.content, has_photo: !!last.photo, is_ai: last.is_ai, created_at: last.created_at
-                };
-                renderConversations();
-              }
-            }
-          } catch(e) {
-            // Si el server devuelve 404 (conversacion borrada), limpiar
-            if (e.message && /404|Conversaci.n no encontrada|No encontrada/i.test(e.message)) {
-              console.warn('[chat] conversacion ya no existe:', activeConvId);
-              chatConversations = chatConversations.filter(c => c.id !== activeConvId);
-              window.chatConversations = chatConversations;
-              activeConvId = null;
-              chatLastMessageId = 0;
-              renderConversations();
-              const stream = document.getElementById('chatStream');
-              if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Esta conversación ya no existe</div>';
-            }
-          }
-        }
-        // Refresh sidebar every poll
-        try {
-          const data = await sb.getConversations(window.TNSVT_USER.code);
-          if (data) {
-            chatConversations = data;
-            window.chatConversations = chatConversations;
-            renderConversations();
-            // Refrescar FAB badge del CF widget (si está disponible)
-            try { window.CF?.render?.(); } catch(_) {}
-          }
-        } catch(e) { console.warn('[chat] loadChats:', e); }
-      }
-
-      function initChatPolling() {
-        if (chatPollTimer) clearInterval(chatPollTimer);
-        chatPollTimer = setInterval(pollChat, 5000);
-      }
-
+      // ==================== NUEVO DM / GRUPOS (legacy ui helpers) ====================
+      
       // ==================== NUEVO DM ====================
       let newDmUsersCache = [];
 
@@ -3713,12 +3371,8 @@ let sb = window.API;
         if (!window.TNSVT_USER) return;
         try {
           const conv = await sb.createDm(window.TNSVT_USER.code, otherCode);
-          // Upsert en chatConversations
-          const idx = chatConversations.findIndex(c => c.id === conv.id);
-          if (idx >= 0) chatConversations[idx] = { ...chatConversations[idx], ...conv };
-          else chatConversations.unshift(conv);
-          renderConversations();
-          selectConversation(conv.id);
+          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+          if (window.CF && typeof CF.openConv === 'function') window.CF.openConv(conv.id);
           closeNewDmModal();
           showToast('✉️ Conversación abierta');
         } catch(e) {
@@ -3851,29 +3505,7 @@ let sb = window.API;
       }
 
       function loadChats() {
-        loadConversations();
-        initChatPolling();
-        // Wire up input area
-        const photoBtn = document.getElementById('chatPhotoBtn');
-        const photoInput = document.getElementById('chatPhotoInput');
-        const photoRemove = document.getElementById('chatPhotoRemove');
-        const sendBtn = document.getElementById('chatSendBtn');
-        if (photoBtn && photoInput && !photoBtn._wired) {
-          photoBtn.addEventListener('click', () => photoInput.click());
-          photoBtn._wired = true;
-        }
-        if (photoInput && !photoInput._wired) {
-          photoInput.addEventListener('change', e => attachChatPhoto(e.target));
-          photoInput._wired = true;
-        }
-        if (photoRemove && !photoRemove._wired) {
-          photoRemove.addEventListener('click', removeChatPhoto);
-          photoRemove._wired = true;
-        }
-        if (sendBtn && !sendBtn._wired) {
-          sendBtn.addEventListener('click', sendChatMessage);
-          sendBtn._wired = true;
-        }
+        // Legacy — CF widget handles chat now
       }
 
       // ==================== WIDGET CHAT FLOTANTE v3.6 (CF.notify) ====================
@@ -4405,11 +4037,7 @@ let sb = window.API;
       window.closeNewDmModal = closeNewDmModal;
       window.filterNewDmList = filterNewDmList;
       window.startDmWith = startDmWith;
-      window.sendChatMessage = sendChatMessage;
-      window.selectConversation = selectConversation;
-      window.attachChatPhoto = attachChatPhoto;
-      window.removeChatPhoto = removeChatPhoto;
-      window.openChatLightbox = openChatLightbox;
+
 
       // Chat UI extras (silenciar, reply, menu, typing indicator)
       let chatSoundOn = true;
@@ -4424,46 +4052,21 @@ let sb = window.API;
       // Restaurar preferencia al cargar
       try { const s = localStorage.getItem('tnsvt_chat_sound'); if(s === '0'){ chatSoundOn = false; const b = document.getElementById('chatSoundBtn'); if(b) b.textContent='🔕'; } } catch(e){}
 
-      // Borrar la conversacion activa (boton del dropdown)
       async function deleteConversation(){
-        if(!activeConvId){
-          showToast('Selecciona una conversación primero', 2000);
-          return;
-        }
-        const conv = chatConversations.find(c => c.id === activeConvId);
-        if(!conv) return;
-        const name = convDisplayName(conv);
-        if(!confirm(`¿Eliminar la conversación con "${name}"?\n\nEsta acción no se puede deshacer.`)){
-          return;
-        }
+        const convId = window.CF?.state?.currentConv;
+        if(!convId) { showToast('Seleccioná una conversación primero'); return; }
         try{
-          await sb.deleteConversation(activeConvId, window.TNSVT_USER.code);
-          // Quitar del array local
-          chatConversations = chatConversations.filter(c => c.id !== activeConvId);
-          window.chatConversations = chatConversations;
-          activeConvId = null;
-          // Limpiar UI
-          const stream = document.getElementById('chatStream');
-          if(stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
-          const nameEl = document.getElementById('chatHeaderName');
-          const subEl = document.getElementById('chatHeaderSub');
-          if(nameEl) nameEl.textContent = '—';
-          if(subEl) subEl.textContent = 'Seleccioná una conversación';
-          const avEl = document.getElementById('chatHeaderAvatar');
-          if(avEl){ avEl.innerHTML = '?'; avEl.style.background = 'linear-gradient(135deg,var(--violet),#4a1a8a)'; }
-          renderConversations();
+          await sb.deleteConversation(convId, window.TNSVT_USER.code);
+          if(window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
           showToast('🗑️ Conversación eliminada');
         }catch(e){
-          console.error('[chat] delete error:', e);
-          showToast('❌ No pude eliminar: ' + (e.message || 'error'));
+          showToast('❌ Error: ' + (e.message || 'error'));
         }
       }
       window.deleteConversation = deleteConversation;
 
       function onChatTyping(){
-        // Por ahora solo marcamos un flag local. Si el backend implementa typing broadcasts, se envia aca.
-        if(!activeConvId || !window.TNSVT_USER) return;
-        // Stub: en el futuro hacer POST /api/chat/typing cada 3s con throttle
+        if(!window.CF?.state?.currentConv || !window.TNSVT_USER) return;
       }
       window.onChatTyping = onChatTyping;
 

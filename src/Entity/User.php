@@ -55,6 +55,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 48, nullable: true)]
     private ?string $diarySetupIv = null;
 
+    #[ORM\Column(length: 50, nullable: true, options: ['default' => 'chime'])]
+    private ?string $notificationSound = 'chime';
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: WalletTransaction::class)]
     private Collection $walletTransactions;
 
@@ -121,6 +124,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getDiarySetupIv(): ?string { return $this->diarySetupIv; }
     public function setDiarySetupIv(?string $iv): static { $this->diarySetupIv = $iv; return $this; }
+
+    public function getNotificationSound(): ?string { return $this->notificationSound; }
+    public function setNotificationSound(?string $s): static { $this->notificationSound = $s; return $this; }
 
     public function getWalletBalanceFloat(): float { return (float) $this->walletBalance; }
     public function hasBalance(float $min): bool { return $this->getWalletBalanceFloat() >= $min; }
