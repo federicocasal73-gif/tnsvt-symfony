@@ -15,11 +15,11 @@
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.9">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=5.0">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=4.9"></script>
-    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.9"></script>
-    <script src="{{ asset('chart.js') }}?v=4.9"></script>
+    <script src="{{ asset('api.js') }}?v=5.0"></script>
+    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=5.0"></script>
+    <script src="{{ asset('chart.js') }}?v=5.0"></script>
    {% block javascripts %}
       {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
@@ -30,7 +30,7 @@
         if (!imap) return;
         try {
           var data = JSON.parse(imap.textContent);
-             var v = 'v=4.9';
+             var v = 'v=5.0';
           Object.keys(data.imports || {}).forEach(function(k){
             var p = data.imports[k];
             if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
