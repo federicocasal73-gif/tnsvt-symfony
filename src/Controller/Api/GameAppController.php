@@ -13,9 +13,10 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Endpoints para la app T.N.S.V.T Market Instinct (com.tnsvt.game)
  *
- * - GET  /api/app/game-version       — version info del juego
- * - GET  /api/app/download-game      — descarga el APK (redirect o file)
- * - GET  /download/tnsvt-market      — landing page con boton instalar
+ * - GET  /api/app/version          — version info de la webapp (auto-update endpoint)
+ * - GET  /api/app/download-web     — descarga la APK de la webapp
+ * - GET  /api/app/download-game    — descarga la APK del juego (legacy)
+ * - GET  /download/tnsvt-market    — landing page con boton instalar ambas apps
  */
 #[Route('/api/app')]
 class GameAppController extends AbstractController
@@ -23,8 +24,8 @@ class GameAppController extends AbstractController
     private const GAME_VERSION = '1.0.3';
     private const GAME_VERSION_CODE = 4;
     private const GAME_APK_FILENAME = 'tnsvt-market-instinct.apk';
-    private const WEB_APK_FILENAME = 'tnsvt-v1.6.2.apk';
-    private const WEB_VERSION = '1.6.2';
+    private const WEB_APK_FILENAME = 'tnsvt-v3.8.apk';
+    private const WEB_VERSION = '3.8.0';
 
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
@@ -60,9 +61,20 @@ class GameAppController extends AbstractController
         $apkPath = $this->projectDir . '/public/downloads/' . self::GAME_APK_FILENAME;
 
         if (!file_exists($apkPath)) {
-            return new JsonResponse([
-                'error' => 'APK del juego no disponible. Pedile al admin que lo compile.',
-            ], 404);
+            // Fallback: si no hay APK del juego, ofrece la web
+            $fallbackPath = $this->projectDir . '/public/apk/' . self::WEB_APK_FILENAME;
+            if (file_exists($fallbackPath)) {
+                $apkPath = $fallbackPath;
+            } else {
+                $fallbackPath2 = $this->projectDir . '/public/downloads/tnsvt-app.apk';
+                if (file_exists($fallbackPath2)) {
+                    $apkPath = $fallbackPath2;
+                } else {
+                    return new JsonResponse([
+                        'error' => 'APK del juego no disponible. Pedile al admin que lo compile.',
+                    ], 404);
+                }
+            }
         }
 
         $response = new BinaryFileResponse($apkPath);
@@ -83,9 +95,15 @@ class GameAppController extends AbstractController
         $apkPath = $this->projectDir . '/public/apk/' . self::WEB_APK_FILENAME;
 
         if (!file_exists($apkPath)) {
-            return new JsonResponse([
-                'error' => 'APK de la web no disponible. Pedile al admin que lo suba a public/apk/.',
-            ], 404);
+            // Fallback: apunta a /public/downloads/tnsvt-app.apk
+            $fallbackPath = $this->projectDir . '/public/downloads/tnsvt-app.apk';
+            if (file_exists($fallbackPath)) {
+                $apkPath = $fallbackPath;
+            } else {
+                return new JsonResponse([
+                    'error' => 'APK de la web no disponible. Pedile al admin que lo suba a public/apk/.',
+                ], 404);
+            }
         }
 
         $response = new BinaryFileResponse($apkPath);

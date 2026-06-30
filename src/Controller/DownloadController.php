@@ -22,10 +22,23 @@ class DownloadController extends AbstractController
     #[Route('/download/tnsvt-market', name: 'download_tnsvt_market', methods: ['GET'])]
     public function tnsvtMarket(): Response
     {
-        $gamePath = $this->projectDir . '/public/downloads/tnsvt-market-instinct.apk';
-        $webPath = $this->projectDir . '/public/apk/tnsvt-v1.6.1.apk';
-        $gameExists = file_exists($gamePath);
-        $webExists = file_exists($webPath);
+        // Posibles archivos para cada app (en orden de preferencia)
+        $candidates = [
+            'game' => [
+                $this->projectDir . '/public/downloads/tnsvt-market-instinct.apk',
+                $this->projectDir . '/public/downloads/tnsvt-app.apk',
+                $this->projectDir . '/public/apk/tnsvt-v3.8.apk',
+            ],
+            'web' => [
+                $this->projectDir . '/public/apk/tnsvt-v1.6.2.apk',
+                $this->projectDir . '/public/apk/tnsvt-v3.8.apk',
+                $this->projectDir . '/public/downloads/tnsvt-app.apk',
+            ],
+        ];
+        $gamePath = null; foreach ($candidates['game'] as $p) { if (file_exists($p)) { $gamePath = $p; break; } }
+        $webPath = null; foreach ($candidates['web'] as $p) { if (file_exists($p)) { $webPath = $p; break; } }
+        $gameExists = $gamePath !== null;
+        $webExists = $webPath !== null;
         $gameSize = $gameExists ? filesize($gamePath) : 0;
         $webSize = $webExists ? filesize($webPath) : 0;
         $gameSizeMb = round($gameSize / 1024 / 1024, 2);
