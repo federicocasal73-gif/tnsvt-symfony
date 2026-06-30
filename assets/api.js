@@ -37,11 +37,23 @@ const API = {
     return API.baseURL + path;
   },
 
-  async request(method, path, body = null) {
+  async request(method, path, body = null, extraOpts = null) {
     const url = API._resolve(path);
-    console.log('[API] ' + method + ' ' + url, body ? JSON.stringify(body) : '');
-    const opts = { method, credentials: 'include', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
+    console.log('[API] ' + method + ' ' + url, body && !(body instanceof FormData) ? JSON.stringify(body) : '');
+    const opts = { method, credentials: 'include' };
+    if (body instanceof FormData) {
+      // FormData: dejar que el browser setee Content-Type: multipart/form-data; boundary=...
+      opts.body = body;
+    } else if (body && typeof body === 'object') {
+      opts.headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      opts.body = JSON.stringify(body);
+    } else {
+      opts.headers = { 'Accept': 'application/json' };
+      if (body) opts.body = body;
+    }
+    if (extraOpts && extraOpts.headers) {
+      opts.headers = { ...(opts.headers || {}), ...extraOpts.headers };
+    }
     API.loadingCount++;
     API._emitLoading();
     try {
@@ -60,9 +72,9 @@ const API = {
   },
 
   get(path) { return this.request('GET', path); },
-  post(path, body) { return this.request('POST', path, body); },
-  put(path, body) { return this.request('PUT', path, body); },
-  del(path) { return this.request('DELETE', path); },
+  post(path, body, extraOpts) { return this.request('POST', path, body, extraOpts); },
+  put(path, body, extraOpts) { return this.request('PUT', path, body, extraOpts); },
+  del(path, body = null) { return this.request('DELETE', path, body); },
 
   // Auth
   async login(code, name = '', password = '') {
@@ -117,8 +129,8 @@ const API = {
     return this.put(`/api/journal/${id}`, data);
   },
 
-  async deleteTrade(id) {
-    return this.del(`/api/journal/${id}`);
+  async deleteTrade(id, userCode) {
+    return this.del(`/api/journal/${id}`, { user_code: userCode });
   },
 
   // Academia
@@ -229,8 +241,8 @@ async getNotifCount(userCode) {
   },
 
   // Admin group management
-  async createGroup(userCode, name) {
-    return this.post('/api/chat/groups', { user_code: userCode, name: name });
+  async createGroup(userCode, name, members = []) {
+    return this.post('/api/chat/groups', { user_code: userCode, name: name, members: members });
   },
 
   async addToGroup(userCode, groupId, targetCode) {

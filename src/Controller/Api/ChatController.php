@@ -405,7 +405,9 @@ class ChatController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         $name = trim($data['name'] ?? '');
+        $memberCodes = $data['members'] ?? [];
         if ($name === '') return $this->json(['error' => 'Nombre del grupo requerido'], 400);
+        if (!is_array($memberCodes)) $memberCodes = [];
 
         // Max 3 groups
         $existingCount = $this->conversationRepository->count(['type' => Conversation::TYPE_GROUP]);
@@ -418,10 +420,26 @@ class ChatController extends AbstractController
         $conv->setTitle($name);
         $this->em->persist($conv);
 
-        $p = new ConversationParticipant();
-        $p->setConversation($conv);
-        $p->setUser($admin);
-        $this->em->persist($p);
+        // Admin siempre es participante
+        $userIds = [$admin->getId()];
+
+        // Agregar miembros seleccionados (deduplicado, excluyendo admin)
+        foreach ($memberCodes as $code) {
+            if (!is_string($code)) continue;
+            $u = $this->userRepository->findByCode(strtoupper(trim($code)));
+            if ($u && !in_array($u->getId(), $userIds, true)) {
+                $userIds[] = $u->getId();
+            }
+        }
+
+        foreach ($userIds as $uid) {
+            $u = $this->userRepository->find($uid);
+            if (!$u) continue;
+            $p = new ConversationParticipant();
+            $p->setConversation($conv);
+            $p->setUser($u);
+            $this->em->persist($p);
+        }
 
         $this->em->flush();
 

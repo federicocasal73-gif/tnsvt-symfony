@@ -1063,16 +1063,31 @@ let sb = window.API;
 
       async function tjDeleteTrade(id) {
         if (!confirm('¿Eliminar este trade? No se puede deshacer.')) return;
-        if (typeof id === 'number' && id < 1000000) {
-          try { await sb.deleteTrade(id); } catch(e) { console.warn('[journal] backend delete:', e); }
+        const trade = tjTrades.find(t => t.id === id);
+        const userCode = window.TNSVT_USER ? window.TNSVT_USER.code : null;
+        // Si el trade tiene ID real del backend (no timestamp), eliminar en backend
+        if (trade && typeof id === 'number' && id < 1000000 && userCode) {
+          try {
+            await sb.deleteTrade(id, userCode);
+          } catch(e) {
+            console.warn('[journal] backend delete failed:', e);
+            showToast('❌ No pude eliminar del backend: ' + (e.message || ''));
+            return; // NO eliminar local si backend falló
+          }
         }
+        // Eliminar local (incluso si era un trade local-only sin backend sync)
         tjTrades = tjTrades.filter(t => t.id !== id);
+        try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e){}
         tjRefresh();
+        showToast('Trade eliminado ✅');
       }
 
       function tjEditTrade(id) {
         const t = tjTrades.find(x => x.id === id);
-        if (!t) return;
+        if (!t) {
+          showToast('⚠️ Trade no encontrado');
+          return;
+        }
         document.getElementById('tj-f-asset').value = t.asset || '';
         document.getElementById('tj-f-dir').value = t.dir || 'BUY';
         document.getElementById('tj-f-entry').value = t.entry || '';
@@ -1100,7 +1115,9 @@ let sb = window.API;
         tjEditingId = id;
         const submitBtn = document.getElementById('tj-submit-btn');
         if (submitBtn) submitBtn.textContent = 'Guardar Cambios';
-        tjTab('tj-log', document.querySelectorAll('.tj-tab')[1]);
+        // Switch al panel de log para editar (buscar tab correcto por texto)
+        const logTab = Array.from(document.querySelectorAll('.tj-tab')).find(t => t.textContent.includes('Registrar'));
+        tjTab('tj-log', logTab || document.querySelectorAll('.tj-tab')[1]);
         showToast('Editando trade — modificá y guardá');
       }
 
@@ -1699,23 +1716,36 @@ let sb = window.API;
         const ratio = document.getElementById('tj-day-ratio')?.value?.trim() || '';
         const notes = document.getElementById('tj-day-notes')?.value?.trim() || '';
 
+        const tempId = Date.now();
         const trade = {
-          id: Date.now(),
+          id: tempId,
           date: new Date(dateStr + 'T12:00:00').toISOString(),
           asset, dir, entry, sl, tp, pnl, result, ratio, notes,
           photos: [],
-          user_code: window.TNSVT_USER ? window.TNSVT_USER.code : null
+          user_code: window.TNSVT_USER ? window.TNSVT_USER.code : null,
+          _syncing: true
         };
 
+        // Insertar inmediatamente con ID temporal para que Editar/Borrar funcionen ya
+        tjTrades.unshift(trade);
+        try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e){}
+        tjDayCancelForm();
+        openTjDay(dateStr);
+        showToast('Registrando trade…');
+
+        // Sincronizar con backend en background, reemplazar tempId con ID real
         sb.createTrade(trade).then(res => {
-          trade.id = res.id;
-          tjTrades.unshift(trade);
-          localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
-          tjDayCancelForm();
-          openTjDay(dateStr);
+          const idx = tjTrades.findIndex(t => t.id === tempId);
+          if (idx > -1 && res && res.id) {
+            tjTrades[idx] = { ...tjTrades[idx], id: res.id, _syncing: false };
+            try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e){}
+          }
           showToast('Trade registrado ✅');
+          openTjDay(dateStr);
         }).catch(e => {
-          showToast('Error al guardar: ' + (e.message || 'desconocido'));
+          const idx = tjTrades.findIndex(t => t.id === tempId);
+          if (idx > -1) tjTrades[idx]._syncing = false;
+          showToast('❌ Error al sincronizar: ' + (e.message || 'desconocido') + ' — guardado solo local');
         });
       }
 
@@ -3383,13 +3413,36 @@ let sb = window.API;
       // ==================== GROUP MANAGEMENT (ADMIN) ====================
       window.manageGroupConvId = null;
 
-      function openCreateGroupModal() {
+      async function openCreateGroupModal() {
         const overlay = document.getElementById('createGroupOverlay');
         if (overlay) overlay.style.display = 'flex';
         const err = document.getElementById('createGroupError');
         if (err) err.style.display = 'none';
         const input = document.getElementById('createGroupNameInput');
         if (input) { input.value = ''; setTimeout(() => input.focus(), 100); }
+
+        // Cargar lista de usuarios disponibles
+        const memberList = document.getElementById('createGroupMembers');
+        if (memberList && window.TNSVT_USER) {
+          memberList.innerHTML = '<div style="padding:10px;text-align:center;color:#645a78;font-size:0.8rem;">Cargando usuarios…</div>';
+          try {
+            const users = await sb.getChatUsers(window.TNSVT_USER.code);
+            const others = users.filter(u => !u.is_me);
+            if (!others.length) {
+              memberList.innerHTML = '<div style="padding:10px;text-align:center;color:#645a78;font-size:0.8rem;">No hay otros usuarios disponibles</div>';
+              return;
+            }
+            memberList.innerHTML = others.map(u =>
+              '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;cursor:pointer;font-size:0.78rem;border-radius:4px;" onmouseover="this.style.background=\'rgba(212,175,55,0.06)\'" onmouseout="this.style.background=\'transparent\'">'
+              + '<input type="checkbox" value="' + escapeAttr(u.code) + '" class="cg-member-cb" style="cursor:pointer;">'
+              + '<span style="flex:1;color:#e2dcf0;">' + escapeHtml(u.name || u.code) + '</span>'
+              + '<span style="color:#645a78;font-size:0.65rem;">' + escapeHtml(u.code) + (u.is_admin ? ' 👑' : '') + '</span>'
+              + '</label>'
+            ).join('');
+          } catch(e) {
+            memberList.innerHTML = '<div style="padding:10px;color:#ff3b30;font-size:0.8rem;">Error al cargar usuarios</div>';
+          }
+        }
       }
       function closeCreateGroupModal() {
         document.getElementById('createGroupOverlay').style.display = 'none';
@@ -3401,12 +3454,14 @@ let sb = window.API;
         const name = document.getElementById('createGroupNameInput')?.value?.trim();
         if (!name) { err.textContent = 'Ingresá un nombre para el grupo'; err.style.display = 'block'; return; }
         btn.disabled = true; btn.textContent = 'CREANDO...';
+        // Recoger miembros seleccionados (códigos)
+        const members = Array.from(document.querySelectorAll('.cg-member-cb:checked')).map(cb => cb.value);
         try {
-          const result = await sb.createGroup(window.TNSVT_USER.code, name);
+          const result = await sb.createGroup(window.TNSVT_USER.code, name, members);
           if (result.error) { err.textContent = result.error; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'CREAR GRUPO'; return; }
           closeCreateGroupModal();
-          showToast('👥 Grupo "' + name + '" creado');
-          // Refresh conversations
+          const addedN = members.length;
+          showToast('👥 Grupo "' + name + '" creado' + (addedN ? ' con ' + addedN + ' miembro' + (addedN>1?'s':'') : ''));
           if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
         } catch(e) {
           err.textContent = 'Error: ' + e.message; err.style.display = 'block';
@@ -3599,7 +3654,7 @@ let sb = window.API;
       // Version actual de la app, hardcodeada en el bundle. El backend
       // devuelve la version "actual" en /api/app/version. Si la del server
       // es mayor, mostramos el modal de update.
-      const APP_LOCAL_VERSION_CODE = 19;
+      const APP_LOCAL_VERSION_CODE = 20;
 
       async function appCheckForUpdates() {
         try {
@@ -5071,14 +5126,18 @@ let sb = window.API;
             let fcmToken;
             try {
               const tokenOptions = { serviceWorkerRegistration: swReg };
-              if (config.vapidKey) tokenOptions.vapidKey = config.vapidKey;
+              if (config.vapidKey && /^[A-Za-z0-9_-]+$/.test(config.vapidKey)) {
+                tokenOptions.vapidKey = config.vapidKey;
+              } else {
+                console.log('[FCM] VAPID no configurada, saltando push nativo (in-app sí funciona)');
+              }
               fcmToken = await messaging.getToken(tokenOptions);
             } catch (e) {
-              console.warn('[FCM] getToken() falló. VAPID key inválida o permisos denegados:', e.message);
+              console.log('[FCM] Push nativo no disponible, uso polling in-app');
               return false;
             }
             if (!fcmToken) {
-              console.warn('[FCM] getToken() devolvió vacío. ¿Permiso denegado?');
+              console.log('[FCM] getToken() vacío, polling in-app activo');
               return false;
             }
             console.log('[FCM] Token obtenido:', fcmToken.substring(0, 20) + '...');
