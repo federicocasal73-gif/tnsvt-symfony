@@ -1,15 +1,19 @@
 [
 	{
-		"pkg": "@aparajita/capacitor-biometric-auth",
-		"classpath": "com.aparajita.capacitor.biometricauth.BiometricAuthNative"
-	},
-	{
 		"pkg": "@capacitor/app",
 		"classpath": "com.capacitorjs.plugins.app.AppPlugin"
 	},
 	{
+		"pkg": "@capacitor/keyboard",
+		"classpath": "com.capacitorjs.plugins.keyboard.KeyboardPlugin"
+	},
+	{
 		"pkg": "@capacitor/network",
 		"classpath": "com.capacitorjs.plugins.network.NetworkPlugin"
+	},
+	{
+		"pkg": "@capacitor/preferences",
+		"classpath": "com.capacitorjs.plugins.preferences.PreferencesPlugin"
 	},
 	{
 		"pkg": "@capacitor/push-notifications",

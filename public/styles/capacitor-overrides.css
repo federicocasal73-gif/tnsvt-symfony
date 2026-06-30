@@ -1,0 +1,157 @@
+/* ═══════════════════════════════════════════════════════════════
+   ⛧ TNSVT — Capacitor Overrides
+   ───────────────────────────────────────────────────────────────
+   Estos estilos SOLO se aplican cuando body.is-apk existe
+   (es decir, dentro de la APK Capacitor). En la web NORMAL
+   no se aplican: la web queda intacta.
+   Pegá <link rel="stylesheet" href="{{ asset('styles/capacitor-overrides.css') }}">
+   al final del bloque {% block stylesheets %} de base.html.twig.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ═══ TOPBAR — respetar status bar / notch / Dynamic Island ═══ */
+body.is-apk .tnsvt-topbar,
+body.is-apk .topbar,
+body.is-apk header.topbar,
+body.is-apk #topbar {
+  padding-top: max(16px, var(--safe-top)) !important;
+  padding-left: max(20px, var(--safe-left)) !important;
+  padding-right: max(28px, var(--safe-right)) !important;
+}
+
+/* ═══ MUSIC PLAYER — respetar home indicator / nav bar ═══ */
+body.is-apk .music-player-bar,
+body.is-apk #musicPlayerBar,
+body.is-apk .player-bar {
+  bottom: max(14px, calc(var(--safe-bottom) + 14px)) !important;
+  left: max(14px, var(--safe-left)) !important;
+  right: max(108px, calc(var(--safe-right) + 108px)) !important;
+}
+
+/* ═══ CHAT FAB + BURBUJAS ═══ */
+body.is-apk .cf-fab {
+  bottom: max(24px, calc(var(--safe-bottom) + 24px)) !important;
+  right: max(24px, calc(var(--safe-right) + 24px)) !important;
+}
+body.is-apk .cf-presence {
+  bottom: max(104px, calc(var(--safe-bottom) + 104px)) !important;
+  right: max(33px, calc(var(--safe-right) + 33px)) !important;
+}
+body.is-apk .cf-panel {
+  bottom: max(100px, calc(var(--safe-bottom) + 100px)) !important;
+  right: max(24px, calc(var(--safe-right) + 24px)) !important;
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 160px) !important;
+}
+body.is-apk .cf-toast {
+  bottom: max(110px, calc(var(--safe-bottom) + 110px)) !important;
+}
+
+/* ═══ KEYBOARD — cuando se abre teclado, ajustar el chat panel ═══ */
+body.is-apk.keyboard-open .cf-panel,
+body.is-apk.keyboard-open .modal {
+  bottom: calc(var(--keyboard-height, 0px) + 20px) !important;
+  max-height: calc(100vh - var(--keyboard-height, 0px) - var(--safe-top) - 80px) !important;
+}
+
+/* ═══ SCROLL MOMENTUM ═══ */
+body.is-apk .cf-panel,
+body.is-apk .cf-chat-stream,
+body.is-apk .feed,
+body.is-apk .tab-content,
+body.is-apk .modal-body,
+body.is-apk #dp-entries-list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ═══ TOUCH FEEDBACK (sin hover en mobile, :active sí) ═══ */
+@media (hover: none) {
+  body.is-apk button,
+  body.is-apk a,
+  body.is-apk .cf-bubble,
+  body.is-apk .cf-fab,
+  body.is-apk .tnsvt-hamburger {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  body.is-apk button:active,
+  body.is-apk .cf-bubble:active,
+  body.is-apk .cf-fab:active {
+    transform: scale(0.94);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* ═══ NO ZOOM POR DOBLE-TAP ═══ */
+body.is-apk {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+body.is-apk input,
+body.is-apk textarea,
+body.is-apk [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ═══ EVITAR FONT-SIZE < 16px EN INPUTS (sino iOS hace zoom) ═══ */
+body.is-apk input,
+body.is-apk textarea,
+body.is-apk select {
+  font-size: max(16px, 1rem) !important;
+}
+
+/* ═══ DEVICE-SPECIFIC: ULTRA COMPACTOS (Galaxy S24 mini, Z Fold plegado) ═══ */
+@media (max-width: 380px) {
+  body.is-apk .tnsvt-admin-info,
+  body.is-apk .admin-info { display: none !important; }
+  body.is-apk .tnsvt-brand-sub,
+  body.is-apk .brand .sub { display: none !important; }
+}
+
+/* ═══ DEVICE-SPECIFIC: FOLD DESPLEGADO (≥884px de ancho) ═══ */
+@media (min-width: 884px) and (max-aspect-ratio: 5/6) {
+  body.is-apk .tab-content {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* ═══ ANIMACIONES TOAST ═══ */
+@keyframes tnsvtToastIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ═══ EVITAR PULL-TO-REFRESH NATIVO (Chrome WebView) ═══ */
+body.is-apk { overscroll-behavior-y: contain; }
+
+/* ═══ CAMPANA LEGACY — forzar visible (app.js actualiza #notifBadge) ═══ */
+body.is-apk .tnsvt-notif-btn { display: none !important; }
+body.is-apk #notifBellWrap {
+  display: block !important; position: fixed !important;
+  top: max(8px, var(--safe-top, 0px)) !important; right: max(72px, var(--safe-right, 0px)) !important;
+  z-index: 9999 !important;
+}
+body.is-apk #notifBellBtnOld {
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  width: 44px !important; height: 44px !important; cursor: pointer !important;
+  font-size: 1.4rem !important; background: transparent !important; border: none !important;
+}
+body.is-apk #notifBadge {
+  display: inline-flex !important; position: absolute !important;
+  top: -4px !important; right: -6px !important;
+  min-width: 20px !important; height: 20px !important;
+  padding: 0 5px !important; border-radius: 10px !important;
+  background: #e53935 !important; color: #fff !important;
+  font-family: 'Orbitron', sans-serif !important; font-size: 0.65rem !important;
+  font-weight: 700 !important; align-items: center !important; justify-content: center !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+}

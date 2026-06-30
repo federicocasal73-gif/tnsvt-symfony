@@ -39,7 +39,7 @@ class MusicController extends AbstractController
 
     private function audioDir(): string
     {
-        return $this->getParameter('kernel.project_dir') . '/public/audio';
+        return $this->getParameter('kernel.project_dir') . '/var/audio';
     }
 
     /**

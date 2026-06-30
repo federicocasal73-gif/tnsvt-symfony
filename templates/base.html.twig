@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" id="tnsvt-viewport">
 <meta name="theme-color" content="#d4af37">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,15 +11,18 @@
 <meta name="application-name" content="TNSVT">
 <meta name="description" content="T.N.S.V.T - Reino del Cristo Íntegro. Plataforma de trading, academia, música y comunidad para ejecutores.">
 <link rel="manifest" href="{{ asset('manifest.json') }}">
+<meta name="format-detection" content="telephone=no">
+<meta name="msapplication-tap-highlight" content="no">
 <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=5.0">
-  {% endblock %}
-    <script src="{{ asset('api.js') }}?v=5.0"></script>
-    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=5.0"></script>
-    <script src="{{ asset('chart.js') }}?v=5.0"></script>
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v={{ 'now'|date('U') }}">
+    <link rel="stylesheet" href="{{ asset('styles/apk-layout-fix.css') }}?v={{ 'now'|date('U') }}">
+{% endblock %}
+    <script src="{{ asset('api.js') }}?v={{ 'now'|date('U') }}"></script>
+    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v={{ 'now'|date('U') }}"></script>
+    <script src="{{ asset('chart.js') }}?v={{ 'now'|date('U') }}"></script>
    {% block javascripts %}
       {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
@@ -30,7 +33,7 @@
         if (!imap) return;
         try {
           var data = JSON.parse(imap.textContent);
-             var v = 'v=5.0';
+             var v = 'v={{ 'now'|date('U') }}';
           Object.keys(data.imports || {}).forEach(function(k){
             var p = data.imports[k];
             if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
@@ -241,7 +244,7 @@
     <button type="button"
             class="tnsvt-notif-btn"
             id="notifBellBtn"
-            onclick="openNotifications()"
+            onclick="toggleNotifPanel()"
             aria-label="Notificaciones"
             title="Notificaciones">
       🔔
@@ -4585,5 +4588,19 @@
   <canvas id="musicMiniVisualizer" width="46" height="46" style="position:absolute; inset:0; border-radius:50%; pointer-events:none;"></canvas>
   <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:1.1rem; position:relative; z-index:1;">🎵</div>
 </div>
+<script src="{{ asset('capacitor-bridge.js') }}?v={{ 'now'|date('U') }}" defer></script>
+<script src="{{ asset('fold-bridge.js') }}?v={{ 'now'|date('U') }}" defer></script>
+
+<script>
+(function() {
+  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+    var vp = document.getElementById('tnsvt-viewport');
+    if (vp) {
+      vp.setAttribute('content',
+        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+    }
+  }
+})();
+</script>
 </body>
 </html>

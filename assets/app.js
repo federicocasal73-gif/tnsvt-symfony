@@ -425,6 +425,7 @@ let sb = window.API;
         }
         const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
         if (btn) btn.classList.add('active');
+        updateBrandSub(tabId);
         // Chat: ahora se maneja con el CF widget flotante
         if (tabId === 'tab-chat') {
           if (window.CF && typeof window.CF.open === 'function') {
@@ -468,6 +469,29 @@ let sb = window.API;
           document.body.style.overflow = '';
         }
       }
+
+      const TAB_SUBTITLES = {
+        'tab-posts': 'MANUSCRITO',
+        'tab-chart': 'CHART EN VIVO',
+        'tab-macro': 'MACRO',
+        'tab-2steps-adv': 'METODOLOGÍA',
+        'tab-tasks': 'TAREAS',
+        'tab-calendar': 'CALENDARIO',
+        'tab-diary': 'DIARIO',
+        'tab-journal': 'TRADING JOURNAL',
+        'tab-leaderboard': 'RANKING',
+        'tab-academia': 'ACADEMIA',
+        'tab-social': 'SOCIAL',
+        'tab-admin': 'ADMIN',
+        'tab-chat': 'CHAT GLOBAL',
+        'tab-home': 'CRISTO ÍNTEGRO',
+      };
+      function updateBrandSub(tabId) {
+        const sub = document.querySelector('.tnsvt-brand-sub');
+        if (!sub) return;
+        sub.textContent = TAB_SUBTITLES[tabId] || 'CRISTO ÍNTEGRO';
+      }
+      window.updateBrandSub = updateBrandSub;
       // ==================== FONDO DIVINO ====================
       const canvas = document.getElementById('divineCanvas');
       const ctx = canvas.getContext('2d');
@@ -6298,6 +6322,21 @@ document.addEventListener('DOMContentLoaded', function(){
   const obs = new MutationObserver(() => { if (window.Diary._toggleEmpty) window.Diary._toggleEmpty(); });
   obs.observe(list, { childList: true });
 });
+
+// Init brandSub on first load
+(function() {
+  function initBrandSub() {
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab && typeof window.updateBrandSub === 'function') {
+      window.updateBrandSub(activeTab.id);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBrandSub);
+  } else {
+    initBrandSub();
+  }
+})();
 
 /* ===================================================================================
    SOCIAL MODULE — Profile search, access requests, connections, permissions

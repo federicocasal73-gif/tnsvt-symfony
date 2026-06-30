@@ -1,0 +1,260 @@
+/* ═══════════════════════════════════════════════════════════════
+   ⛧ TNSVT — Z FOLD 6 RESPONSIVE (plegado + desplegado)
+   Pegá <link rel="stylesheet" href="{{ asset('styles/fold-responsive.css') }}?v=1.0">
+   al final del bloque stylesheets en base.html.twig.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --fold-sidebar-w: 280px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📱 MODO PLEGADO — Z Fold 6 cover screen (374×806) y angostos
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 420px) {
+
+  /* SIDEBAR overlay full-height */
+  .sidebar, #sidebar, aside.sidebar {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    width: 88vw !important; max-width: 340px !important;
+    height: 100vh !important; height: 100dvh !important;
+    z-index: 9985 !important;
+    background: rgba(10,5,22,0.97) !important;
+    backdrop-filter: blur(18px) !important;
+    -webkit-backdrop-filter: blur(18px) !important;
+    border-right: 1px solid rgba(212,175,55,0.25) !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.6) !important;
+    transform: translateX(-100%);
+    transition: transform .3s ease;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: calc(var(--safe-top) + 80px) 16px calc(var(--safe-bottom) + 100px) !important;
+  }
+  .sidebar.open, .sidebar.active,
+  #sidebar.open, #sidebar.active {
+    transform: translateX(0) !important;
+  }
+
+  /* Backdrop */
+  body.sidebar-open::after {
+    content:""; position:fixed; inset:0; left:88vw;
+    background:rgba(0,0,0,0.55); backdrop-filter:blur(2px);
+    z-index:9984; pointer-events:none;
+  }
+
+  .sidebar-btn, .sidebar .menu-item, .sidebar a {
+    padding:11px 14px !important; font-size:0.85rem !important; margin-bottom:6px !important;
+  }
+
+  /* TOPBAR compacto */
+  .tnsvt-topbar, .topbar, header.topbar {
+    padding: 8px 10px !important;
+    padding-top: max(8px, var(--safe-top)) !important;
+    gap: 6px !important;
+  }
+  .brand h1, .tnsvt-brand h1 { font-size:0.95rem !important; letter-spacing:1.5px !important; }
+  .brand .sub, .tnsvt-brand-sub { display:none !important; }
+  .topbar-right, .tnsvt-topbar-right { gap:6px !important; }
+  .admin-info, .tnsvt-admin-info, .admin-tag, .tnsvt-admin-tag { display:none !important; }
+  .admin-block, .tnsvt-admin-block {
+    padding:3px !important; background:transparent !important; border:none !important;
+  }
+  .admin-avatar, .tnsvt-admin-avatar { width:36px !important; height:36px !important; font-size:1rem !important; }
+  .logout-btn, .salir-btn,
+  button[onclick*="logout"], a[href*="logout"] {
+    padding:6px 10px !important; font-size:0.65rem !important; letter-spacing:1px !important;
+  }
+
+  /* NOTIF dropdown */
+  .notif-dropdown, .notification-dropdown, #notifPanel {
+    position:fixed !important;
+    top: calc(var(--safe-top) + 64px) !important;
+    left:8px !important; right:8px !important; width:auto !important; max-width:none !important;
+    max-height:60vh !important; overflow-y:auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .notif-dropdown .notif-item, .notification-dropdown .notif-item {
+    padding:10px 12px !important; font-size:0.78rem !important;
+  }
+
+  /* MUSIC PLAYER ultra-compacto */
+  .music-player-bar, #musicPlayerBar, .player-bar {
+    left:8px !important; right:76px !important;
+    bottom: max(8px, var(--safe-bottom)) !important;
+    height:56px !important; padding:0 10px !important; gap:8px !important; border-radius:12px !important;
+  }
+  .music-cover { width:38px !important; height:38px !important; }
+  .music-info { flex: 0 0 70px !important; }
+  .music-info .title { font-size:0.72rem !important; }
+  .music-info .sub { font-size:0.55rem !important; }
+  .music-controls button { font-size:1rem !important; padding:4px !important; }
+  .play-btn { width:32px !important; height:32px !important; font-size:0.8rem !important; }
+  .progress-wrap, .vol-wrap { display:none !important; }
+  .expand-btn, .reproductor-tag,
+  button[onclick*="openMusicLightbox"], button[onclick*="MusicLightbox"] { display:none !important; }
+
+  /* CHAT FAB */
+  .cf-fab {
+    bottom: max(14px, calc(var(--safe-bottom) + 14px)) !important;
+    right:12px !important; width:52px !important; height:52px !important; font-size:1.3rem !important;
+  }
+  .cf-presence {
+    right:18px !important;
+    bottom: max(74px, calc(var(--safe-bottom) + 74px)) !important;
+  }
+  .cf-bubble { width:38px !important; height:38px !important; font-size:0.65rem !important; }
+
+  /* TRADING JOURNAL */
+  .tj-stats, .stats-grid { grid-template-columns:1fr !important; gap:10px !important; }
+  .tj-cuenta-row, .cuenta-row { flex-direction:column !important; align-items:stretch !important; gap:8px !important; }
+  .tj-cuenta-row input, .tj-cuenta-row select { width:100% !important; }
+  .tj-tools, .export-buttons { flex-wrap:wrap !important; gap:6px !important; }
+  .tj-tools button, .export-buttons button {
+    flex: 1 1 calc(50% - 3px) !important; font-size:0.7rem !important; padding:8px 10px !important;
+  }
+  .tj-equity, .tj-pl-chart, .equity-curve {
+    overflow-x:auto !important; -webkit-overflow-scrolling: touch !important;
+  }
+  .tj-equity svg, .tj-pl-chart svg { min-width:100% !important; }
+  .tj-cal-grid, .calendar-grid { grid-template-columns:repeat(7,1fr) !important; gap:2px !important; }
+  .tj-cal-day, .cal-day { aspect-ratio:1 !important; font-size:0.65rem !important; padding:2px !important; }
+  .tj-period-tabs, .period-tabs { flex-wrap:wrap !important; gap:4px !important; }
+  .tj-period-tabs button, .period-tabs button {
+    flex: 1 0 calc(33% - 3px) !important; font-size:0.7rem !important; padding:6px 8px !important;
+  }
+  .tj-pl-tabs button, .pl-tabs button { flex:1 !important; font-size:0.7rem !important; padding:6px 4px !important; }
+
+  /* Content padding */
+  .tab-content, .main-content {
+    padding-left:10px !important; padding-right:10px !important;
+    padding-bottom: max(80px, calc(var(--safe-bottom) + 80px)) !important;
+  }
+  h1.module-title, .module-title, h1 { font-size:1.5rem !important; text-wrap:balance !important; }
+  .module-sub { font-size:0.78rem !important; }
+  .feed-card, .post-card { padding:12px 14px !important; border-radius:10px !important; }
+
+  /* Inputs sin zoom iOS */
+  input, textarea, select {
+    font-size:16px !important; max-width:100% !important; box-sizing:border-box !important;
+  }
+
+  /* Modals full-screen */
+  .modal-content, .modal-dialog {
+    width:95vw !important; max-width:95vw !important; max-height:90vh !important;
+    overflow-y:auto !important; -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Plegado ultra-angosto (Z Fold cover screen ~374px) */
+@media (max-width: 380px) and (min-aspect-ratio: 9/20) {
+  .brand h1, .tnsvt-brand h1 { font-size:0.88rem !important; letter-spacing:1px !important; }
+  .tnsvt-hamburger, .hamburger, #hamburgerBtn { width:38px !important; height:38px !important; }
+  .notif-btn, .tnsvt-notif-btn { width:36px !important; height:36px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📐 MODO DESPLEGADO — Z Fold 6 inner screen (884×1104)
+   Aprovechar el ancho con sidebar fijo + grid 2-pane
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 884px) and (max-width: 1280px) {
+  body.layout-fold-open .sidebar,
+  body.layout-fold-open #sidebar {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    width: var(--fold-sidebar-w) !important;
+    height: 100vh !important; height: 100dvh !important;
+    transform: translateX(0) !important;
+    background: rgba(10,5,22,0.94) !important;
+    backdrop-filter: blur(14px) !important;
+    border-right: 1px solid rgba(212,175,55,0.18) !important;
+    padding: calc(var(--safe-top) + 80px) 14px calc(var(--safe-bottom) + 100px) !important;
+    overflow-y: auto !important;
+    z-index: 50 !important;
+  }
+
+  body.layout-fold-open .main-content,
+  body.layout-fold-open .tab-content,
+  body.layout-fold-open main {
+    margin-left: var(--fold-sidebar-w) !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+
+  body.layout-fold-open .tnsvt-topbar,
+  body.layout-fold-open .topbar {
+    left: var(--fold-sidebar-w) !important;
+    right: 0 !important;
+  }
+
+  /* Trading Journal: equity + calendar lado a lado */
+  body.layout-fold-open #tab-journal .tj-charts-wrap,
+  body.layout-fold-open #tab-journal .tj-main-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 18px !important;
+  }
+  body.layout-fold-open .tj-stats {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  /* Feed 2 cols */
+  body.layout-fold-open #tab-posts .feed,
+  body.layout-fold-open #tab-posts #feedList {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Music player centrado */
+  body.layout-fold-open .music-player-bar,
+  body.layout-fold-open #musicPlayerBar {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    right: auto !important;
+    width: 640px !important;
+    max-width: calc(100vw - var(--fold-sidebar-w) - 120px) !important;
+  }
+
+  /* Calendar Económico timeline + panel próximo */
+  body.layout-fold-open #tab-calendar {
+    display: grid !important;
+    grid-template-columns: 1fr 340px !important;
+    gap: 20px !important;
+  }
+
+  /* Aware del crease (pliegue central horizontal ~552px) */
+  body.layout-fold-open .modal-content,
+  body.layout-fold-open .modal-dialog {
+    max-width: 600px !important;
+    max-height: 80vh !important;
+  }
+
+  /* En desplegado el hamburger puede ocultarse (sidebar es fijo) */
+  body.layout-fold-open .tnsvt-hamburger,
+  body.layout-fold-open .hamburger,
+  body.layout-fold-open #hamburgerBtn {
+    display: none !important;
+  }
+}
+
+/* Landscape desplegado (1104×884) */
+@media (min-width: 1080px) and (max-width: 1280px) and (max-aspect-ratio: 5/4) {
+  body.layout-fold-open #tab-journal .tj-stats {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   🌐 Visual Viewport Segments API (foldables nativos)
+   ═══════════════════════════════════════════════════════════════ */
+@media (horizontal-viewport-segments: 2) {
+  body.is-spanned .modal-content,
+  body.is-spanned .modal-dialog {
+    /* Evitar que el modal quede partido por el pliegue */
+    max-width: 45vw !important;
+    margin-left: 2vw !important;
+  }
+}
