@@ -239,6 +239,10 @@ window.sb = window.API;
         sessionStorage.removeItem('tnsv_auth');
         localStorage.removeItem('tnsv_user');
         window.TNSVT_USER = null;
+        // Limpiar clase de admin para resetear visibilidad de botones admin en APK
+        if (typeof document !== 'undefined' && document.body) {
+          document.body.classList.remove('is-real-admin');
+        }
         tjTrades = [];
         notifList = [];
         window.chatConversations = [];
@@ -4499,6 +4503,14 @@ window.sb = window.API;
       // Aplica visibilidad de elementos UI que dependen de isAdmin
       // Llamar después del login Y después del session restore
       function applyAdminFeatures(isAdmin) {
+        // Toggle .is-real-admin class on <body> so APK CSS can show admin-only buttons
+        // (the APK CSS hides adminSidebarBtn/chartSidebarBtn by default with !important,
+        //  so we need a body class as the gate — inline display:none/block won't win
+        //  against !important rules)
+        if (typeof document !== 'undefined' && document.body) {
+          if (isAdmin) document.body.classList.add('is-real-admin');
+          else document.body.classList.remove('is-real-admin');
+        }
         const adminBtn = document.getElementById('adminSidebarBtn');
         if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
         const chartBtn = document.getElementById('chartSidebarBtn');

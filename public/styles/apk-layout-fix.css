@@ -296,6 +296,13 @@ body.is-apk .sidebar-btn.active {
   box-shadow: inset 0 0 20px rgba(212,175,55,0.05) !important;
 }
 
+/* ⛧ ADMIN-ONLY BUTTONS — hidden by default in APK, only shown when
+   body has .is-real-admin class (set by JS after admin login) */
+body.is-apk:not(.is-real-admin) #adminSidebarBtn,
+body.is-apk:not(.is-real-admin) #chartSidebarBtn {
+  display: none !important;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN CONTENT (trading-main)
    ═══════════════════════════════════════════════════════════════ */
