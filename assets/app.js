@@ -3654,7 +3654,7 @@ let sb = window.API;
       // Version actual de la app, hardcodeada en el bundle. El backend
       // devuelve la version "actual" en /api/app/version. Si la del server
       // es mayor, mostramos el modal de update.
-      const APP_LOCAL_VERSION_CODE = 20;
+      const APP_LOCAL_VERSION_CODE = 21;
 
       async function appCheckForUpdates() {
         try {
@@ -5133,7 +5133,21 @@ let sb = window.API;
               }
               fcmToken = await messaging.getToken(tokenOptions);
             } catch (e) {
-              console.log('[FCM] Push nativo no disponible, uso polling in-app');
+              // Una sola vez: mostrar la razón exacta para diagnóstico
+              if (!window._fcmDiagnosed) {
+                window._fcmDiagnosed = true;
+                console.warn('[FCM] Push nativo no disponible. Razón:', e.message || e.name);
+                console.warn('[FCM] Diagnóstico: GET /api/firebase/diagnose');
+                try {
+                  const diag = await API.get('/api/firebase/diagnose');
+                  console.warn('[FCM] Backend dice:', diag);
+                  if (diag.has_vapid && diag.vapid_length > 50) {
+                    console.warn('[FCM] La VAPID en .env está seteada, pero el navegador la rechaza.');
+                    console.warn('[FCM] Causa probable: la VAPID es de OTRO proyecto Firebase que project_id.');
+                    console.warn('[FCM] Solución: regenerar la VAPID en Firebase Console del MISMO proyecto que project_id=' + diag.project_id);
+                  }
+                } catch(e2) { console.warn('[FCM] No pude obtener diagnóstico:', e2.message); }
+              }
               return false;
             }
             if (!fcmToken) {

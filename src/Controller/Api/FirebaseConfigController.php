@@ -10,11 +10,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Devuelve la configuracion PUBLICA de Firebase Web (la que puede exponerse al cliente).
  * Los datos sensibles (service-account.json, private keys) NUNCA salen del backend.
- *
- * La web app config se setea como variable de entorno (FIREBASE_WEB_API_KEY, etc)
- * o como JSON completo en FIREBASE_WEB_CONFIG.
  */
-#[Route('/api/firebase/config')]
+#[Route('/api/firebase')]
 class FirebaseConfigController extends AbstractController
 {
     public function __construct(
@@ -34,10 +31,9 @@ class FirebaseConfigController extends AbstractController
         private readonly string $vapidKey = '',
     ) {}
 
-    #[Route('', name: 'api_firebase_config', methods: ['GET'])]
+    #[Route('/config', name: 'api_firebase_config', methods: ['GET'])]
     public function __invoke(): JsonResponse
     {
-        // Detectar placeholders o valores vacíos
         $placeholders = ['YOUR_', 'REEMPLAZAR', 'PLACEHOLDER'];
         $isPlaceholder = fn(string $v) => $v === '' || array_filter($placeholders, fn($p) => str_contains($v, $p)) !== [];
 
@@ -65,5 +61,28 @@ class FirebaseConfigController extends AbstractController
             'appId' => $this->appId,
             'vapidKey' => $this->vapidKey,
         ], 200, ['Cache-Control' => 'public, max-age=3600']);
+    }
+
+    /**
+     * Diagnostico publico: muestra que keys estan seteadas y cuales son.
+     * NO expone la VAPID completa, solo confirma su presencia y formato.
+     */
+    #[Route('/diagnose', name: 'api_firebase_diagnose', methods: ['GET'])]
+    public function diagnose(): JsonResponse
+    {
+        $vapidLen = strlen($this->vapidKey);
+        $vapidPrefix = substr($this->vapidKey, 0, 12);
+        $vapidSuffix = substr($this->vapidKey, -4);
+        return new JsonResponse([
+            'project_id' => $this->projectId,
+            'messaging_sender_id' => $this->messagingSenderId,
+            'has_vapid' => $vapidLen > 50,
+            'vapid_length' => $vapidLen,
+            'vapid_prefix' => $vapidPrefix . '...',
+            'vapid_suffix' => '...' . $vapidSuffix,
+            'has_api_key' => strlen($this->apiKey) > 20,
+            'has_app_id' => strlen($this->appId) > 10,
+            'hint' => 'Si has_vapid=true pero el navegador rechaza la VAPID, la key es probablemente de OTRO proyecto Firebase. La VAPID debe generarse desde Firebase Console del MISMO proyecto que aparece en project_id.',
+        ], 200, ['Cache-Control' => 'no-store']);
     }
 }

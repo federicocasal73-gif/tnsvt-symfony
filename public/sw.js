@@ -1,7 +1,7 @@
 // TNSVT Service Worker - PWA + Offline fallback
-// v45: chat premium v1.9.4 + cache-bust v=4.8 + FormData upload fix
-const CACHE_NAME = 'tnsvt-v53';
-const RUNTIME_CACHE = 'tnsvt-runtime-v53';
+// v46: chat v1.9.5 + cache-bust v=4.9 + Firebase diagnose endpoint
+const CACHE_NAME = 'tnsvt-v54';
+const RUNTIME_CACHE = 'tnsvt-runtime-v54';
 
 // No precacheamos nada que pueda 404. En debug mode Symfony sirve
 // assets/ directamente, en prod los compila con hash. El runtime cache
