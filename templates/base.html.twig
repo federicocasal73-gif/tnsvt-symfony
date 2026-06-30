@@ -14,39 +14,52 @@
 <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
-    {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.0.3">
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v=4.7">
   {% endblock %}
-    <script src="{{ asset('api.js') }}?v=4.0.3"></script>
-    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.2.1"></script>
-    <script src="{{ asset('chart.js') }}?v=4.0.3"></script>
+    <script src="{{ asset('api.js') }}?v=4.7"></script>
+    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v=4.7"></script>
+    <script src="{{ asset('chart.js') }}?v=4.7"></script>
    {% block javascripts %}
-     {% block importmap %}{{ importmap('app') }}{% endblock %}
-   {% endblock %}
-   <script>
-     // ─── Cache-busting del importmap: forzar reload si el bundle viejo da 404 ───
-     (function bustImportmap() {
-       var imap = document.querySelector('script[type="importmap"]');
-       if (!imap) return;
-       try {
-         var data = JSON.parse(imap.textContent);
-            var v = 'v=4.5';
-         Object.keys(data.imports || {}).forEach(function(k){
-           var p = data.imports[k];
-           if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
-         });
-         imap.textContent = JSON.stringify(data);
-       } catch (_) {}
-     })();
-     // ─── Watchdog: si a los 4s no hay funciones críticas, forzar reload ───
-     setTimeout(function(){
-       if (typeof window.API === 'undefined' || typeof window.fetch !== 'function') {
-         console.warn('[TNSVT] Assets no cargaron — recargando con cache-bust');
-         var u = location.href.split('#')[0];
-         u += (u.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
-         location.replace(u);
-       }
-     }, 4000);
+      {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% endblock %}
+    <script>
+      // ─── Cache-busting del importmap: forzar reload si el bundle viejo da 404 ───
+      (function bustImportmap() {
+        var imap = document.querySelector('script[type="importmap"]');
+        if (!imap) return;
+        try {
+          var data = JSON.parse(imap.textContent);
+             var v = 'v=4.7';
+          Object.keys(data.imports || {}).forEach(function(k){
+            var p = data.imports[k];
+            if (typeof p === 'string' && p.indexOf('?') === -1) data.imports[k] = p + '?' + v;
+          });
+          imap.textContent = JSON.stringify(data);
+        } catch (_) {}
+      })();
+// ─── Watchdog: si a los 4s no hay funciones críticas, forzar reload ───
+      setTimeout(function(){
+        if (typeof window.API === 'undefined' || typeof window.fetch !== 'function') {
+          console.warn('[TNSVT] Assets no cargaron — recargando con cache-bust');
+          var u = location.href.split('#')[0];
+          u += (u.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+          location.replace(u);
+        }
+      }, 4000);
+      // ─── Force SW cache invalidation: enviar mensaje al SW para limpiar ───
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        try {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHES' });
+          console.log('[TNSVT] Sent CLEAR_CACHES to SW');
+        } catch(e) {}
+      }
+      // ─── Force SW update check: si hay un SW nuevo esperando, activarlo ───
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function(reg){
+          if (reg && reg.update) { try { reg.update(); } catch(e){} }
+        }).catch(function(){});
+      }
    </script>
   <style>
   /* ===== MÓDULO MULTIFRACTAL ===== */
