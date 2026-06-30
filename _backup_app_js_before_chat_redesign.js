@@ -16,7 +16,6 @@
    ============================================================ */
 
 let sb = window.API;
-window.sb = window.API;
 
 
 
@@ -241,7 +240,9 @@ window.sb = window.API;
         window.TNSVT_USER = null;
         tjTrades = [];
         notifList = [];
-        window.chatConversations = [];
+        chatConversations = [];
+        window.chatConversations = chatConversations;
+        activeConvId = null;
         acadCoursesCache = [];
         postPhotoData = null;
         signalPhotoData = null;
@@ -416,10 +417,6 @@ window.sb = window.API;
       window.toggleSidebar = toggleSidebar;
 
       function switchTab(tabId) {
-        if ((tabId === 'tab-admin' || tabId === 'tab-chart') &amp;&amp; !(window.TNSVT_USER &amp;&amp; window.TNSVT_USER.isAdmin)) {
-          console.warn('[switchTab] Access denied: admin-only tab', tabId);
-          return;
-        }
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
         const target = document.getElementById(tabId);
@@ -430,7 +427,6 @@ window.sb = window.API;
         }
         const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
         if (btn) btn.classList.add('active');
-        updateBrandSub(tabId);
         // Chat: ahora se maneja con el CF widget flotante
         if (tabId === 'tab-chat') {
           if (window.CF && typeof window.CF.open === 'function') {
@@ -474,29 +470,6 @@ window.sb = window.API;
           document.body.style.overflow = '';
         }
       }
-
-      const TAB_SUBTITLES = {
-        'tab-posts': 'MANUSCRITO',
-        'tab-chart': 'CHART EN VIVO',
-        'tab-macro': 'MACRO',
-        'tab-2steps-adv': 'METODOLOGÍA',
-        'tab-tasks': 'TAREAS',
-        'tab-calendar': 'CALENDARIO',
-        'tab-diary': 'DIARIO',
-        'tab-journal': 'TRADING JOURNAL',
-        'tab-leaderboard': 'RANKING',
-        'tab-academia': 'ACADEMIA',
-        'tab-social': 'SOCIAL',
-        'tab-admin': 'ADMIN',
-        'tab-chat': 'CHAT GLOBAL',
-        'tab-home': 'CRISTO ÍNTEGRO',
-      };
-      function updateBrandSub(tabId) {
-        const sub = document.querySelector('.tnsvt-brand-sub');
-        if (!sub) return;
-        sub.textContent = TAB_SUBTITLES[tabId] || 'CRISTO ÍNTEGRO';
-      }
-      window.updateBrandSub = updateBrandSub;
       // ==================== FONDO DIVINO ====================
       const canvas = document.getElementById('divineCanvas');
       const ctx = canvas.getContext('2d');
@@ -1092,31 +1065,16 @@ window.sb = window.API;
 
       async function tjDeleteTrade(id) {
         if (!confirm('¿Eliminar este trade? No se puede deshacer.')) return;
-        const trade = tjTrades.find(t => t.id === id);
-        const userCode = window.TNSVT_USER ? window.TNSVT_USER.code : null;
-        // Si el trade tiene ID real del backend (no timestamp), eliminar en backend
-        if (trade && typeof id === 'number' && id < 1000000 && userCode) {
-          try {
-            await sb.deleteTrade(id, userCode);
-          } catch(e) {
-            console.warn('[journal] backend delete failed:', e);
-            showToast('❌ No pude eliminar del backend: ' + (e.message || ''));
-            return; // NO eliminar local si backend falló
-          }
+        if (typeof id === 'number' && id < 1000000) {
+          try { await sb.deleteTrade(id); } catch(e) { console.warn('[journal] backend delete:', e); }
         }
-        // Eliminar local (incluso si era un trade local-only sin backend sync)
         tjTrades = tjTrades.filter(t => t.id !== id);
-        try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e){}
         tjRefresh();
-        showToast('Trade eliminado ✅');
       }
 
       function tjEditTrade(id) {
         const t = tjTrades.find(x => x.id === id);
-        if (!t) {
-          showToast('⚠️ Trade no encontrado');
-          return;
-        }
+        if (!t) return;
         document.getElementById('tj-f-asset').value = t.asset || '';
         document.getElementById('tj-f-dir').value = t.dir || 'BUY';
         document.getElementById('tj-f-entry').value = t.entry || '';
@@ -1144,9 +1102,7 @@ window.sb = window.API;
         tjEditingId = id;
         const submitBtn = document.getElementById('tj-submit-btn');
         if (submitBtn) submitBtn.textContent = 'Guardar Cambios';
-        // Switch al panel de log para editar (buscar tab correcto por texto)
-        const logTab = Array.from(document.querySelectorAll('.tj-tab')).find(t => t.textContent.includes('Registrar'));
-        tjTab('tj-log', logTab || document.querySelectorAll('.tj-tab')[1]);
+        tjTab('tj-log', document.querySelectorAll('.tj-tab')[1]);
         showToast('Editando trade — modificá y guardá');
       }
 
@@ -1745,36 +1701,23 @@ window.sb = window.API;
         const ratio = document.getElementById('tj-day-ratio')?.value?.trim() || '';
         const notes = document.getElementById('tj-day-notes')?.value?.trim() || '';
 
-        const tempId = Date.now();
         const trade = {
-          id: tempId,
+          id: Date.now(),
           date: new Date(dateStr + 'T12:00:00').toISOString(),
           asset, dir, entry, sl, tp, pnl, result, ratio, notes,
           photos: [],
-          user_code: window.TNSVT_USER ? window.TNSVT_USER.code : null,
-          _syncing: true
+          user_code: window.TNSVT_USER ? window.TNSVT_USER.code : null
         };
 
-        // Insertar inmediatamente con ID temporal para que Editar/Borrar funcionen ya
-        tjTrades.unshift(trade);
-        try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e){}
-        tjDayCancelForm();
-        openTjDay(dateStr);
-        showToast('Registrando trade…');
-
-        // Sincronizar con backend en background, reemplazar tempId con ID real
         sb.createTrade(trade).then(res => {
-          const idx = tjTrades.findIndex(t => t.id === tempId);
-          if (idx > -1 && res && res.id) {
-            tjTrades[idx] = { ...tjTrades[idx], id: res.id, _syncing: false };
-            try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e){}
-          }
-          showToast('Trade registrado ✅');
+          trade.id = res.id;
+          tjTrades.unshift(trade);
+          localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
+          tjDayCancelForm();
           openTjDay(dateStr);
+          showToast('Trade registrado ✅');
         }).catch(e => {
-          const idx = tjTrades.findIndex(t => t.id === tempId);
-          if (idx > -1) tjTrades[idx]._syncing = false;
-          showToast('❌ Error al sincronizar: ' + (e.message || 'desconocido') + ' — guardado solo local');
+          showToast('Error al guardar: ' + (e.message || 'desconocido'));
         });
       }
 
@@ -3363,8 +3306,348 @@ window.sb = window.API;
         }
       }
 
-      // ==================== NUEVO DM / GRUPOS (legacy ui helpers) ====================
-      
+      // ==================== CHAT ====================
+      const CHAT_MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
+      let chatConversations = [];
+      window.chatConversations = chatConversations;
+      let activeConvId = null;
+      let chatPhotoData = null;
+      let chatLastMessageId = 0;
+      let chatPollTimer = null;
+
+      function formatChatTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const now = new Date();
+        const sameDay = d.toDateString() === now.toDateString();
+        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+        const isYesterday = d.toDateString() === yesterday.toDateString();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        if (sameDay) return `${hh}:${mm}`;
+        if (isYesterday) return `ayer ${hh}:${mm}`;
+        return `${d.getDate()}/${d.getMonth()+1} ${hh}:${mm}`;
+      }
+
+      function convDisplayName(conv) {
+        if (conv.type === 'group') return conv.title || 'Grupo';
+        if (conv.type === 'dm') return conv.other_user_name || conv.other_user_code || 'Conversación';
+        if (conv.type === 'ai') return '🤖 T.N.S.V.T Coach';
+        return 'Conversación';
+      }
+
+      function convAvatar(conv) {
+        if (conv.type === 'group') return { text: '#', cls: 'group' };
+        if (conv.type === 'ai') return { text: 'IA', cls: 'ai' };
+        const name = conv.other_user_name || conv.other_user_code || '?';
+        // Si el backend nos da avatar_url del otro user, devolvemos la URL para renderizar <img>
+        if (conv.other_user_avatar_url) {
+          return { image: conv.other_user_avatar_url, text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
+        }
+        return { text: escapeHtml(name.charAt(0).toUpperCase()), cls: 'dm' };
+      }
+
+      function renderConversations() {
+        const list = document.getElementById('chatConvList');
+        if (!list) return;
+        if (!chatConversations.length) {
+          list.innerHTML = '<div style="padding:20px;text-align:center;color:#a499b8;font-size:0.8rem;">Sin conversaciones</div>';
+          return;
+        }
+        list.innerHTML = chatConversations.map(c => {
+          const av = convAvatar(c);
+          const active = c.id === activeConvId ? ' active' : '';
+          const unread = c.unread_count > 0 ? `<span class="chat-unread-badge">${c.unread_count}</span>` : '';
+          let preview = '—';
+          if (c.last_message) {
+            const sender = c.last_message.sender_name || (c.last_message.is_ai ? 'IA' : '');
+            const text = c.last_message.has_photo
+              ? (sender ? `${sender}: 📷 Foto` : '📷 Foto')
+              : (sender ? `${sender}: ${c.last_message.content || ''}` : (c.last_message.content || ''));
+            preview = escapeHtml(text.length > 60 ? text.slice(0, 60) + '…' : text);
+          }
+          return `
+            <div class="chat-conv-item${active}" data-conv-id="${c.id}" onclick="selectConversation(${c.id})">
+              <div class="chat-conv-avatar ${av.cls}">${av.image ? `<img src="${escapeHtml(av.image)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.replaceWith(document.createTextNode('${av.text}'))">` : av.text}</div>
+              <div class="chat-conv-info">
+                <div class="chat-conv-name">${escapeHtml(convDisplayName(c))}</div>
+                <div class="chat-conv-preview">${preview}</div>
+              </div>
+              ${unread}
+            </div>`;
+        }).join('');
+      }
+
+      async function loadConversations() {
+        if (!window.TNSVT_USER) return;
+        try {
+          const data = await sb.getConversations(window.TNSVT_USER.code);
+          chatConversations = data || [];
+          window.chatConversations = chatConversations;
+          renderConversations();
+          // Auto-select first conv if none active (only if widget panel is open)
+          // Check CF widget state instead of deleted chatIsOpen()
+          if (!activeConvId && chatConversations.length > 0 && window.CF?.state?.open) {
+            const groupConv = chatConversations.find(c => c.type === 'group') || chatConversations[0];
+            selectConversation(groupConv.id);
+          }
+        } catch(e) {
+          console.error('Error cargando conversaciones:', e);
+        }
+      }
+
+      function renderMessage(msg, position) {
+        const me = window.TNSVT_USER;
+        const isMe = msg.sender_code === me?.code;
+        const isSystem = !msg.sender_code;
+        const avatarChar = isSystem ? '⚙' : (isMe ? (me.name || '?').charAt(0).toUpperCase() : (msg.sender_name || '?').charAt(0).toUpperCase());
+        const photoHtml = msg.photo ? `<img class="chat-msg-photo" src="${escapeHtml(msg.photo)}" onclick="openChatLightbox('${encodeURIComponent(msg.photo)}')" alt="foto">` : '';
+        const textHtml = msg.content ? `<div class="chat-msg-text">${escapeHtml(msg.content)}</div>` : '';
+        const metaName = isSystem ? 'Sistema' : (msg.sender_name || '—');
+        const metaTime = formatChatTime(msg.created_at);
+
+        if (isSystem) {
+          return `<div class="chat-msg system">
+            <div class="chat-msg-avatar">${avatarChar}</div>
+            <div class="chat-msg-body">
+              <div class="chat-msg-meta"><strong>${escapeHtml(metaName)}</strong> · ${metaTime}</div>
+              <div class="chat-msg-bubble">${textHtml}${photoHtml}</div>
+            </div>
+          </div>`;
+        }
+        return `<div class="chat-msg ${isMe ? 'me' : 'other'}">
+          <div class="chat-msg-avatar">${avatarChar}</div>
+          <div class="chat-msg-body ${isMe ? 'chat-msg-me' : ''}">
+            <div class="chat-msg-meta"><strong>${escapeHtml(metaName)}</strong> · ${metaTime}</div>
+            <div class="chat-msg-bubble">${textHtml}${photoHtml}</div>
+          </div>
+        </div>`;
+      }
+
+      async function loadMessages(convId, beforeId = null) {
+        if (!window.TNSVT_USER) return;
+        try {
+          const data = await sb.getMessages(convId, window.TNSVT_USER.code, beforeId);
+          return data || [];
+        } catch(e) {
+          console.error('Error cargando mensajes:', e);
+          return [];
+        }
+      }
+
+      async function selectConversation(convId) {
+        if (!window.TNSVT_USER) return;
+        activeConvId = convId;
+        renderConversations();
+        const conv = chatConversations.find(c => c.id === convId);
+        if (!conv) return;
+
+        // Header
+        const nameEl = document.getElementById('chatHeaderName');
+        const subEl = document.getElementById('chatHeaderSub');
+        const avEl = document.getElementById('chatHeaderAvatar');
+        if (nameEl) nameEl.textContent = convDisplayName(conv);
+        if (subEl) {
+          if (conv.type === 'group') subEl.textContent = 'Conversación grupal';
+          else if (conv.type === 'ai') subEl.textContent = 'Coach IA';
+          else subEl.textContent = 'Mensaje directo';
+        }
+        // Avatar del header: mostrar foto del otro user si existe
+        if(avEl){
+          const av = convAvatar(conv);
+          if(av.image){
+            avEl.innerHTML = `<img src="${escapeHtml(av.image)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.replaceWith(document.createTextNode('${escapeHtml(av.text)}'))">`;
+            avEl.style.background = 'transparent';
+          } else {
+            avEl.innerHTML = av.text;
+            avEl.style.background = conv.type === 'group' ? 'linear-gradient(135deg, var(--gold), #b8860b)' : 'linear-gradient(135deg, var(--violet), #4a1a8a)';
+            avEl.style.color = conv.type === 'group' ? '#000' : '#fff';
+          }
+        }
+
+        const stream = document.getElementById('chatStream');
+        if (stream) {
+          stream.innerHTML = '<div class="chat-empty">Cargando…</div>';
+        }
+
+        // Mark as read
+        try { await sb.markChatRead(convId, window.TNSVT_USER.code); } catch(e) {}
+
+        // Load latest 50
+        const messages = await loadMessages(convId, null);
+        renderStream(messages);
+        chatLastMessageId = messages.length ? messages[messages.length - 1].id : 0;
+
+        // Update local unread
+        const c = chatConversations.find(x => x.id === convId);
+        if (c) c.unread_count = 0;
+        renderConversations();
+      }
+
+      function renderStream(messages) {
+        const stream = document.getElementById('chatStream');
+        if (!stream) return;
+        if (!messages || !messages.length) {
+          stream.innerHTML = '<div class="chat-empty">Sin mensajes todavía. ¡Sé el primero!</div>';
+          return;
+        }
+        stream.innerHTML = messages.map(m => renderMessage(m)).join('');
+        stream.scrollTop = stream.scrollHeight;
+      }
+
+      function appendMessage(msg) {
+        const stream = document.getElementById('chatStream');
+        if (!stream) return;
+        // Remove "empty" or "loading" placeholders
+        const empty = stream.querySelector('.chat-empty');
+        if (empty) empty.remove();
+        stream.insertAdjacentHTML('beforeend', renderMessage(msg));
+        stream.scrollTop = stream.scrollHeight;
+      }
+
+      function attachChatPhoto(input) {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > CHAT_MAX_PHOTO_BYTES) {
+          showToast('❌ Foto demasiado grande (máx 10MB)');
+          input.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = e => {
+          chatPhotoData = e.target.result;
+          const prev = document.getElementById('chatPhotoPreview');
+          const row = document.getElementById('chatPhotoPreviewRow');
+          if (prev) prev.src = chatPhotoData;
+          if (row) row.style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function removeChatPhoto() {
+        chatPhotoData = null;
+        const prev = document.getElementById('chatPhotoPreview');
+        const row = document.getElementById('chatPhotoPreviewRow');
+        const input = document.getElementById('chatPhotoInput');
+        if (prev) prev.src = '';
+        if (row) row.style.display = 'none';
+        if (input) input.value = '';
+      }
+
+      async function sendChatMessage() {
+        if (!window.TNSVT_USER) { showToast('⚠️ Iniciá sesión primero'); return; }
+        if (!activeConvId) { showToast('⚠️ Seleccioná una conversación'); return; }
+        const input = document.getElementById('chatInput');
+        const content = (input?.value || '').trim();
+        if (!content && !chatPhotoData) return;
+
+        const btn = document.getElementById('chatSendBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+        try {
+          const msg = await sb.sendMessage(activeConvId, window.TNSVT_USER.code, content, chatPhotoData);
+          input.value = '';
+          removeChatPhoto();
+          appendMessage(msg);
+          chatLastMessageId = msg.id;
+          // Update conversation's last message
+          const c = chatConversations.find(x => x.id === activeConvId);
+          if (c) {
+            c.last_message = {
+              id: msg.id, sender_code: msg.sender_code, sender_name: msg.sender_name,
+              content: msg.content, has_photo: !!msg.photo, is_ai: msg.is_ai, created_at: msg.created_at
+            };
+            c.unread_count = 0;
+            renderConversations();
+          }
+        } catch(e) {
+          showToast('❌ Error al enviar: ' + (e.message || ''));
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+        }
+      }
+
+      function openChatLightbox(dataUrl) {
+        const existing = document.getElementById('chatLightbox');
+        if (existing) existing.remove();
+        const div = document.createElement('div');
+        div.id = 'chatLightbox';
+        div.className = 'chat-lightbox';
+        div.onclick = () => div.remove();
+        const img = document.createElement('img');
+        img.src = decodeURIComponent(dataUrl);
+        div.appendChild(img);
+        document.body.appendChild(div);
+      }
+
+      async function pollChat() {
+        if (!window.TNSVT_USER) return;
+        // Si la conversacion activa ya no existe (fue borrada, stale state), limpiarla.
+        if (activeConvId && !chatConversations.some(c => c.id === activeConvId)) {
+          console.warn('[chat] activeConvId stale, limpiando:', activeConvId);
+          activeConvId = null;
+          chatLastMessageId = 0;
+          // Legacy: estos elementos fueron removidos cuando migramos al CF widget
+          const stream = document.getElementById('chatStream');
+          if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
+          const nameEl = document.getElementById('chatHeaderName');
+          const subEl = document.getElementById('chatHeaderSub');
+          if (nameEl) nameEl.textContent = '—';
+          if (subEl) subEl.textContent = 'Seleccioná una conversación';
+        }
+        if (document.getElementById('tab-chat')?.classList.contains('active') && activeConvId) {
+          try {
+            const messages = await sb.getMessages(activeConvId, window.TNSVT_USER.code, null);
+            if (!messages || !messages.length) return;
+            const maxId = Math.max(...messages.map(m => m.id));
+            if (maxId > chatLastMessageId) {
+              const newMsgs = messages.filter(m => m.id > chatLastMessageId);
+              for (const m of newMsgs) appendMessage(m);
+              chatLastMessageId = maxId;
+              // Update sidebar preview
+              const last = messages[messages.length - 1];
+              const c = chatConversations.find(x => x.id === activeConvId);
+              if (c) {
+                c.last_message = {
+                  id: last.id, sender_code: last.sender_code, sender_name: last.sender_name,
+                  content: last.content, has_photo: !!last.photo, is_ai: last.is_ai, created_at: last.created_at
+                };
+                renderConversations();
+              }
+            }
+          } catch(e) {
+            // Si el server devuelve 404 (conversacion borrada), limpiar
+            if (e.message && /404|Conversaci.n no encontrada|No encontrada/i.test(e.message)) {
+              console.warn('[chat] conversacion ya no existe:', activeConvId);
+              chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+              window.chatConversations = chatConversations;
+              activeConvId = null;
+              chatLastMessageId = 0;
+              renderConversations();
+              const stream = document.getElementById('chatStream');
+              if (stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Esta conversación ya no existe</div>';
+            }
+          }
+        }
+        // Refresh sidebar every poll
+        try {
+          const data = await sb.getConversations(window.TNSVT_USER.code);
+          if (data) {
+            chatConversations = data;
+            window.chatConversations = chatConversations;
+            renderConversations();
+            // Refrescar FAB badge del CF widget (si está disponible)
+            try { window.CF?.render?.(); } catch(_) {}
+          }
+        } catch(e) { console.warn('[chat] loadChats:', e); }
+      }
+
+      function initChatPolling() {
+        if (chatPollTimer) clearInterval(chatPollTimer);
+        chatPollTimer = setInterval(pollChat, 5000);
+      }
+
       // ==================== NUEVO DM ====================
       let newDmUsersCache = [];
 
@@ -3430,8 +3713,12 @@ window.sb = window.API;
         if (!window.TNSVT_USER) return;
         try {
           const conv = await sb.createDm(window.TNSVT_USER.code, otherCode);
-          if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
-          if (window.CF && typeof CF.openConv === 'function') window.CF.openConv(conv.id);
+          // Upsert en chatConversations
+          const idx = chatConversations.findIndex(c => c.id === conv.id);
+          if (idx >= 0) chatConversations[idx] = { ...chatConversations[idx], ...conv };
+          else chatConversations.unshift(conv);
+          renderConversations();
+          selectConversation(conv.id);
           closeNewDmModal();
           showToast('✉️ Conversación abierta');
         } catch(e) {
@@ -3442,36 +3729,13 @@ window.sb = window.API;
       // ==================== GROUP MANAGEMENT (ADMIN) ====================
       window.manageGroupConvId = null;
 
-      async function openCreateGroupModal() {
+      function openCreateGroupModal() {
         const overlay = document.getElementById('createGroupOverlay');
         if (overlay) overlay.style.display = 'flex';
         const err = document.getElementById('createGroupError');
         if (err) err.style.display = 'none';
         const input = document.getElementById('createGroupNameInput');
         if (input) { input.value = ''; setTimeout(() => input.focus(), 100); }
-
-        // Cargar lista de usuarios disponibles
-        const memberList = document.getElementById('createGroupMembers');
-        if (memberList && window.TNSVT_USER) {
-          memberList.innerHTML = '<div style="padding:10px;text-align:center;color:#645a78;font-size:0.8rem;">Cargando usuarios…</div>';
-          try {
-            const users = await sb.getChatUsers(window.TNSVT_USER.code);
-            const others = users.filter(u => !u.is_me);
-            if (!others.length) {
-              memberList.innerHTML = '<div style="padding:10px;text-align:center;color:#645a78;font-size:0.8rem;">No hay otros usuarios disponibles</div>';
-              return;
-            }
-            memberList.innerHTML = others.map(u =>
-              '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;cursor:pointer;font-size:0.78rem;border-radius:4px;" onmouseover="this.style.background=\'rgba(212,175,55,0.06)\'" onmouseout="this.style.background=\'transparent\'">'
-              + '<input type="checkbox" value="' + escapeAttr(u.code) + '" class="cg-member-cb" style="cursor:pointer;">'
-              + '<span style="flex:1;color:#e2dcf0;">' + escapeHtml(u.name || u.code) + '</span>'
-              + '<span style="color:#645a78;font-size:0.65rem;">' + escapeHtml(u.code) + (u.is_admin ? ' 👑' : '') + '</span>'
-              + '</label>'
-            ).join('');
-          } catch(e) {
-            memberList.innerHTML = '<div style="padding:10px;color:#ff3b30;font-size:0.8rem;">Error al cargar usuarios</div>';
-          }
-        }
       }
       function closeCreateGroupModal() {
         document.getElementById('createGroupOverlay').style.display = 'none';
@@ -3483,14 +3747,12 @@ window.sb = window.API;
         const name = document.getElementById('createGroupNameInput')?.value?.trim();
         if (!name) { err.textContent = 'Ingresá un nombre para el grupo'; err.style.display = 'block'; return; }
         btn.disabled = true; btn.textContent = 'CREANDO...';
-        // Recoger miembros seleccionados (códigos)
-        const members = Array.from(document.querySelectorAll('.cg-member-cb:checked')).map(cb => cb.value);
         try {
-          const result = await sb.createGroup(window.TNSVT_USER.code, name, members);
+          const result = await sb.createGroup(window.TNSVT_USER.code, name);
           if (result.error) { err.textContent = result.error; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'CREAR GRUPO'; return; }
           closeCreateGroupModal();
-          const addedN = members.length;
-          showToast('👥 Grupo "' + name + '" creado' + (addedN ? ' con ' + addedN + ' miembro' + (addedN>1?'s':'') : ''));
+          showToast('👥 Grupo "' + name + '" creado');
+          // Refresh conversations
           if (window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
         } catch(e) {
           err.textContent = 'Error: ' + e.message; err.style.display = 'block';
@@ -3589,7 +3851,29 @@ window.sb = window.API;
       }
 
       function loadChats() {
-        // Legacy — CF widget handles chat now
+        loadConversations();
+        initChatPolling();
+        // Wire up input area
+        const photoBtn = document.getElementById('chatPhotoBtn');
+        const photoInput = document.getElementById('chatPhotoInput');
+        const photoRemove = document.getElementById('chatPhotoRemove');
+        const sendBtn = document.getElementById('chatSendBtn');
+        if (photoBtn && photoInput && !photoBtn._wired) {
+          photoBtn.addEventListener('click', () => photoInput.click());
+          photoBtn._wired = true;
+        }
+        if (photoInput && !photoInput._wired) {
+          photoInput.addEventListener('change', e => attachChatPhoto(e.target));
+          photoInput._wired = true;
+        }
+        if (photoRemove && !photoRemove._wired) {
+          photoRemove.addEventListener('click', removeChatPhoto);
+          photoRemove._wired = true;
+        }
+        if (sendBtn && !sendBtn._wired) {
+          sendBtn.addEventListener('click', sendChatMessage);
+          sendBtn._wired = true;
+        }
       }
 
       // ==================== WIDGET CHAT FLOTANTE v3.6 (CF.notify) ====================
@@ -3683,7 +3967,7 @@ window.sb = window.API;
       // Version actual de la app, hardcodeada en el bundle. El backend
       // devuelve la version "actual" en /api/app/version. Si la del server
       // es mayor, mostramos el modal de update.
-      const APP_LOCAL_VERSION_CODE = 22;
+      const APP_LOCAL_VERSION_CODE = 8;
 
       async function appCheckForUpdates() {
         try {
@@ -4121,17 +4405,11 @@ window.sb = window.API;
       window.closeNewDmModal = closeNewDmModal;
       window.filterNewDmList = filterNewDmList;
       window.startDmWith = startDmWith;
-      window.openCreateGroupModal = openCreateGroupModal;
-      window.closeCreateGroupModal = closeCreateGroupModal;
-      window.handleCreateGroup = handleCreateGroup;
-      window.openManageGroupModal = openManageGroupModal;
-      window.closeManageGroupModal = closeManageGroupModal;
-      window.loadManageGroupMembers = loadManageGroupMembers;
-      window.handleAddToGroup = handleAddToGroup;
-      window.handleRemoveFromGroup = handleRemoveFromGroup;
-      window.handleRenameGroup = handleRenameGroup;
-      window.handleDeleteGroup = handleDeleteGroup;
-
+      window.sendChatMessage = sendChatMessage;
+      window.selectConversation = selectConversation;
+      window.attachChatPhoto = attachChatPhoto;
+      window.removeChatPhoto = removeChatPhoto;
+      window.openChatLightbox = openChatLightbox;
 
       // Chat UI extras (silenciar, reply, menu, typing indicator)
       let chatSoundOn = true;
@@ -4146,21 +4424,46 @@ window.sb = window.API;
       // Restaurar preferencia al cargar
       try { const s = localStorage.getItem('tnsvt_chat_sound'); if(s === '0'){ chatSoundOn = false; const b = document.getElementById('chatSoundBtn'); if(b) b.textContent='🔕'; } } catch(e){}
 
+      // Borrar la conversacion activa (boton del dropdown)
       async function deleteConversation(){
-        const convId = window.CF?.state?.currentConv;
-        if(!convId) { showToast('Seleccioná una conversación primero'); return; }
+        if(!activeConvId){
+          showToast('Selecciona una conversación primero', 2000);
+          return;
+        }
+        const conv = chatConversations.find(c => c.id === activeConvId);
+        if(!conv) return;
+        const name = convDisplayName(conv);
+        if(!confirm(`¿Eliminar la conversación con "${name}"?\n\nEsta acción no se puede deshacer.`)){
+          return;
+        }
         try{
-          await sb.deleteConversation(convId, window.TNSVT_USER.code);
-          if(window.CF && typeof CF.loadConversations === 'function') CF.loadConversations();
+          await sb.deleteConversation(activeConvId, window.TNSVT_USER.code);
+          // Quitar del array local
+          chatConversations = chatConversations.filter(c => c.id !== activeConvId);
+          window.chatConversations = chatConversations;
+          activeConvId = null;
+          // Limpiar UI
+          const stream = document.getElementById('chatStream');
+          if(stream) stream.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div>Elegí una conversación para empezar</div>';
+          const nameEl = document.getElementById('chatHeaderName');
+          const subEl = document.getElementById('chatHeaderSub');
+          if(nameEl) nameEl.textContent = '—';
+          if(subEl) subEl.textContent = 'Seleccioná una conversación';
+          const avEl = document.getElementById('chatHeaderAvatar');
+          if(avEl){ avEl.innerHTML = '?'; avEl.style.background = 'linear-gradient(135deg,var(--violet),#4a1a8a)'; }
+          renderConversations();
           showToast('🗑️ Conversación eliminada');
         }catch(e){
-          showToast('❌ Error: ' + (e.message || 'error'));
+          console.error('[chat] delete error:', e);
+          showToast('❌ No pude eliminar: ' + (e.message || 'error'));
         }
       }
       window.deleteConversation = deleteConversation;
 
       function onChatTyping(){
-        if(!window.CF?.state?.currentConv || !window.TNSVT_USER) return;
+        // Por ahora solo marcamos un flag local. Si el backend implementa typing broadcasts, se envia aca.
+        if(!activeConvId || !window.TNSVT_USER) return;
+        // Stub: en el futuro hacer POST /api/chat/typing cada 3s con throttle
       }
       window.onChatTyping = onChatTyping;
 
@@ -5155,32 +5458,14 @@ window.sb = window.API;
             let fcmToken;
             try {
               const tokenOptions = { serviceWorkerRegistration: swReg };
-              if (config.vapidKey && /^[A-Za-z0-9_-]+$/.test(config.vapidKey)) {
-                tokenOptions.vapidKey = config.vapidKey;
-              } else {
-                console.log('[FCM] VAPID no configurada, saltando push nativo (in-app sí funciona)');
-              }
+              if (config.vapidKey) tokenOptions.vapidKey = config.vapidKey;
               fcmToken = await messaging.getToken(tokenOptions);
             } catch (e) {
-              // Una sola vez: mostrar la razón exacta para diagnóstico
-              if (!window._fcmDiagnosed) {
-                window._fcmDiagnosed = true;
-                console.warn('[FCM] Push nativo no disponible. Razón:', e.message || e.name);
-                console.warn('[FCM] Diagnóstico: GET /api/firebase/diagnose');
-                try {
-                  const diag = await API.get('/api/firebase/diagnose');
-                  console.warn('[FCM] Backend dice:', diag);
-                  if (diag.has_vapid && diag.vapid_length > 50) {
-                    console.warn('[FCM] La VAPID en .env está seteada, pero el navegador la rechaza.');
-                    console.warn('[FCM] Causa probable: la VAPID es de OTRO proyecto Firebase que project_id.');
-                    console.warn('[FCM] Solución: regenerar la VAPID en Firebase Console del MISMO proyecto que project_id=' + diag.project_id);
-                  }
-                } catch(e2) { console.warn('[FCM] No pude obtener diagnóstico:', e2.message); }
-              }
+              console.warn('[FCM] getToken() falló. VAPID key inválida o permisos denegados:', e.message);
               return false;
             }
             if (!fcmToken) {
-              console.log('[FCM] getToken() vacío, polling in-app activo');
+              console.warn('[FCM] getToken() devolvió vacío. ¿Permiso denegado?');
               return false;
             }
             console.log('[FCM] Token obtenido:', fcmToken.substring(0, 20) + '...');
@@ -6327,21 +6612,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const obs = new MutationObserver(() => { if (window.Diary._toggleEmpty) window.Diary._toggleEmpty(); });
   obs.observe(list, { childList: true });
 });
-
-// Init brandSub on first load
-(function() {
-  function initBrandSub() {
-    const activeTab = document.querySelector('.tab-content.active');
-    if (activeTab && typeof window.updateBrandSub === 'function') {
-      window.updateBrandSub(activeTab.id);
-    }
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initBrandSub);
-  } else {
-    initBrandSub();
-  }
-})();
 
 /* ===================================================================================
    SOCIAL MODULE — Profile search, access requests, connections, permissions
