@@ -19,10 +19,12 @@ const config: CapacitorConfig = {
   webDir: 'public',
 
   // ─── SHELL ONLINE / local development ────────────────────
+  // Server URL: en producción apunta a Tailscale Funnel (funciona sin WiFi local).
+  // Para dev local en WiFi, cambiar a 'http://192.168.1.2:8000'
   server: {
-    url: 'http://192.168.1.2:8000',
-    cleartext: true,
-    androidScheme: 'http',
+    url: 'https://laptop-ebgqig6j.tailf43f87.ts.net',
+    cleartext: false,
+    androidScheme: 'https',
     allowNavigation: ['*'],
   },
 
