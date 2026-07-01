@@ -364,7 +364,7 @@ body.is-apk #musicPlayerBar {
   position: fixed !important;
   bottom: 0 !important;
   left: 0 !important; right: 0 !important;
-  z-index: 9950 !important;
+  z-index: 9850 !important;
   height: var(--musicbar-h) !important;
   display: flex !important; align-items: center !important;
   padding: 0 12px !important; gap: 8px !important;
@@ -445,17 +445,37 @@ body.is-apk #mpbVol { display: none !important; }
 /* ═══════════════════════════════════════════════════════════════
    CHAT FAB + PRESENCE + PANEL
    ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   Z-INDEX MAP (APK)
+   ──────────────────────────────────────────────────────────
+   9850  musicPlayerBar (bottom-pinned player) - bottom: 0, NO debe tapar topbar
+   9960  cf-fab            - abajo derecha, encima de music bar pero debajo de modales
+   9975  cf-panel          - chat panel
+   9980  musicPlayer / Queue / Mini - full music player (flotante)
+   9985  cf-sound overlay  - modal de sonidos (encima de chat)
+   9986  newDmOverlay
+   9987  createGroupOverlay / manageGroupOverlay - modales de chat
+   9990  tnsvt-topbar
+   9991  avatarMenu
+   9996  .trading-sidebar (drawer)
+   9997  #sidebar-overlay
+   10000 #notifPanel
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk #musicPlayerBar {
+  z-index: 9850 !important;
+}
 body.is-apk .cf-fab {
+  z-index: 9960 !important;
   bottom: calc(8px + var(--musicbar-h)) !important;
   right: max(16px, var(--safe-right)) !important;
   width: 50px !important; height: 50px !important; font-size: 1.2rem !important;
-  z-index: 9970 !important;
 }
 body.is-apk .cf-presence {
   bottom: calc(68px + var(--musicbar-h)) !important;
   right: max(24px, var(--safe-right)) !important;
 }
 body.is-apk .cf-panel {
+  z-index: 9975 !important;
   bottom: calc(80px + var(--musicbar-h)) !important;
   right: max(16px, var(--safe-right)) !important;
   max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 160px) !important;

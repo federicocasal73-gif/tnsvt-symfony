@@ -159,7 +159,7 @@
     position: fixed !important; left: 0 !important; right: 0 !important; top: auto !important;
     /* Safe area: respeta el home indicator en iOS / gesture bar en Android */
     bottom: env(safe-area-inset-bottom, 0px) !important;
-    z-index: 2147483000;
+    z-index: 9850;
     height: 64px; background: rgba(9,5,18,0.97);
     border-top: 1px solid rgba(212,175,55,0.3);
     backdrop-filter: blur(14px);
@@ -3995,10 +3995,8 @@
       this.render();
     },
 
-    toggleSound() {
-      this.state.soundOn = !this.state.soundOn;
-      document.getElementById('cfSoundBtn').textContent = this.state.soundOn ? '🔔' : '🔕';
-    },
+    // ⛧ Eliminado: toggleSound() era dead code (nunca se llama desde la UI).
+    // El botón 🔔 abre CF.showSoundSettings() (modal de 10 sonidos).
 
     onTyping() {
       if (!this.state.currentConv || !window.TNSVT_USER) return;
@@ -4258,21 +4256,35 @@
       const fileInput = document.getElementById('cfFileInput');
       const file = fileInput?.files?.[0];
       if (!txt && !file) return;
-      inp.value = '';
+      // ⛧ FIX: NO limpiar txt ni file ANTES del upload. Si falla,
+      // se pierde el input. Solo limpiar DESPUÉS de confirmar send OK.
       let attachment = null;
       if (file) {
         try {
-          if (file.size > 20 * 1024 * 1024) { this._showError('Archivo muy grande (máx 20MB)'); return; }
+          if (file.size > 20 * 1024 * 1024) {
+            this._showError('Archivo muy grande (máx 20MB)');
+            return; // no limpiar nada
+          }
           this._showError('⏳ Subiendo archivo…');
           const uploadRes = await window.API.uploadChatFile(file, window.TNSVT_USER.code);
           if (uploadRes?.url) attachment = uploadRes;
-          else { this._showError('Error al subir archivo'); return; }
+          else if (uploadRes?.error) {
+            this._showError('⚠ ' + uploadRes.error);
+            return;
+          } else {
+            this._showError('Error al subir archivo');
+            return;
+          }
         } catch(e) { console.warn('[CF] upload:', e); this._showError('Error al subir archivo'); return; }
-        fileInput.value = '';
-        document.getElementById('cfFilePreview')?.remove();
       }
       try {
         await window.API.sendMessage(this.state.currentConv, window.TNSVT_USER.code, txt, null, attachment);
+        // Send OK → limpiar SOLO ahora
+        inp.value = '';
+        if (file) {
+          fileInput.value = '';
+          this._clearFile();
+        }
         this._loadMessagesDirect(this.state.currentConv);
       } catch(e) { console.warn('[CF] send:', e); this._showError('Error al enviar mensaje'); }
     },
@@ -4289,18 +4301,27 @@
     },
 
     _onFileSelect(file) {
-      const preview = document.getElementById('cfFilePreview');
-      if (!preview) return;
+      // ⛧ FIX: si send() borró accidentalmente cfFilePreview, recrearlo antes de usarlo
+      let preview = document.getElementById('cfFilePreview');
+      if (!preview) {
+        // Recrear el preview en la posición correcta (antes de cf-input-area)
+        const inputArea = document.querySelector('.cf-input-area');
+        if (!inputArea) return;
+        preview = document.createElement('div');
+        preview.id = 'cfFilePreview';
+        preview.style.cssText = 'display:none;padding:6px 10px;margin-bottom:6px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;align-items:center;gap:8px;font-size:0.7rem;';
+        inputArea.insertBefore(preview, inputArea.firstChild);
+      }
       if (!file) { preview.style.display = 'none'; preview.innerHTML = ''; return; }
       const sizeKb = Math.round(file.size / 1024);
       const sizeStr = sizeKb < 1024 ? `${sizeKb}KB` : `${(sizeKb/1024).toFixed(1)}MB`;
       let thumb = '';
-      if (file.type.startsWith('image/')) {
+      if (file.type && file.type.startsWith('image/')) {
         const objUrl = URL.createObjectURL(file);
         thumb = `<img src="${objUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid rgba(212,175,55,0.3);">`;
-      } else if (file.type.startsWith('video/')) {
+      } else if (file.type && file.type.startsWith('video/')) {
         thumb = `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,0.15);border-radius:6px;font-size:1.1rem;">🎬</div>`;
-      } else if (file.type.startsWith('audio/')) {
+      } else if (file.type && file.type.startsWith('audio/')) {
         thumb = `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(138,60,255,0.15);border-radius:6px;font-size:1.1rem;">🎵</div>`;
       } else {
         thumb = `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,0.15);border-radius:6px;font-size:1.1rem;">${file.type === 'application/pdf' ? '📄' : '📎'}</div>`;
@@ -4312,6 +4333,7 @@
     _clearFile() {
       const inp = document.getElementById('cfFileInput');
       if (inp) inp.value = '';
+      // ⛧ FIX: NO eliminar el elemento, solo ocultarlo (lo recrea _onFileSelect)
       const preview = document.getElementById('cfFilePreview');
       if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
     },
@@ -4340,9 +4362,24 @@
     /* === SOUND ENGINE — 10 sonidos Web Audio API === */
     _soundNames: { chime:'Chime TNSVT', mario_coin:'🪙 Mario Coin', zelda_secret:'🗝 Zelda Secreto', sonic_ring:'💍 Sonic Ring', apple_tritone:'📱 Apple Tri-Tone', pixel_popcorn:'🍿 Pixel Popcorn', pokemon_levelup:'⬆ Pokémon Level Up', deus_ex_scan:'🔍 Deus Ex Scan', indiana_jones_whip:'🪢 Indiana Jones Whip', msn_message:'💬 MSN Message', swoosh:'💨 Swoosh' },
 
+    _audioContext: null,
     _playSound(soundId) {
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // ⛧ FIX APK: Cachear AudioContext en lugar de crear uno nuevo cada vez.
+        // El WebView de Capacitor requiere UN solo contexto, suspendido hasta user gesture.
+        // Tras primer uso, llamadas subsecuentes deben llamar `resume()` si suspended.
+        if (!this._audioContext) {
+          try {
+            this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          } catch (e) {
+            console.warn('[TNSVT] AudioContext init failed:', e);
+            return;
+          }
+        }
+        const ctx = this._audioContext;
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
         const master = ctx.createGain();
         master.gain.value = 0.08;
         master.connect(ctx.destination);
@@ -4440,10 +4477,12 @@
     },
   };
 
-  // Auto-refresh cada 30s mientras está cerrado para mantener badge actualizado
+  // Auto-refresh cada 15s mientras está cerrado para mantener badge + online actualizado
+  // (15s es más reactivo que 30s — User.isOnline() threshold es 2 minutos, pero queremos
+  // que el indicador "online" se sienta reflectivo de la realidad)
   setInterval(() => {
     if (!CF.state.open) CF.loadConversations();
-  }, 30000);
+  }, 15000);
 
   // Carga sonido guardado
   try {

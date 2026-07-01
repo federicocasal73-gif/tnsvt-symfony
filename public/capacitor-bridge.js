@@ -137,13 +137,42 @@
 
   // ════════════════════════════════════════════════════════════════════════
   // Helper: ¿hay un modal abierto?
-  // (busca por clase show, display:flex/block, o atributo open)
+  // Busca por: clase .show, inline display:flex/block, o atributo open.
+  // Lista blanca de modales conocidos de la app (se amplió para que el back
+  // button pueda cerrarlos también, no solo los .modal.show).
   // ════════════════════════════════════════════════════════════════════════
+  var KNOWN_MODALS = [
+    'newDmOverlay',
+    'createGroupOverlay',
+    'manageGroupOverlay',
+    'appUpdateModal',
+    'cfSoundOverlay',
+    'appLoadingOverlay',
+  ];
+  function isModalOpen(el) {
+    if (!el) return false;
+    var d = el.style && el.style.display;
+    if (d === 'flex' || d === 'block' || d === '') {
+      // '' es el default block, pero necesitamos visibilidad real
+      if (d === '') return false; // display normal
+      if (el.offsetParent !== null) return true; // visible
+    }
+    if (el.classList.contains('show')) return true;
+    if (el.classList.contains('open')) return true;
+    if (el.hasAttribute('open')) return true;
+    return false;
+  }
   function getOpenModal() {
-    // 1) Clase .show
-    var m1 = document.querySelector('.modal.show');
+    // 1) Clase .show / .open (legacy)
+    var m1 = document.querySelector('.modal.show, .modal.open');
     if (m1) return m1;
-    // 2) display:flex o display:block inline (la app usa style="display:flex")
+    // 2) Modales conocidos con display flex/block inline
+    for (var i = 0; i < KNOWN_MODALS.length; i++) {
+      var id = KNOWN_MODALS[i];
+      var m = document.getElementById(id);
+      if (m && isModalOpen(m)) return m;
+    }
+    // 3) Cualquier .modal con display:flex/block inline
     var m2 = document.querySelector(
       '.modal[style*="display: flex"], .modal[style*="display:flex"], ' +
       '.modal[style*="display: block"], .modal[style*="display:block"]'
@@ -189,6 +218,7 @@
 
   // ════════════════════════════════════════════════════════════════════════
   // Helper: cerrar un modal (display:none + remove .show)
+  // Para modales conocidos también usa .close o CF.close() si existen.
   // ════════════════════════════════════════════════════════════════════════
   function closeModal(m) {
     if (!m) return;
@@ -196,6 +226,20 @@
     m.classList.remove('show');
     m.classList.remove('open');
     m.setAttribute('aria-hidden', 'true');
+    // Si es un modal con función close conocida, llamarla
+    var id = m.id;
+    if (id === 'newDmOverlay' && typeof window.closeNewDmModal === 'function') {
+      try { window.closeNewDmModal(); return; } catch(_) {}
+    }
+    if (id === 'createGroupOverlay' && typeof window.closeCreateGroupModal === 'function') {
+      try { window.closeCreateGroupModal(); return; } catch(_) {}
+    }
+    if (id === 'manageGroupOverlay' && typeof window.closeManageGroupModal === 'function') {
+      try { window.closeManageGroupModal(); return; } catch(_) {}
+    }
+    if (id === 'cfSoundOverlay' && typeof window.CF !== 'undefined' && typeof window.CF.closeSoundSettings === 'function') {
+      try { window.CF.closeSoundSettings(); return; } catch(_) {}
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -218,11 +262,13 @@
         document.body.style.overflow = '';
         return;
       }
-      // c) CF Panel abierto
-      var cfPanel = getOpenCfPanel();
+      // c) CF Panel abierto (NO setear style.display = 'none' — solo remover la clase,
+      //    si no, el CF.toggle() en el template no podrá reabrir el panel.
+      //    El CSS .cf-panel { display: none } + .cf-panel.cf-show { display: flex }
+      //    se encarga del FSM open/closed.)
+      var cfPanel = document.querySelector('.cf-panel.cf-show');
       if (cfPanel) {
         cfPanel.classList.remove('cf-show');
-        cfPanel.style.display = 'none';
         return;
       }
       // d) Si hay un drawer/open de notificaciones

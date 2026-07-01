@@ -432,7 +432,12 @@ window.sb = window.API;
         } else {
           console.warn('[switchTab] tab not found:', tabId);
         }
-        const btn = document.querySelector(`.sidebar-btn[onclick*="'${tabId}'"]`);
+        // ⛧ Fix APK: usar selector más preciso. ANTES era [onclick*="'${tabId}'"]
+        // que hacía substring match — si tabId contiene caracteres especiales o si
+        // dos botones compartían substring, se confundía. Usamos ^= (prefix match)
+        // para reducir falsos positivos.
+        const safeTabId = String(tabId).replace(/['"\\]/g, '');
+        const btn = document.querySelector(`.sidebar-btn[onclick^="switchTab('${safeTabId}')"]`);
         if (btn) btn.classList.add('active');
         updateBrandSub(tabId);
         // Chat: ahora se maneja con el CF widget flotante
@@ -616,7 +621,10 @@ window.sb = window.API;
       let appInitStartedAt = 0;
       function loaderShow() {
         const overlay = document.getElementById('appLoadingOverlay');
-        if (overlay) overlay.style.display = 'flex';
+        if (overlay) {
+          overlay.style.display = 'flex';
+          overlay.style.pointerEvents = 'auto';
+        }
         const toast = document.getElementById('appLoadingToast');
         if (toast) toast.style.display = 'flex';
         if (!appInitStartedAt) appInitStartedAt = Date.now();
@@ -626,12 +634,17 @@ window.sb = window.API;
         if (overlay) {
           overlay.style.transition = 'opacity 0.4s';
           overlay.style.opacity = '0';
+          // ⛧ Safety net: deshabilitar pointer-events INMEDIATAMENTE
+          // así, si el timeout se atasca o no se completa la animación,
+          // el overlay invisible no come taps.
+          overlay.style.pointerEvents = 'none';
           setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = ''; }, 400);
         }
         const toast = document.getElementById('appLoadingToast');
         if (toast) {
           toast.style.transition = 'opacity 0.4s';
           toast.style.opacity = '0';
+          toast.style.pointerEvents = 'none';
           setTimeout(() => { toast.style.display = 'none'; toast.style.opacity = ''; }, 400);
         }
         appInitCompleted = true;
@@ -4170,10 +4183,9 @@ window.sb = window.API;
       }
       window.deleteConversation = deleteConversation;
 
-      function onChatTyping(){
-        if(!window.CF?.state?.currentConv || !window.TNSVT_USER) return;
-      }
-      window.onChatTyping = onChatTyping;
+      // ⛧ Limpiado: onChatTyping() era un no-op en app.js.
+      // El CF widget en template/base.html.twig#onTyping() ya envía
+      // la typing indicator via window.API.sendTyping() directamente.
 
       
 
