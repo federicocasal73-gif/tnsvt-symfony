@@ -477,6 +477,13 @@ window.sb = window.API;
           if (o) o.classList.remove('active');
           document.body.style.overflow = '';
         }
+        // ⛧ Fix APK scroll: reset scroll position to top on tab switch
+        // (sin este fix, el usuario aterriza en la nueva tab donde quedó el scroll viejo)
+        try {
+          const tradingMain = document.querySelector('.trading-main');
+          if (tradingMain) tradingMain.scrollTop = 0;
+          window.scrollTo(0, 0);
+        } catch (_) { /* silent */ }
       }
 
       const TAB_SUBTITLES = {

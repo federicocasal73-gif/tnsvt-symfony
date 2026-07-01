@@ -296,26 +296,65 @@ body.is-apk .sidebar-btn.active {
   box-shadow: inset 0 0 20px rgba(212,175,55,0.05) !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CONTENT (trading-main) — scroll fix
+   ═══════════════════════════════════════════════════════════════
+   Bug previo: .trading-main no tenía height clamp, por eso overflow-y:auto nunca
+   activaba scroll — el contenedor crecía al tamaño del contenido completo.
+   Fix: hacemos que .trading-layout llene la pantalla (flex column con height calc)
+   y .trading-main use min-height:0 + flex:1 + overflow-y:auto, lo cual SÍ activa scroll.
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk #trading-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  /* Altura de pantalla completa menos topbar + safe areas + margen */
+  min-height: calc(100dvh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom)) !important;
+}
+body.is-apk .inner-page {
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+}
+body.is-apk .trading-layout {
+  display: flex !important;
+  flex-direction: row !important;
+  flex: 1 !important;
+  min-height: 0 !important;       /* allow child to shrink + scroll */
+  height: 100% !important;
+  max-width: 100% !important;
+}
+body.is-apk .trading-main {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  padding-top: calc(var(--topbar-h) + 8px) !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;        /* critical - enables overflow:auto */
+  max-height: 100% !important;     /* propagate from parent flex chain */
+  overflow-y: auto !important;     /* force even if base CSS gets conflicts */
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+  /* Compensa la altura del music bar para que el último item no quede tapado */
+  padding-bottom: calc(var(--musicbar-h) + 16px) !important;
+}
+body.is-apk .tab-content {
+  padding-bottom: calc(var(--musicbar-h) + 20px) !important;
+  min-height: 200px !important;
+}
+
+/* Sidebar overflow: ayuda a desplegar los items en pantallas angostas */
+body.is-apk .trading-sidebar {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
 /* ⛧ ADMIN-ONLY BUTTONS — hidden by default in APK, only shown when
    body has .is-real-admin class (set by JS after admin login) */
 body.is-apk:not(.is-real-admin) #adminSidebarBtn,
 body.is-apk:not(.is-real-admin) #chartSidebarBtn {
   display: none !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MAIN CONTENT (trading-main)
-   ═══════════════════════════════════════════════════════════════ */
-body.is-apk .trading-main {
-  padding-left: 12px !important;
-  padding-right: 12px !important;
-  padding-top: calc(var(--topbar-h) + 8px) !important;
-}
-body.is-apk .trading-layout {
-  display: flex !important; flex-direction: row !important;
-}
-body.is-apk .tab-content {
-  padding-bottom: calc(var(--musicbar-h) + 20px) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════
