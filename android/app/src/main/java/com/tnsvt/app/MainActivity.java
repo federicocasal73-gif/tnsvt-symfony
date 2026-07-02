@@ -70,8 +70,8 @@ public class MainActivity extends BridgeActivity {
         getWindow().getDecorView().post(() -> {
             try {
                 SharedPreferences p = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                boolean lockEnabled = p.getBoolean(KEY_APP_LOCK, false);
-                if (lockEnabled) {
+                boolean appLock = p.getBoolean(KEY_APP_LOCK, false);
+                if (appLock) {
                     int failCount = p.getInt(KEY_STARTUP_FAIL, 0) + 1;
                     SharedPreferences.Editor ed = p.edit();
                     ed.putInt(KEY_STARTUP_FAIL, failCount);
