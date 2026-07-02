@@ -10,6 +10,14 @@
 -keep class com.getcapacitor.plugin.** { *; }
 -dontwarn com.getcapacitor.**
 
+# ==== TNSVT: preservar clases del plugin biometrico ====
+# BiometricPlugin se descubre por reflexion desde capacitor.plugins.json
+-keep class com.tnsvt.app.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod <methods>;
+}
+
 # ==== JS bridge: preservar metodos anotados con @JavascriptInterface ====
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;

@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Production: cleartext disabled by default -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
+    <!-- Dev domains: cleartext allowed for local testing -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">laptop-ebgqig6j.tailf43f87.ts.net</domain>
         <domain includeSubdomains="true">100.108.182.28</domain>
-        <domain includeSubdomains="true">100.122.8.48</domain>
         <domain includeSubdomains="true">192.168.1.2</domain>
-        <domain includeSubdomains="true">192.168.0.170</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>

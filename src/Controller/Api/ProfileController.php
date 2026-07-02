@@ -2,10 +2,12 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
 use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/profile')]
@@ -18,6 +20,15 @@ class ProfileController extends AbstractController
     public function __construct(private UserRepository $userRepository)
     {
         $this->avatarDir = dirname(__DIR__, 3) . '/public/uploads/avatars';
+    }
+
+    private function getCurrentUser(Request $request): ?User
+    {
+        $user = $this->getUser();
+        if ($user instanceof User) return $user;
+        $code = trim($request->headers->get('X-Game-Code', ''));
+        if (!$code) return null;
+        return $this->userRepository->findOneBy(['code' => $code, 'active' => true]);
     }
 
     // Avatar routes MUST come before the variable {code} route
@@ -44,10 +55,19 @@ class ProfileController extends AbstractController
     #[Route('/avatar', name: 'api_profile_avatar_upload', methods: ['POST'])]
     public function uploadAvatar(Request $request): JsonResponse
     {
+        $authUser = $this->getCurrentUser($request);
+        if (!$authUser) {
+            return $this->json(['error' => 'No autorizado — X-Game-Code requerido'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $userCode = strtoupper($request->query->get('user_code', ''));
         if (!$userCode) {
             return $this->json(['error' => 'Missing user_code'], 400);
         }
+        if (strtoupper($authUser->getCode() ?? '') !== $userCode) {
+            return $this->json(['error' => 'No autorizado — solo puedes modificar tu propio avatar'], Response::HTTP_FORBIDDEN);
+        }
+
         $user = $this->userRepository->findByCode($userCode);
         if (!$user) {
             return $this->json(['error' => 'User not found'], 404);
@@ -88,9 +108,17 @@ class ProfileController extends AbstractController
     #[Route('/avatar', name: 'api_profile_avatar_delete', methods: ['DELETE'])]
     public function deleteAvatar(Request $request): JsonResponse
     {
+        $authUser = $this->getCurrentUser($request);
+        if (!$authUser) {
+            return $this->json(['error' => 'No autorizado — X-Game-Code requerido'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $userCode = strtoupper($request->query->get('user_code', ''));
         if (!$userCode) {
             return $this->json(['error' => 'Missing user_code'], 400);
+        }
+        if (strtoupper($authUser->getCode() ?? '') !== $userCode) {
+            return $this->json(['error' => 'No autorizado — solo puedes eliminar tu propio avatar'], Response::HTTP_FORBIDDEN);
         }
 
         foreach (self::ALLOWED_EXTENSIONS as $ext) {

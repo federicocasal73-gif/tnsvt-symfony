@@ -72,35 +72,50 @@ class AdminWalletController extends AbstractController
             }
         }
 
-        // Acredita
-        $user->addToWallet($amount);
+        // Atomic credit with transaction
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $affected = $this->em->getConnection()->executeStatement(
+                'UPDATE "user" SET wallet_balance = CAST(wallet_balance AS REAL) + :amount WHERE id = :id',
+                ['amount' => $amount, 'id' => $user->getId()]
+            );
+            if ($affected === 0) {
+                $this->em->getConnection()->rollBack();
+                return new JsonResponse(['error' => 'user_not_found'], 404);
+            }
+            $this->em->refresh($user);
 
-        $tx = new WalletTransaction();
-        $tx->setUser($user);
-        $tx->setType(WalletTransaction::TYPE_DEPOSIT);
-        $tx->setAmount(number_format($amount, 2, '.', ''));
-        $tx->setCurrency('USD');
-        $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
-        $tx->setNotes($notes);
-        $tx->setRefPaymentId($paymentId);
-        $tx->setRefPaymentMethod($method);
-        $tx->setConfirmedAt(new \DateTimeImmutable());
+            $tx = new WalletTransaction();
+            $tx->setUser($user);
+            $tx->setType(WalletTransaction::TYPE_DEPOSIT);
+            $tx->setAmount(number_format($amount, 2, '.', ''));
+            $tx->setCurrency('USD');
+            $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
+            $tx->setNotes($notes);
+            $tx->setRefPaymentId($paymentId);
+            $tx->setRefPaymentMethod($method);
+            $tx->setConfirmedAt(new \DateTimeImmutable());
 
-        $this->em->persist($tx);
-        $this->em->flush();
+            $this->em->persist($tx);
+            $this->em->flush();
+            $this->em->getConnection()->commit();
 
-        // Push notification
-        $this->push->sendToUser($user, '💰 Saldo acreditado', "Recibiste \${$amount} USD en tu wallet");
+            // Push notification (fuera de la transacción)
+            $this->push->sendToUser($user, 'Saldo acreditado', "Recibiste \${$amount} USD en tu wallet");
 
-        return new JsonResponse([
-            'success' => true,
-            'transaction_id' => $tx->getId(),
-            'user_id' => $user->getId(),
-            'username' => $user->getCode(),
-            'amount' => number_format($amount, 2, '.', ''),
-            'new_balance_usd' => $user->getWalletBalance(),
-            'method' => $method,
-        ], 200);
+            return new JsonResponse([
+                'success' => true,
+                'transaction_id' => $tx->getId(),
+                'user_id' => $user->getId(),
+                'username' => $user->getCode(),
+                'amount' => number_format($amount, 2, '.', ''),
+                'new_balance_usd' => $user->getWalletBalance(),
+                'method' => $method,
+            ], 200);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return new JsonResponse(['error' => 'Error al acreditar saldo'], 500);
+        }
     }
 
     /**
@@ -130,36 +145,51 @@ class AdminWalletController extends AbstractController
             return new JsonResponse(['error' => 'user_not_found', 'code' => $code], 404);
         }
 
-        if (!$user->hasBalance($amount)) {
+        // Atomic debit with transaction
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $affected = $this->em->getConnection()->executeStatement(
+                'UPDATE "user" SET wallet_balance = CAST(wallet_balance AS REAL) - :amount WHERE id = :id AND CAST(wallet_balance AS REAL) >= :amount2',
+                ['amount' => $amount, 'id' => $user->getId(), 'amount2' => $amount]
+            );
+            if ($affected === 0) {
+                $this->em->getConnection()->rollBack();
+                $currentBalance = $this->em->getConnection()->fetchOne(
+                    'SELECT wallet_balance FROM "user" WHERE id = :id', ['id' => $user->getId()]
+                );
+                return new JsonResponse([
+                    'error' => 'wallet_insufficient',
+                    'available' => (float) $currentBalance,
+                    'requested' => $amount,
+                ], 400);
+            }
+            $this->em->refresh($user);
+
+            $tx = new WalletTransaction();
+            $tx->setUser($user);
+            $tx->setType(WalletTransaction::TYPE_WITHDRAW);
+            $tx->setAmount(number_format(-$amount, 2, '.', ''));
+            $tx->setCurrency('USD');
+            $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
+            $tx->setNotes($notes);
+            $tx->setRefPaymentMethod($method);
+            $tx->setConfirmedAt(new \DateTimeImmutable());
+
+            $this->em->persist($tx);
+            $this->em->flush();
+            $this->em->getConnection()->commit();
+
             return new JsonResponse([
-                'error' => 'wallet_insufficient',
-                'available' => (float) $user->getWalletBalance(),
-                'requested' => $amount,
-            ], 400);
+                'success' => true,
+                'transaction_id' => $tx->getId(),
+                'user_id' => $user->getId(),
+                'amount' => number_format($amount, 2, '.', ''),
+                'new_balance_usd' => $user->getWalletBalance(),
+            ], 200);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return new JsonResponse(['error' => 'Error al debitar saldo'], 500);
         }
-
-        $user->subtractFromWallet($amount);
-
-        $tx = new WalletTransaction();
-        $tx->setUser($user);
-        $tx->setType(WalletTransaction::TYPE_WITHDRAW);
-        $tx->setAmount(number_format(-$amount, 2, '.', ''));
-        $tx->setCurrency('USD');
-        $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
-        $tx->setNotes($notes);
-        $tx->setRefPaymentMethod($method);
-        $tx->setConfirmedAt(new \DateTimeImmutable());
-
-        $this->em->persist($tx);
-        $this->em->flush();
-
-        return new JsonResponse([
-            'success' => true,
-            'transaction_id' => $tx->getId(),
-            'user_id' => $user->getId(),
-            'amount' => number_format($amount, 2, '.', ''),
-            'new_balance_usd' => $user->getWalletBalance(),
-        ], 200);
     }
 
     /**
@@ -247,22 +277,38 @@ class AdminWalletController extends AbstractController
 
         $amount = abs((float) $tx->getAmount());
         $user = $tx->getUser();
-        $user->addToWallet($amount);
 
-        $tx->setStatus(WalletTransaction::STATUS_REJECTED);
-        $tx->setConfirmedAt(new \DateTimeImmutable());
-        $tx->setNotes(($tx->getNotes() ?? '') . ' [REJECTED - refunded]');
+        // Atomic refund with transaction
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $affected = $this->em->getConnection()->executeStatement(
+                'UPDATE "user" SET wallet_balance = CAST(wallet_balance AS REAL) + :amount WHERE id = :id',
+                ['amount' => $amount, 'id' => $user->getId()]
+            );
+            if ($affected === 0) {
+                $this->em->getConnection()->rollBack();
+                return new JsonResponse(['error' => 'user_not_found'], 404);
+            }
+            $this->em->refresh($user);
 
-        $this->em->flush();
+            $tx->setStatus(WalletTransaction::STATUS_REJECTED);
+            $tx->setConfirmedAt(new \DateTimeImmutable());
+            $tx->setNotes(($tx->getNotes() ?? '') . ' [REJECTED - refunded]');
+            $this->em->flush();
+            $this->em->getConnection()->commit();
 
-        return new JsonResponse([
-            'success' => true,
-            'transaction_id' => $tx->getId(),
-            'status' => 'rejected',
-            'refunded_amount' => number_format($amount, 2, '.', ''),
-            'new_balance_usd' => $user->getWalletBalance(),
-            'message' => 'Withdraw rechazado. Le devolvimos el saldo al user.',
-        ], 200);
+            return new JsonResponse([
+                'success' => true,
+                'transaction_id' => $tx->getId(),
+                'status' => 'rejected',
+                'refunded_amount' => number_format($amount, 2, '.', ''),
+                'new_balance_usd' => $user->getWalletBalance(),
+                'message' => 'Withdraw rechazado. Le devolvimos el saldo al user.',
+            ], 200);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return new JsonResponse(['error' => 'Error al rechazar withdraw'], 500);
+        }
     }
 
     /**

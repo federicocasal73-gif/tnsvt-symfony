@@ -36,15 +36,22 @@ class NotificationController extends AbstractController
         private UserRepository $userRepository,
     ) {}
 
+    private function getCurrentUser(Request $request): ?\App\Entity\User
+    {
+        $user = $this->getUser();
+        if ($user instanceof \App\Entity\User) return $user;
+        $code = trim($request->headers->get('X-Game-Code', ''));
+        if (!$code) {
+            $code = trim((string) $request->query->get('user_code', ''));
+        }
+        if (!$code) return null;
+        return $this->userRepository->findOneBy(['code' => $code, 'active' => true]);
+    }
+
     #[Route('', name: 'api_notif_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $userCode = $request->query->get('user_code');
-        if (!$userCode) {
-            return $this->json([]);
-        }
-
-        $user = $this->userRepository->findByCode($userCode);
+        $user = $this->getCurrentUser($request);
         if (!$user) {
             return $this->json([]);
         }
@@ -67,13 +74,20 @@ class NotificationController extends AbstractController
     }
 
     #[Route('/{id}/read', name: 'api_notif_read', methods: ['PUT'])]
-    public function markRead(int $id): JsonResponse
+    public function markRead(int $id, Request $request): JsonResponse
     {
-        $notif = $this->notificationRepository->find($id);
-        if ($notif) {
-            $notif->setIsRead(true);
-            $this->em->flush();
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['success' => false, 'error' => 'No autorizado'], Response::HTTP_UNAUTHORIZED);
         }
+
+        $notif = $this->notificationRepository->find($id);
+        if (!$notif || $notif->getUser()?->getId() !== $user->getId()) {
+            return $this->json(['success' => false, 'error' => 'Notificación no encontrada'], Response::HTTP_NOT_FOUND);
+        }
+
+        $notif->setIsRead(true);
+        $this->em->flush();
 
         return $this->json(['success' => true]);
     }
@@ -81,17 +95,16 @@ class NotificationController extends AbstractController
     #[Route('/read-all', name: 'api_notif_read_all', methods: ['PUT'])]
     public function markAllRead(Request $request): JsonResponse
     {
-        $userCode = $request->query->get('user_code');
-        if ($userCode) {
-            $user = $this->userRepository->findByCode($userCode);
-            if ($user) {
-                $notifs = $this->notificationRepository->findByUser($user);
-                foreach ($notifs as $n) {
-                    $n->setIsRead(true);
-                }
-                $this->em->flush();
-            }
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['success' => false, 'error' => 'No autorizado'], Response::HTTP_UNAUTHORIZED);
         }
+
+        $notifs = $this->notificationRepository->findByUser($user);
+        foreach ($notifs as $n) {
+            $n->setIsRead(true);
+        }
+        $this->em->flush();
 
         return $this->json(['success' => true]);
     }
@@ -99,12 +112,7 @@ class NotificationController extends AbstractController
     #[Route('/count', name: 'api_notif_count', methods: ['GET'])]
     public function count(Request $request): JsonResponse
     {
-        $userCode = $request->query->get('user_code');
-        if (!$userCode) {
-            return $this->json(['count' => 0]);
-        }
-
-        $user = $this->userRepository->findByCode($userCode);
+        $user = $this->getCurrentUser($request);
         if (!$user) {
             return $this->json(['count' => 0]);
         }
@@ -113,13 +121,20 @@ class NotificationController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_notif_delete', methods: ['DELETE'])]
-    public function delete(int $id): JsonResponse
+    public function delete(int $id, Request $request): JsonResponse
     {
-        $notif = $this->notificationRepository->find($id);
-        if ($notif) {
-            $this->em->remove($notif);
-            $this->em->flush();
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['success' => false, 'error' => 'No autorizado'], Response::HTTP_UNAUTHORIZED);
         }
+
+        $notif = $this->notificationRepository->find($id);
+        if (!$notif || $notif->getUser()?->getId() !== $user->getId()) {
+            return $this->json(['success' => false, 'error' => 'Notificación no encontrada'], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->em->remove($notif);
+        $this->em->flush();
 
         return $this->json(['success' => true]);
     }

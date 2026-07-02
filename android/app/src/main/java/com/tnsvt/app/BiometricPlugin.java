@@ -23,7 +23,9 @@ import java.util.concurrent.Executor;
 @CapacitorPlugin(name = "BiometricPlugin")
 public class BiometricPlugin extends Plugin {
 
-    private static final String PREFS_NAME = "tnsvt_biometric_prefs";
+    // ⚠ Importante: DEBE coincidir con MainActivity.PREFS_NAME ("CapacitorStorage")
+    // para que app lock y PIN funcionen correctamente.
+    private static final String PREFS_NAME = "CapacitorStorage";
     private static final String KEY_PIN_HASH = "pin_hash";
     private static final String KEY_APP_LOCK = "app_lock_enabled";
     private static final String KEY_BIOMETRIC_ENABLED = "biometric_enabled";

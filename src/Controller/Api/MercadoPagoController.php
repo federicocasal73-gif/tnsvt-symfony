@@ -116,12 +116,23 @@ class MercadoPagoController extends AbstractController
      * Webhook de IPN de MercadoPago.
      * MP envia POST con JSON: { action, data: { id } }
      * Tambien soporta query params: ?topic=payment&id=123
+     * La firma X-Signature se verifica si MP_WEBHOOK_SECRET está configurado.
      */
     #[Route('/webhook', name: 'api_mp_webhook', methods: ['POST', 'GET'])]
     public function webhook(Request $request): JsonResponse
     {
         if (!$this->mp->isConfigured()) {
             return new JsonResponse(['error' => 'MP not configured'], 501);
+        }
+
+        // Verify X-Signature if webhook secret is configured
+        $webhookSecret = $_ENV['MP_WEBHOOK_SECRET'] ?? $_SERVER['MP_WEBHOOK_SECRET'] ?? '';
+        if ($webhookSecret !== '') {
+            $signature = $request->headers->get('X-Signature', '');
+            if (!$this->verifyMPSignature($signature, $request, $webhookSecret)) {
+                $this->logger->warning('[MP] Invalid webhook signature');
+                return new JsonResponse(['error' => 'invalid_signature'], 401);
+            }
         }
 
         // GET: ?topic=payment&id=123 (MP envía asi en sandbox)
@@ -149,6 +160,47 @@ class MercadoPagoController extends AbstractController
         }
 
         return new JsonResponse(['ok' => true]);
+    }
+
+    /**
+     * Verifica la firma X-Signature de MercadoPago.
+     * Formato: ts=<timestamp>,v1=<hmac>
+     * HMAC-SHA256 sobre: "id:<payment_id>;created-at:<ts>;"
+     */
+    private function verifyMPSignature(string $header, Request $request, string $secret): bool
+    {
+        if (empty($header) || empty($secret)) return false;
+
+        $parts = explode(',', $header);
+        $ts = '';
+        $hash = '';
+        foreach ($parts as $part) {
+            $kv = explode('=', $part, 2);
+            if (count($kv) === 2) {
+                $key = trim($kv[0]);
+                $value = trim($kv[1]);
+                if ($key === 'ts') $ts = $value;
+                if ($key === 'v1') $hash = $value;
+            }
+        }
+        if (empty($ts) || empty($hash)) return false;
+
+        // Get payment ID from body or query
+        $body = json_decode($request->getContent(), true);
+        $paymentId = '';
+        if (is_array($body)) {
+            $data = $body['data'] ?? [];
+            $paymentId = (string) ($data['id'] ?? $body['id'] ?? '');
+        }
+        if (empty($paymentId)) {
+            $paymentId = (string) ($request->query->get('id') ?? '');
+        }
+        if (empty($paymentId)) return false;
+
+        $template = "id:$paymentId;created-at:$ts;";
+        $expected = hash_hmac('sha256', $template, $secret);
+
+        return hash_equals($expected, $hash);
     }
 
     /**
@@ -188,8 +240,13 @@ class MercadoPagoController extends AbstractController
         if ($status === 'approved') {
             $amount = (float) $tx->getAmount();
             $user = $tx->getUser();
-            if ($user) {
-                $user->addToWallet($amount);
+            if ($user && $amount > 0) {
+                // Atomic credit to prevent race on duplicate webhook
+                $this->em->getConnection()->executeStatement(
+                    'UPDATE "user" SET wallet_balance = CAST(wallet_balance AS REAL) + :amount WHERE id = :id',
+                    ['amount' => $amount, 'id' => $user->getId()]
+                );
+                $this->em->refresh($user);
             }
             $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
             $tx->setConfirmedAt(new \DateTimeImmutable());

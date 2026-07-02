@@ -7,7 +7,9 @@ use App\Entity\LikedPost;
 use App\Repository\FeedPostRepository;
 use App\Repository\LikedPostRepository;
 use App\Repository\UserRepository;
+use App\Security\RateLimiterTrait;
 use App\Service\PushService;
+use App\Service\RateLimiterService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,13 +20,31 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/feed')]
 class FeedController extends AbstractController
 {
+    use RateLimiterTrait;
+
     public function __construct(
         private EntityManagerInterface $em,
         private FeedPostRepository $feedPostRepository,
         private LikedPostRepository $likedPostRepository,
         private UserRepository $userRepository,
         private PushService $pushService,
+        private RateLimiterService $rateLimiter,
     ) {}
+
+    private function getCurrentUser(Request $request): ?\App\Entity\User
+    {
+        $user = $this->getUser();
+        if ($user instanceof \App\Entity\User) return $user;
+        $code = trim($request->headers->get('X-Game-Code', ''));
+        if (!$code) {
+            $data = json_decode($request->getContent(), true);
+            if (is_array($data) && isset($data['code'])) {
+                $code = trim((string) $data['code']);
+            }
+        }
+        if (!$code) return null;
+        return $this->userRepository->findOneBy(['code' => $code, 'active' => true]);
+    }
 
     #[Route('', name: 'api_feed_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -52,18 +72,19 @@ class FeedController extends AbstractController
     }
 
     #[Route('', name: 'api_feed_create', methods: ['POST'])]
-    public function create(Request $request, UserRepository $userRepository): JsonResponse
+    public function create(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        $userCode = $data['author_code'] ?? null;
+        $rateLimit = $this->checkRateLimit($request, 'feed_create', 5, 60);
+        if ($rateLimit) return $rateLimit;
 
-        if (!$userCode) {
-            return $this->json(['error' => 'Usuario requerido'], Response::HTTP_BAD_REQUEST);
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['error' => 'No autorizado — X-Game-Code requerido'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $user = $userRepository->findByCode($userCode);
-        if (!$user) {
-            return $this->json(['error' => 'Usuario inválido'], Response::HTTP_UNAUTHORIZED);
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return $this->json(['error' => 'JSON inválido'], Response::HTTP_BAD_REQUEST);
         }
 
         $post = new FeedPost();
@@ -72,7 +93,7 @@ class FeedController extends AbstractController
         $post->setCategory($data['cat'] ?? 'general');
         $post->setLikes(0);
 
-        if (!empty($data['signal'])) {
+        if (!empty($data['signal']) && is_array($data['signal'])) {
             $post->setSignal($data['signal']);
             $post->setCategory('señales');
         }
@@ -95,20 +116,21 @@ class FeedController extends AbstractController
     }
 
     #[Route('/{id}/like', name: 'api_feed_like', methods: ['POST'])]
-    public function like(int $id, Request $request, UserRepository $userRepository): JsonResponse
+    public function like(int $id, Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        $userCode = $data['author_code'] ?? null;
+        $rateLimit = $this->checkRateLimit($request, 'feed_like', 20, 60);
+        if ($rateLimit) return $rateLimit;
 
-        if (!$userCode) {
-            return $this->json(['error' => 'Usuario requerido'], Response::HTTP_BAD_REQUEST);
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['error' => 'No autorizado — X-Game-Code requerido'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $user = $userRepository->findByCode($userCode);
+        $data = json_decode($request->getContent(), true);
         $post = $this->feedPostRepository->find($id);
 
-        if (!$user || !$post) {
-            return $this->json(['error' => 'No encontrado'], Response::HTTP_NOT_FOUND);
+        if (!$post) {
+            return $this->json(['error' => 'Post no encontrado'], Response::HTTP_NOT_FOUND);
         }
 
         $action = $data['action'] ?? 'like';
@@ -138,6 +160,14 @@ class FeedController extends AbstractController
     #[Route('/{id}/comment', name: 'api_feed_comment', methods: ['POST'])]
     public function comment(int $id, Request $request): JsonResponse
     {
+        $rateLimit = $this->checkRateLimit($request, 'feed_comment', 10, 60);
+        if ($rateLimit) return $rateLimit;
+
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['error' => 'No autorizado — X-Game-Code requerido'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $data = json_decode($request->getContent(), true);
         $post = $this->feedPostRepository->find($id);
 
@@ -151,9 +181,9 @@ class FeedController extends AbstractController
             return $this->json(['error' => 'Comentario vacío'], Response::HTTP_BAD_REQUEST);
         }
 
-        $authorCode = isset($data['author_code']) ? strtoupper(trim((string) $data['author_code'])) : '';
-        $author = $authorCode !== '' ? $this->userRepository->findByCode($authorCode) : null;
-        $authorName = $author?->getName() ?? ($data['author'] ?? 'Trader');
+        $author = $user;
+        $authorCode = $user->getCode();
+        $authorName = $user->getName() ?? 'Trader';
 
         $comment = [
             'author' => $authorName,
@@ -207,15 +237,16 @@ class FeedController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_feed_delete', methods: ['DELETE'])]
-    public function delete(int $id, Request $request, UserRepository $userRepository): JsonResponse
+    public function delete(int $id, Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        $userCode = $data['author_code'] ?? $request->query->get('author_code');
+        $user = $this->getCurrentUser($request);
+        if (!$user) {
+            return $this->json(['error' => 'No autorizado — X-Game-Code requerido'], Response::HTTP_UNAUTHORIZED);
+        }
 
-        $user = $userRepository->findByCode($userCode);
         $post = $this->feedPostRepository->find($id);
 
-        if (!$user || !$post || $post->getAuthor()?->getId() !== $user->getId()) {
+        if (!$post || $post->getAuthor()?->getId() !== $user->getId()) {
             return $this->json(['error' => 'No autorizado'], Response::HTTP_FORBIDDEN);
         }
 

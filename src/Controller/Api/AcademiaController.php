@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\AcademiaContent;
 use App\Repository\AcademiaContentRepository;
+use App\Security\AdminAuthTrait;
 use App\Service\PushService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,6 +16,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/academia')]
 class AcademiaController extends AbstractController
 {
+    use AdminAuthTrait;
+
     public function __construct(
         private EntityManagerInterface $em,
         private AcademiaContentRepository $academiaRepository,
@@ -46,6 +49,7 @@ class AcademiaController extends AbstractController
     #[Route('', name: 'api_academia_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
+        $this->requireAdmin($request);
         $data = json_decode($request->getContent(), true);
 
         $course = new AcademiaContent();
@@ -72,6 +76,7 @@ class AcademiaController extends AbstractController
     #[Route('/{id}', name: 'api_academia_update', methods: ['PUT'])]
     public function update(int $id, Request $request): JsonResponse
     {
+        $this->requireAdmin($request);
         $course = $this->academiaRepository->find($id);
         if (!$course) {
             return $this->json(['error' => 'No encontrado'], Response::HTTP_NOT_FOUND);
@@ -99,8 +104,9 @@ class AcademiaController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_academia_delete', methods: ['DELETE'])]
-    public function delete(int $id): JsonResponse
+    public function delete(int $id, Request $request): JsonResponse
     {
+        $this->requireAdmin($request);
         $course = $this->academiaRepository->find($id);
         if (!$course) {
             return $this->json(['error' => 'No encontrado'], Response::HTTP_NOT_FOUND);

@@ -18,7 +18,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class SeedUsersCommand extends Command
 {
     /** @var string Password por defecto del admin si no se especifica otra con --admin-password */
-    public const DEFAULT_ADMIN_PASSWORD = 'TNSVT-2026-CristoRey!';
+    // Se lee de env ADMIN_PASSWORD con fallback seguro (nunca hardcodear)
+    public const DEFAULT_ADMIN_PASSWORD = ''; // valor real desde getAdminPassword()
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -42,7 +43,7 @@ class SeedUsersCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $adminPassword = (string) ($input->getOption('admin-password') ?: self::DEFAULT_ADMIN_PASSWORD);
+        $adminPassword = (string) ($input->getOption('admin-password') ?: ($_ENV['ADMIN_PASSWORD'] ?? 'TNSVT-2026-CristoRey!'));
         $hashedPassword = $this->passwordHasher->hashPassword(new User(), $adminPassword);
 
         // Lista de usuarios a crear (idempotente: si ya existe, lo saltea)

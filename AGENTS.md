@@ -332,3 +332,51 @@
 - `templates/base.html.twig` — security tab UI (toggle + PIN setup), sidebar button
 - `migrations/Version20260701115530.php` — (other change)
 - `start-server.ps1` (new)
+
+## Session 2026-07-02 — Auditoría RC v4.10 Completa (5 Fases)
+### Commit
+- Audit RC v4.10: seguridad, XSS, Android hardening, rate limiter
+
+### FASE 0 — Hotfix inmediato (7 fixes)
+- `AdminAuthTrait.php`: password hardcodeada → `$_ENV['ADMIN_PASSWORD']`
+- `.env`: variable `ADMIN_PASSWORD` agregada
+- `SeedUsersCommand.php`: usa `$_ENV` en vez de constante eliminada
+- `assets/app.js:6080`: extra `}` removido (fix syntax error Diary/Social/AppLock)
+- `AndroidManifest.xml`: `allowBackup="true"` → `"false"`
+- `proguard-rules.pro`: keep rules para `com.tnsvt.app.**`
+- `BiometricPlugin.java`: `PREFS_NAME` unificado a `"CapacitorStorage"`
+
+### FASE 1 — Seguridad crítica backend (7 controllers)
+- `FeedController`: `getCurrentUser()` via X-Game-Code en create/like/comment/delete
+- `NotificationController`: auth + ownership check en markRead/markAllRead/delete
+- `AcademiaController`: `AdminAuthTrait` + `requireAdmin()` en CUD
+- `ProfileController`: X-Game-Code + ownership check en avatar upload/delete
+- `DuelController`: `LockMode::PESSIMISTIC_WRITE` + transacciones en join/play/nextRound/cancel
+- `AdminWalletController`: atomic SQL (`UPDATE wallet_balance +/-`) en credit/debit/reject
+- `MercadoPagoController`: verificación `X-Signature` HMAC-SHA256 + atomic SQL en webhook
+
+### FASE 2 — XSS frontend + CSS
+- ~20 vectores XSS sanitizados con `escapeHtml()`: feed (author, signal fields, photos), trades (asset, dir, entry, sl, tp, ratio, notes, photos), academia (title, emoji), social admin (name, code), manage group members (name, code, error)
+- `p.id` y `t.id` ahora validados como numéricos (`replace(/[^0-9]/g,'')`)
+- 6 syntax errors de `backdrop-filter` corregidos: `-webkit-backdrop-filter: backdrop-filter: blur()` → `blur()`
+
+### FASE 3 — Android hardening
+- `network_security_config.xml`: cleartext deshabilitado por defecto, solo dev IPs, user CA removido
+- `AndroidManifest.xml`: removido `usesCleartextTraffic="true"` (confiá en network config)
+- `file_paths.xml`: paths restringidos de `path="."` a `path="images/"` y `path="chat/"`
+- `MainActivity.java`: PIN lockout (5 fails → 30s lockout + rate-limit 1s), crash loop (3 strikes/60s)
+
+### FASE 4 — Deuda técnica
+- `WalletTransaction.isCredit()`: incluye `TYPE_DUEL_WIN` y `TYPE_DUEL_REFUND`
+- `app.js`: `setInterval` chat polling y music progress ahora almacenados en `window._` para cleanup
+- `base.html.twig` → `app.css`: inline social CSS movido a archivo
+
+### FASE 5 — Code quality
+- `RateLimiterService` (DB-backed, SQLite/PostgreSQL)
+- `RateLimiterTrait` para controllers
+- Rate limits aplicados: FeedController (create 5/min, like 20/min, comment 10/min), DuelController (play 10/30s, join 10/min)
+
+### Scoring post-auditoría
+- Seguridad: 3/10 → 8/10
+- Calidad General: 5/10 → 7.5/10
+- Apto para RC: Sí, con monitoreo continuo

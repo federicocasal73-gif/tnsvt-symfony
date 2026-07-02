@@ -8,7 +8,10 @@ use App\Entity\User;
 use App\Entity\WalletTransaction;
 use App\Repository\DuelRepository;
 use App\Repository\UserRepository;
+use App\Security\RateLimiterTrait;
+use App\Service\RateLimiterService;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\LockMode;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,10 +20,13 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/duels')]
 class DuelController extends AbstractController
 {
+    use RateLimiterTrait;
+
     public function __construct(
         private EntityManagerInterface $em,
         private DuelRepository $duelRepository,
         private UserRepository $userRepository,
+        private RateLimiterService $rateLimiter,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -146,6 +152,9 @@ class DuelController extends AbstractController
     #[Route('/join', name: 'api_duels_join', methods: ['POST'])]
     public function join(Request $request): JsonResponse
     {
+        $rateLimit = $this->checkRateLimit($request, 'duel_join', 10, 60);
+        if ($rateLimit) return $rateLimit;
+
         $user = $this->getCurrentUser($request);
         if (!$user) {
             return $this->json(['error' => 'No autenticado'], 401);
@@ -158,58 +167,76 @@ class DuelController extends AbstractController
             return $this->json(['error' => 'Código de duelo requerido'], 400);
         }
 
-        $duel = $this->duelRepository->findByCode($duelCode);
-        if (!$duel) {
-            return $this->json(['error' => 'Duelo no encontrado'], 404);
-        }
-        if (!$duel->isWaiting()) {
-            return $this->json(['error' => 'Este duelo ya no está disponible'], 400);
-        }
-        if ($duel->getPlayer1()->getId() === $user->getId()) {
-            return $this->json(['error' => 'No podés unirte a tu propio duelo'], 400);
-        }
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $duel = $this->duelRepository->createQueryBuilder('d')
+                ->where('d.code = :code')
+                ->setParameter('code', $duelCode)
+                ->getQuery()
+                ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+                ->getOneOrNullResult();
 
-        $entryFee = (float) $duel->getEntryFee();
-        if ($entryFee > 0 && !$user->hasBalance($entryFee)) {
-            return $this->json(['error' => 'Saldo insuficiente en wallet'], 400);
+            if (!$duel) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Duelo no encontrado'], 404);
+            }
+
+            if (!$duel->isWaiting()) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Este duelo ya no está disponible'], 400);
+            }
+            if ($duel->getPlayer1()->getId() === $user->getId()) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'No podés unirte a tu propio duelo'], 400);
+            }
+
+            $entryFee = (float) $duel->getEntryFee();
+            if ($entryFee > 0 && !$user->hasBalance($entryFee)) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Saldo insuficiente en wallet'], 400);
+            }
+
+            if ($entryFee > 0) {
+                $user->subtractFromWallet($entryFee);
+            }
+
+            $duel->setPlayer2($user);
+            $duel->setStatus(Duel::STATUS_ACTIVE);
+            $duel->setCurrentRound(1);
+            $duel->setStartedAt(new \DateTimeImmutable());
+
+            if ($entryFee > 0) {
+                $tx = new WalletTransaction();
+                $tx->setUser($user);
+                $tx->setType(WalletTransaction::TYPE_DUEL_ENTRY);
+                $tx->setAmount(number_format(-$entryFee, 2, '.', ''));
+                $tx->setCurrency('USD');
+                $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
+                $tx->setNotes('Duelo ' . $duel->getCode() . ' - Entrada');
+                $this->em->persist($tx);
+            }
+
+            $this->em->flush();
+            $this->em->getConnection()->commit();
+
+            return $this->json([
+                'success' => true,
+                'duel' => [
+                    'id' => $duel->getId(),
+                    'code' => $duel->getCode(),
+                    'entry_fee' => $duel->getEntryFee(),
+                    'prize_pool' => $duel->getPrizePool(),
+                    'total_rounds' => $duel->getTotalRounds(),
+                    'current_round' => $duel->getCurrentRound(),
+                    'status' => $duel->getStatus(),
+                    'player1' => $duel->getPlayer1()->getCode(),
+                    'player2' => $user->getCode(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return $this->json(['error' => 'Error al unirse al duelo'], 500);
         }
-
-        if ($entryFee > 0) {
-            $user->subtractFromWallet($entryFee);
-        }
-
-        $duel->setPlayer2($user);
-        $duel->setStatus(Duel::STATUS_ACTIVE);
-        $duel->setCurrentRound(1);
-        $duel->setStartedAt(new \DateTimeImmutable());
-
-        if ($entryFee > 0) {
-            $tx = new WalletTransaction();
-            $tx->setUser($user);
-            $tx->setType(WalletTransaction::TYPE_DUEL_ENTRY);
-            $tx->setAmount(number_format(-$entryFee, 2, '.', ''));
-            $tx->setCurrency('USD');
-            $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
-            $tx->setNotes('Duelo ' . $duel->getCode() . ' - Entrada');
-            $this->em->persist($tx);
-        }
-
-        $this->em->flush();
-
-        return $this->json([
-            'success' => true,
-            'duel' => [
-                'id' => $duel->getId(),
-                'code' => $duel->getCode(),
-                'entry_fee' => $duel->getEntryFee(),
-                'prize_pool' => $duel->getPrizePool(),
-                'total_rounds' => $duel->getTotalRounds(),
-                'current_round' => $duel->getCurrentRound(),
-                'status' => $duel->getStatus(),
-                'player1' => $duel->getPlayer1()->getCode(),
-                'player2' => $user->getCode(),
-            ],
-        ]);
     }
 
     #[Route('/{id}', name: 'api_duels_get', methods: ['GET'])]
@@ -267,77 +294,94 @@ class DuelController extends AbstractController
     #[Route('/{id}/play', name: 'api_duels_play', methods: ['POST'])]
     public function play(int $id, Request $request): JsonResponse
     {
+        $rateLimit = $this->checkRateLimit($request, 'duel_play', 10, 30);
+        if ($rateLimit) return $rateLimit;
+
         $user = $this->getCurrentUser($request);
         if (!$user) {
             return $this->json(['error' => 'No autenticado'], 401);
         }
 
-        $duel = $this->duelRepository->find($id);
-        if (!$duel) {
-            return $this->json(['error' => 'Duelo no encontrado'], 404);
-        }
-        if (!$duel->isActive()) {
-            return $this->json(['error' => 'El duelo no está activo'], 400);
-        }
-        if (!$duel->hasPlayer($user)) {
-            return $this->json(['error' => 'No sos participante'], 403);
-        }
-
-        $data = json_decode($request->getContent(), true);
-        $move = strtolower(trim($data['move'] ?? ''));
-        if (!in_array($move, ['long', 'short', 'skip'], true)) {
-            return $this->json(['error' => 'Movimiento inválido. Usá long, short o skip'], 400);
-        }
-
-        $currentRound = $duel->getCurrentRound();
-
-        $round = $this->em->getRepository(DuelRound::class)
-            ->findOneBy(['duel' => $duel, 'roundNumber' => $currentRound]);
-
-        if (!$round) {
-            return $this->json(['error' => 'Ronda no encontrada. Esperá a que el host genere la ronda'], 400);
-        }
-
-        $isP1 = $duel->getPlayer1()->getId() === $user->getId();
-        if ($isP1) {
-            if ($round->getPlayer1Move() !== null) {
-                return $this->json(['error' => 'Ya jugaste esta ronda'], 400);
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $duel = $this->em->find(Duel::class, $id, LockMode::PESSIMISTIC_WRITE);
+            if (!$duel) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Duelo no encontrado'], 404);
             }
-            $round->setPlayer1Move($move);
-        } else {
-            if ($round->getPlayer2Move() !== null) {
-                return $this->json(['error' => 'Ya jugaste esta ronda'], 400);
+            if (!$duel->isActive()) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'El duelo no está activo'], 400);
             }
-            $round->setPlayer2Move($move);
-        }
+            if (!$duel->hasPlayer($user)) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'No sos participante'], 403);
+            }
 
-        if ($round->isBothPlayed()) {
-            $round->computePnl();
-            $p1Pnl = (float) $duel->getPlayer1Pnl() + (float) $round->getPlayer1Pnl();
-            $p2Pnl = (float) $duel->getPlayer2Pnl() + (float) $round->getPlayer2Pnl();
-            $duel->setPlayer1Pnl(number_format($p1Pnl, 4, '.', ''));
-            $duel->setPlayer2Pnl(number_format($p2Pnl, 4, '.', ''));
+            $data = json_decode($request->getContent(), true);
+            $move = strtolower(trim($data['move'] ?? ''));
+            if (!in_array($move, ['long', 'short', 'skip'], true)) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Movimiento inválido. Usá long, short o skip'], 400);
+            }
 
-            if ($currentRound >= $duel->getTotalRounds()) {
-                $this->finishDuel($duel);
+            $currentRound = $duel->getCurrentRound();
+
+            $round = $this->em->getRepository(DuelRound::class)
+                ->findOneBy(['duel' => $duel, 'roundNumber' => $currentRound]);
+
+            if (!$round) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Ronda no encontrada. Esperá a que el host genere la ronda'], 400);
+            }
+
+            $isP1 = $duel->getPlayer1()->getId() === $user->getId();
+            if ($isP1) {
+                if ($round->getPlayer1Move() !== null) {
+                    $this->em->getConnection()->rollBack();
+                    return $this->json(['error' => 'Ya jugaste esta ronda'], 400);
+                }
+                $round->setPlayer1Move($move);
             } else {
-                $duel->setCurrentRound($currentRound + 1);
+                if ($round->getPlayer2Move() !== null) {
+                    $this->em->getConnection()->rollBack();
+                    return $this->json(['error' => 'Ya jugaste esta ronda'], 400);
+                }
+                $round->setPlayer2Move($move);
             }
+
+            if ($round->isBothPlayed()) {
+                $round->computePnl();
+                $p1Pnl = (float) $duel->getPlayer1Pnl() + (float) $round->getPlayer1Pnl();
+                $p2Pnl = (float) $duel->getPlayer2Pnl() + (float) $round->getPlayer2Pnl();
+                $duel->setPlayer1Pnl(number_format($p1Pnl, 4, '.', ''));
+                $duel->setPlayer2Pnl(number_format($p2Pnl, 4, '.', ''));
+
+                if ($currentRound >= $duel->getTotalRounds()) {
+                    $this->finishDuel($duel);
+                } else {
+                    $duel->setCurrentRound($currentRound + 1);
+                }
+            }
+
+            $this->em->flush();
+            $this->em->getConnection()->commit();
+
+            return $this->json([
+                'success' => true,
+                'round' => $currentRound,
+                'waiting_for_opponent' => !$round->isBothPlayed(),
+                'duel' => [
+                    'current_round' => $duel->getCurrentRound(),
+                    'status' => $duel->getStatus(),
+                    'p1_pnl' => $duel->getPlayer1Pnl(),
+                    'p2_pnl' => $duel->getPlayer2Pnl(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return $this->json(['error' => 'Error al procesar jugada'], 500);
         }
-
-        $this->em->flush();
-
-        return $this->json([
-            'success' => true,
-            'round' => $currentRound,
-            'waiting_for_opponent' => !$round->isBothPlayed(),
-            'duel' => [
-                'current_round' => $duel->getCurrentRound(),
-                'status' => $duel->getStatus(),
-                'p1_pnl' => $duel->getPlayer1Pnl(),
-                'p2_pnl' => $duel->getPlayer2Pnl(),
-            ],
-        ]);
     }
 
     #[Route('/{id}/next-round', name: 'api_duels_next_round', methods: ['POST'])]
@@ -348,54 +392,65 @@ class DuelController extends AbstractController
             return $this->json(['error' => 'No autenticado'], 401);
         }
 
-        $duel = $this->duelRepository->find($id);
-        if (!$duel) {
-            return $this->json(['error' => 'Duelo no encontrado'], 404);
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $duel = $this->em->find(Duel::class, $id, LockMode::PESSIMISTIC_WRITE);
+            if (!$duel) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Duelo no encontrado'], 404);
+            }
+            if (!$duel->isActive()) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'El duelo no está activo'], 400);
+            }
+
+            $isP1 = $duel->getPlayer1()->getId() === $user->getId();
+            if (!$isP1) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Solo el creador puede generar la siguiente ronda'], 403);
+            }
+
+            $data = json_decode($request->getContent(), true);
+            $openPrice = (float) ($data['open'] ?? 0);
+            $closePrice = (float) ($data['close'] ?? 0);
+            $highPrice = (float) ($data['high'] ?? $closePrice);
+            $lowPrice = (float) ($data['low'] ?? $openPrice);
+
+            if ($openPrice <= 0 || $closePrice <= 0) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Precios inválidos'], 400);
+            }
+
+            $round = new DuelRound();
+            $round->setDuel($duel);
+            $round->setRoundNumber($duel->getCurrentRound());
+            $round->setOpenPrice(number_format($openPrice, 4, '.', ''));
+            $round->setClosePrice(number_format($closePrice, 4, '.', ''));
+            $round->setHighPrice(number_format($highPrice, 4, '.', ''));
+            $round->setLowPrice(number_format($lowPrice, 4, '.', ''));
+
+            if ($duel->getStartingPrice() === '0.0000') {
+                $duel->setStartingPrice($round->getOpenPrice());
+            }
+
+            $this->em->persist($round);
+            $this->em->flush();
+            $this->em->getConnection()->commit();
+
+            return $this->json([
+                'success' => true,
+                'round' => $duel->getCurrentRound(),
+                'candle' => [
+                    'open' => $round->getOpenPrice(),
+                    'close' => $round->getClosePrice(),
+                    'high' => $round->getHighPrice(),
+                    'low' => $round->getLowPrice(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return $this->json(['error' => 'Error al generar ronda'], 500);
         }
-        if (!$duel->isActive()) {
-            return $this->json(['error' => 'El duelo no está activo'], 400);
-        }
-
-        $isP1 = $duel->getPlayer1()->getId() === $user->getId();
-        if (!$isP1) {
-            return $this->json(['error' => 'Solo el creador puede generar la siguiente ronda'], 403);
-        }
-
-        $data = json_decode($request->getContent(), true);
-        $openPrice = (float) ($data['open'] ?? 0);
-        $closePrice = (float) ($data['close'] ?? 0);
-        $highPrice = (float) ($data['high'] ?? $closePrice);
-        $lowPrice = (float) ($data['low'] ?? $openPrice);
-
-        if ($openPrice <= 0 || $closePrice <= 0) {
-            return $this->json(['error' => 'Precios inválidos'], 400);
-        }
-
-        $round = new DuelRound();
-        $round->setDuel($duel);
-        $round->setRoundNumber($duel->getCurrentRound());
-        $round->setOpenPrice(number_format($openPrice, 4, '.', ''));
-        $round->setClosePrice(number_format($closePrice, 4, '.', ''));
-        $round->setHighPrice(number_format($highPrice, 4, '.', ''));
-        $round->setLowPrice(number_format($lowPrice, 4, '.', ''));
-
-        if ($duel->getStartingPrice() === '0.0000') {
-            $duel->setStartingPrice($round->getOpenPrice());
-        }
-
-        $this->em->persist($round);
-        $this->em->flush();
-
-        return $this->json([
-            'success' => true,
-            'round' => $duel->getCurrentRound(),
-            'candle' => [
-                'open' => $round->getOpenPrice(),
-                'close' => $round->getClosePrice(),
-                'high' => $round->getHighPrice(),
-                'low' => $round->getLowPrice(),
-            ],
-        ]);
     }
 
     #[Route('/{id}/cancel', name: 'api_duels_cancel', methods: ['POST'])]
@@ -406,34 +461,44 @@ class DuelController extends AbstractController
             return $this->json(['error' => 'No autenticado'], 401);
         }
 
-        $duel = $this->duelRepository->find($id);
-        if (!$duel) {
-            return $this->json(['error' => 'Duelo no encontrado'], 404);
-        }
-        if ($duel->getPlayer1()->getId() !== $user->getId()) {
-            return $this->json(['error' => 'Solo el creador puede cancelar'], 403);
-        }
-        if (!$duel->isWaiting()) {
-            return $this->json(['error' => 'No se puede cancelar un duelo activo/finalizado'], 400);
-        }
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $duel = $this->em->find(Duel::class, $id, LockMode::PESSIMISTIC_WRITE);
+            if (!$duel) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Duelo no encontrado'], 404);
+            }
+            if ($duel->getPlayer1()->getId() !== $user->getId()) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'Solo el creador puede cancelar'], 403);
+            }
+            if (!$duel->isWaiting()) {
+                $this->em->getConnection()->rollBack();
+                return $this->json(['error' => 'No se puede cancelar un duelo activo/finalizado'], 400);
+            }
 
-        $entryFee = (float) $duel->getEntryFee();
-        if ($entryFee > 0) {
-            $user->addToWallet($entryFee);
-            $tx = new WalletTransaction();
-            $tx->setUser($user);
-            $tx->setType(WalletTransaction::TYPE_DUEL_REFUND);
-            $tx->setAmount(number_format($entryFee, 2, '.', ''));
-            $tx->setCurrency('USD');
-            $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
-            $tx->setNotes('Duelo ' . $duel->getCode() . ' - Cancelado');
-            $this->em->persist($tx);
+            $entryFee = (float) $duel->getEntryFee();
+            if ($entryFee > 0) {
+                $user->addToWallet($entryFee);
+                $tx = new WalletTransaction();
+                $tx->setUser($user);
+                $tx->setType(WalletTransaction::TYPE_DUEL_REFUND);
+                $tx->setAmount(number_format($entryFee, 2, '.', ''));
+                $tx->setCurrency('USD');
+                $tx->setStatus(WalletTransaction::STATUS_CONFIRMED);
+                $tx->setNotes('Duelo ' . $duel->getCode() . ' - Cancelado');
+                $this->em->persist($tx);
+            }
+
+            $duel->setStatus(Duel::STATUS_CANCELLED);
+            $this->em->flush();
+            $this->em->getConnection()->commit();
+
+            return $this->json(['success' => true, 'status' => 'cancelled']);
+        } catch (\Throwable $e) {
+            $this->em->getConnection()->rollBack();
+            return $this->json(['error' => 'Error al cancelar duelo'], 500);
         }
-
-        $duel->setStatus(Duel::STATUS_CANCELLED);
-        $this->em->flush();
-
-        return $this->json(['success' => true, 'status' => 'cancelled']);
     }
 
     private function finishDuel(Duel $duel): void

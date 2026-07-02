@@ -119,7 +119,7 @@ class WalletTransaction
 
     public function isCredit(): bool
     {
-        return in_array($this->type, [self::TYPE_DEPOSIT, self::TYPE_PAYOUT, self::TYPE_REFUND], true);
+        return in_array($this->type, [self::TYPE_DEPOSIT, self::TYPE_PAYOUT, self::TYPE_REFUND, self::TYPE_DUEL_WIN, self::TYPE_DUEL_REFUND], true);
     }
 
     public function getFormattedAmount(): string

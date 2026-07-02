@@ -1575,22 +1575,30 @@ window.sb = window.API;
               const pnlColor=t.pnl>=0?'#34c759':'var(--red-impact)';
               const dateStr=new Date(t.date).toLocaleDateString('es',{day:'numeric',month:'short'});
               const photoTag=(t.photos&&t.photos.length)?' 📷'+t.photos.length:'';
+              const safeAsset = escapeHtml(t.asset || '');
+              const safeDir = escapeHtml(t.dir || '');
+              const safeEntry = escapeHtml(t.entry || '');
+              const safeSl = escapeHtml(t.sl || '');
+              const safeTp = escapeHtml(t.tp || '');
+              const safeRatio = escapeHtml(t.ratio || '');
+              const safeNotes = escapeHtml(t.notes || '');
+              const safeId = String(t.id).replace(/[^0-9]/g, '');
               return '<div class="tj-trade-card '+cls+'">'
                 +'<div class="tj-trade-icon '+iconCls+'">'+icon+'</div>'
                 +'<div class="tj-trade-meta">'
                   +'<div class="tj-trade-top">'
-                    +'<span class="tj-trade-pair"><span style="color:'+(t.dir==='BUY'?'#34c759':'var(--red-impact)')+';font-size:0.6rem;">'+t.dir+'</span> '+t.asset+photoTag+'</span>'
+                    +'<span class="tj-trade-pair"><span style="color:'+(t.dir==='BUY'?'#34c759':'var(--red-impact)')+';font-size:0.6rem;">'+safeDir+'</span> '+safeAsset+photoTag+'</span>'
                     +'<span class="tj-trade-date">'+dateStr+'</span>'
                   +'</div>'
                   +'<div class="tj-trade-detail">'
-                    +(t.entry?'E: '+t.entry:'')+(t.sl?' · SL: '+t.sl:'')+(t.tp?' · TP: '+t.tp:'')+(t.ratio?' · R:'+t.ratio:'')
-                    +(t.notes?'<br><span style="color:#645a78;font-style:italic;">'+t.notes+'</span>':'')
+                    +(safeEntry?'E: '+safeEntry:'')+(safeSl?' · SL: '+safeSl:'')+(safeTp?' · TP: '+safeTp:'')+(safeRatio?' · R:'+safeRatio:'')
+                    +(safeNotes?'<br><span style="color:#645a78;font-style:italic;">'+safeNotes+'</span>':'')
                   +'</div>'
                 +'</div>'
                 +'<div class="tj-trade-pnl" style="color:'+pnlColor+';">'+(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+'</div>'
                 +(isReadOnly ? '' : '<div style="display:flex;flex-direction:column;gap:2px;">'
-                  +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️</button>'
-                  +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑</button>'
+                  +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+safeId+')" title="Editar">✏️</button>'
+                  +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+safeId+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑</button>'
                 +'</div>')
               +'</div>';
             }).join('');
@@ -1697,26 +1705,34 @@ window.sb = window.API;
           const rColor=t.pnl>0?'#34c759':t.pnl<0?'var(--red-impact)':'';
           const rIcon=t.pnl>0?'✅':t.pnl<0?'❌':'↔️';
           const dirColor=t.dir==='BUY'?'#34c759':'var(--red-impact)';
+          const safeAsset = escapeHtml(t.asset || '');
+          const safeDir = escapeHtml(t.dir || '');
+          const safeEntry = escapeHtml(t.entry || '');
+          const safeSl = escapeHtml(t.sl || '');
+          const safeId = String(t.id).replace(/[^0-9]/g, '');
           let photosHtml='';
           if(t.photos && t.photos.length){
             const labels=['📊 Análisis 1','📊 Análisis 2','⚡ Ejecución'];
             photosHtml='<div style="display:grid;grid-template-columns:repeat('+Math.min(t.photos.length,3)+',1fr);gap:6px;margin-top:10px;">'
-              +t.photos.map((p,i)=>'<div style="text-align:center;"><img src="'+p+'" style="width:100%;border-radius:6px;border:1px solid rgba(212,175,55,0.15);cursor:pointer;" onclick="tjImgFull(&quot;PHOTO'+t.id+'_'+i+'&quot;)"><div style="font-size:0.45rem;color:#645a78;margin-top:3px;">'+(labels[i]||'Foto')+'</div></div>').join('')
+              +t.photos.map((p,i)=>'<div style="text-align:center;"><img src="'+escapeHtml(p)+'" style="width:100%;border-radius:6px;border:1px solid rgba(212,175,55,0.15);cursor:pointer;" onclick="tjImgFull(&quot;PHOTO'+safeId+'_'+i+'&quot;)"><div style="font-size:0.45rem;color:#645a78;margin-top:3px;">'+(labels[i]||'Foto')+'</div></div>').join('')
             +'</div>';
           }
+          const safeTp = escapeHtml(t.tp || '');
+          const safeRatio = escapeHtml(t.ratio || '');
+          const safeNotes = escapeHtml(t.notes || '');
           return '<div class="tj-day-trade">'
-            +'<div class="tj-day-trade-hdr"><span class="tj-day-pair"><span style="color:'+dirColor+';font-size:0.6rem;">'+t.dir+'</span> '+t.asset+'</span><span class="tj-day-result" style="color:'+rColor+';">'+rIcon+' '+(t.pnl>=0?'+':'')+'$'+t.pnl.toFixed(2)+'</span></div>'
+            +'<div class="tj-day-trade-hdr"><span class="tj-day-pair"><span style="color:'+dirColor+';font-size:0.6rem;">'+safeDir+'</span> '+safeAsset+'</span><span class="tj-day-result" style="color:'+rColor+';">'+rIcon+' '+(t.pnl>=0?'+':'')+'$'+t.pnl.toFixed(2)+'</span></div>'
             +'<div class="tj-day-levels">'
-              +(t.entry?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">Entry</div><div class="tj-day-lvl-val" style="color:#fff;">'+t.entry+'</div></div>':'')
-              +(t.sl?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">Stop</div><div class="tj-day-lvl-val" style="color:var(--red-impact);">'+t.sl+'</div></div>':'')
-              +(t.tp?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">TP</div><div class="tj-day-lvl-val" style="color:#34c759;">'+t.tp+'</div></div>':'')
-              +(t.ratio?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">R:B</div><div class="tj-day-lvl-val" style="color:var(--gold-bright);">'+t.ratio+'</div></div>':'')
+              +(safeEntry?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">Entry</div><div class="tj-day-lvl-val" style="color:#fff;">'+safeEntry+'</div></div>':'')
+              +(safeSl?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">Stop</div><div class="tj-day-lvl-val" style="color:var(--red-impact);">'+safeSl+'</div></div>':'')
+              +(safeTp?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">TP</div><div class="tj-day-lvl-val" style="color:#34c759;">'+safeTp+'</div></div>':'')
+              +(safeRatio?'<div class="tj-day-lvl"><div class="tj-day-lvl-label">R:B</div><div class="tj-day-lvl-val" style="color:var(--gold-bright);">'+safeRatio+'</div></div>':'')
             +'</div>'
-            +(t.notes?'<div class="tj-day-notes">📝 '+t.notes.replace(/</g,'&lt;')+'</div>':'')
+            +(safeNotes?'<div class="tj-day-notes">📝 '+safeNotes+'</div>':'')
              +photosHtml
              +(_isRO ? '' : '<div style="display:flex;gap:6px;margin-top:8px;">'
-               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+t.id+')" title="Editar">✏️ Editar</button>'
-               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+t.id+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑 Eliminar</button>'
+               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjEditTrade('+safeId+')" title="Editar">✏️ Editar</button>'
+               +'<button class="tj-del-btn" onclick="event.stopPropagation();tjDeleteTrade('+safeId+')" title="Eliminar" style="font-size:1.2rem;color:#ff2d55;">🗑 Eliminar</button>'
              +'</div>')
            +'</div>';
         }).join('');
@@ -2164,12 +2180,12 @@ window.sb = window.API;
       function renderCommentsList(comments) {
         if(!comments || !comments.length) return '';
         return comments.map(function(c) {
-          var author = (c.author || 'Trader');
+          var author = escapeHtml(c.author || 'Trader');
           var initial = author.charAt(0).toUpperCase();
           var text = c.text || '';
           var photo = c.photo || '';
           var safeText = sanitizePostText(text);
-          var photoHtml = photo ? '<div class="comment-photo-wrap"><img class="comment-photo" src="'+photo+'" onclick="window.open(this.src)"></div>' : '';
+          var photoHtml = photo ? '<div class="comment-photo-wrap"><img class="comment-photo" src="'+escapeHtml(photo)+'" onclick="window.open(this.src)"></div>' : '';
           return '<div class="comment-item">'
             + '<div class="comment-avatar">' + initial + '</div>'
             + '<div class="comment-body"><div class="comment-text"><span class="comment-author">' + author + ': </span>' + safeText + '</div>' + photoHtml + '</div>'
@@ -2210,45 +2226,56 @@ window.sb = window.API;
             const d = new Date(p.created_at);
             const timeAgo = Math.floor((Date.now() - d.getTime()) / 3600000);
             const timeStr = timeAgo < 1 ? 'hace momentos' : (timeAgo < 24 ? 'hace ' + timeAgo + 'h' : 'hace ' + Math.floor(timeAgo / 24) + 'd');
-            const catCls = 'signal-cat-' + (p.cat || 'general');
+            const catCls = 'signal-cat-' + escapeHtml(p.cat || 'general');
             const catLabel = (p.cat || 'general').charAt(0).toUpperCase() + (p.cat || 'general').slice(1);
-            const authorName = p.author_name || p.author || 'Trader';
-            const initial = authorName.charAt(0).toUpperCase();
+            const rawAuthorName = p.author_name || p.author || 'Trader';
+            const authorName = escapeHtml(rawAuthorName);
+            const initial = rawAuthorName.charAt(0).toUpperCase();
             const isMyPost = window.TNSVT_USER && p.author_code === window.TNSVT_USER.code;
             const iLiked = myLikedPosts.has(p.id);
 
+            const safeId = String(p.id).replace(/[^0-9]/g, '');
+
             let photoHtml = '';
             if (p.photo) {
+              const safePhoto = escapeHtml(p.photo);
               photoHtml = `<div style="margin:10px 0;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="this.querySelector('img').requestFullscreen?.()">
-                <img src="${p.photo}" style="width:100%;max-height:280px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.15);">
+                <img src="${safePhoto}" style="width:100%;max-height:280px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.15);">
               </div>`;
             }
             let signalHtml = '';
             if (p.signal) {
               const s = typeof p.signal === 'string' ? JSON.parse(p.signal) : p.signal;
               const dirCls = s.dir === 'BUY' ? 'signal-buy' : 'signal-sell';
-              const tp2Row = s.tp2 ? `<div class="signal-lvl"><div class="signal-lvl-label">TP2</div><div class="signal-lvl-val lvl-tp">${s.tp2}</div></div>` : '';
+              const safeDir = escapeHtml(s.dir || '');
+              const safeAsset = escapeHtml(s.asset || '');
+              const safeStatus = escapeHtml(s.status || 'Abierta');
+              const safeEntry = escapeHtml(s.entry || '—');
+              const safeSl = escapeHtml(s.sl || '—');
+              const safeTp1 = escapeHtml(s.tp1 || '—');
+              const safeTp2 = escapeHtml(s.tp2 || '');
+              const tp2Row = safeTp2 ? `<div class="signal-lvl"><div class="signal-lvl-label">TP2</div><div class="signal-lvl-val lvl-tp">${safeTp2}</div></div>` : '';
               signalHtml = `
                 <div class="signal-trade">
                   <div class="signal-trade-hdr">
-                    <span class="signal-dir ${dirCls}">${s.dir}</span>
-                    <span class="signal-asset">${s.asset}</span>
-                    <span class="signal-status">• ${s.status || 'Abierta'}</span>
-                    ${isMyPost ? `<button onclick="deletePost('${p.id}')" style="margin-left:auto;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:4px;color:#ff3b30;font-size:0.6rem;padding:2px 7px;cursor:pointer;">Eliminar</button>` : ''}
+                    <span class="signal-dir ${dirCls}">${safeDir}</span>
+                    <span class="signal-asset">${safeAsset}</span>
+                    <span class="signal-status">• ${safeStatus}</span>
+                    ${isMyPost ? `<button onclick="deletePost('${safeId}')" style="margin-left:auto;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:4px;color:#ff3b30;font-size:0.6rem;padding:2px 7px;cursor:pointer;">Eliminar</button>` : ''}
                   </div>
                   <div class="signal-levels">
-                    <div class="signal-lvl"><div class="signal-lvl-label">Entry</div><div class="signal-lvl-val lvl-entry">${s.entry || '—'}</div></div>
-                    <div class="signal-lvl"><div class="signal-lvl-label">Stop</div><div class="signal-lvl-val lvl-sl">${s.sl || '—'}</div></div>
-                    <div class="signal-lvl"><div class="signal-lvl-label">TP1</div><div class="signal-lvl-val lvl-tp">${s.tp1 || '—'}</div></div>
+                    <div class="signal-lvl"><div class="signal-lvl-label">Entry</div><div class="signal-lvl-val lvl-entry">${safeEntry}</div></div>
+                    <div class="signal-lvl"><div class="signal-lvl-label">Stop</div><div class="signal-lvl-val lvl-sl">${safeSl}</div></div>
+                    <div class="signal-lvl"><div class="signal-lvl-label">TP1</div><div class="signal-lvl-val lvl-tp">${safeTp1}</div></div>
                     ${tp2Row}
                   </div>
                 </div>`;
             }
 
-            const deleteBtn = (!p.signal && isMyPost) ? `<button onclick="deletePost('${p.id}')" style="margin-left:auto;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:4px;color:#ff3b30;font-size:0.6rem;padding:2px 7px;cursor:pointer;">✕</button>` : '';
+            const deleteBtn = (!p.signal && isMyPost) ? `<button onclick="deletePost('${safeId}')" style="margin-left:auto;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:4px;color:#ff3b30;font-size:0.6rem;padding:2px 7px;cursor:pointer;">✕</button>` : '';
 
             return `
-              <div class="signal-card-wrap" id="post-${p.id}">
+              <div class="signal-card-wrap" id="post-${safeId}">
                 <div class="signal-hdr">
                   <div class="signal-user">
                     <div class="signal-avatar" style="background:${isMyPost ? 'var(--gold)' : 'var(--violet)'};color:${isMyPost ? '#000' : '#fff'}">${initial}</div>
@@ -2263,21 +2290,21 @@ window.sb = window.API;
                 <div class="signal-body">${sanitizePostText(p.text)}</div>
                 ${photoHtml}${signalHtml}
                 <div class="signal-actions">
-                  <div class="signal-action ${iLiked ? 'liked' : ''}" data-like-id="${p.id}" onclick="likeFeedPost('${p.id}')" style="${iLiked ? 'color:var(--gold-bright);' : ''}">
+                  <div class="signal-action ${iLiked ? 'liked' : ''}" data-like-id="${safeId}" onclick="likeFeedPost('${safeId}')" style="${iLiked ? 'color:var(--gold-bright);' : ''}">
                     ${iLiked ? '♥' : '♡'} <span class="act-count">${p.likes || 0}</span>
                   </div>
-                  <div class="signal-action" onclick="toggleComments('${p.id}')" style="cursor:pointer;">💬 <span class="act-count">${(p.comments||[]).length||0}</span></div>
+                  <div class="signal-action" onclick="toggleComments('${safeId}')" style="cursor:pointer;">💬 <span class="act-count">${(p.comments||[]).length||0}</span></div>
                 </div>
-                <div class="comment-box" id="comments-${p.id}">
-                  <div class="comment-list" id="comment-list-${p.id}">${renderCommentsList(p.comments)}</div>
+                <div class="comment-box" id="comments-${safeId}">
+                  <div class="comment-list" id="comment-list-${safeId}">${renderCommentsList(p.comments)}</div>
                   <div class="comment-photo-preview-row">
-                    <img id="comment-photo-preview-${p.id}" style="display:none;max-height:80px;border-radius:6px;margin-bottom:4px;cursor:pointer;" onclick="removeCommentPhoto('${p.id}')" title="Click para quitar">
+                    <img id="comment-photo-preview-${safeId}" style="display:none;max-height:80px;border-radius:6px;margin-bottom:4px;cursor:pointer;" onclick="removeCommentPhoto('${safeId}')" title="Click para quitar">
                   </div>
                   <div class="comment-input-row">
-                    <button class="comment-photo-btn" onclick="document.getElementById('comment-photo-input-${p.id}').click()" title="Adjuntar foto">📷</button>
-                    <input type="file" id="comment-photo-input-${p.id}" accept="image/*" style="display:none" onchange="attachCommentPhoto(this, '${p.id}')">
-                    <input type="text" id="comment-input-${p.id}" placeholder="Escribí un comentario..." onkeydown="if(event.key==='Enter')submitComment('${p.id}')">
-                    <button class="comment-submit" onclick="submitComment('${p.id}')">Enviar</button>
+                    <button class="comment-photo-btn" onclick="document.getElementById('comment-photo-input-${safeId}').click()" title="Adjuntar foto">📷</button>
+                    <input type="file" id="comment-photo-input-${safeId}" accept="image/*" style="display:none" onchange="attachCommentPhoto(this, '${safeId}')">
+                    <input type="text" id="comment-input-${safeId}" placeholder="Escribí un comentario..." onkeydown="if(event.key==='Enter')submitComment('${safeId}')">
+                    <button class="comment-submit" onclick="submitComment('${safeId}')">Enviar</button>
                   </div>
                 </div>
               </div>`;
@@ -2335,13 +2362,16 @@ window.sb = window.API;
           grid.innerHTML = acadCoursesCache.map(c => {
             const isLocked = c.locked === true || c.locked === 'true';
             const lockCls = isLocked ? '' : 'acad-unlocked';
-            return `<div class="acad-card ${lockCls}" onclick="handleAcadCard(${c.id}, ${isLocked})">
+            const safeId = String(c.id).replace(/[^0-9]/g, '');
+            const safeTitle = escapeHtml(c.title || '');
+            const safeEmoji = escapeHtml(c.emoji || '📚');
+            return `<div class="acad-card ${lockCls}" onclick="handleAcadCard(${safeId}, ${isLocked})">
               <div class="acad-thumb" style="font-size:3rem;display:flex;align-items:center;justify-content:center;position:relative;">
-                ${c.emoji || '📚'}
+                ${safeEmoji}
                 ${isLocked ? '<div class="acad-lock"><div class="acad-lock-icon">🔒</div></div>' : ''}
               </div>
               <div class="acad-info">
-                <div class="acad-title">${c.title}</div>
+                <div class="acad-title">${safeTitle}</div>
                 <div class="acad-sub">${isLocked ? '<span class="acad-badge">🔒 Solo para miembros</span>' : '<span style="color:#34c759;">✅ Desbloqueado</span>'}</div>
               </div>
             </div>`;
@@ -2475,14 +2505,19 @@ window.sb = window.API;
             list.innerHTML = '<div style="color:#645a78;font-size:0.82rem;text-align:center;padding:20px;">No hay cursos aún. Creá el primero arriba ↑</div>';
             return;
           }
-          list.innerHTML = data.map(c => `
+          list.innerHTML = data.map(c => {
+            const safeId = String(c.id).replace(/[^0-9]/g, '');
+            const safeTitle = escapeHtml(c.title || '');
+            const safeEmoji = escapeHtml(c.emoji || '📚');
+            return `
             <div class="admin-course-item">
-              <span style="font-size:1.4rem;">${c.emoji || '📚'}</span>
-              <span class="admin-course-item-title">${c.title}</span>
+              <span style="font-size:1.4rem;">${safeEmoji}</span>
+              <span class="admin-course-item-title">${safeTitle}</span>
               <span class="admin-course-item-lock ${c.locked ? 'admin-lock-yes' : 'admin-lock-no'}">${c.locked ? '🔒' : '✅'}</span>
-              <button class="admin-btn-edit" onclick="adminEditCourse(${c.id})">Editar</button>
-              <button class="admin-btn-danger" onclick="adminDeleteCourse(${c.id})">Eliminar</button>
-            </div>`).join('');
+              <button class="admin-btn-edit" onclick="adminEditCourse(${safeId})">Editar</button>
+              <button class="admin-btn-danger" onclick="adminDeleteCourse(${safeId})">Eliminar</button>
+            </div>`;
+          }).join('');
         } catch(e) { list.innerHTML = '<div style="color:#ff3b30;font-size:0.82rem;padding:10px;">Error cargando lista</div>'; }
       }
 
@@ -3547,20 +3582,22 @@ window.sb = window.API;
         try {
           const members = await sb.listGroupMembers(window.TNSVT_USER.code, window.manageGroupConvId);
           list.innerHTML = members.map(m => {
+            const safeName = escapeHtml(m.name || '');
+            const safeCode = escapeHtml(m.code || '');
             const onlineDot = m.online ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-left:4px;"></span>' : '';
             return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 4px; border-bottom:1px solid rgba(212,175,55,0.08);">
               <div style="display:flex; align-items:center; gap:8px;">
                 <div style="width:28px;height:28px;border-radius:50%;background:rgba(138,60,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--gold-bright);">${(m.name||m.code||'?').charAt(0).toUpperCase()}</div>
                 <div>
-                  <div style="font-size:0.8rem;color:#e0d5f0;">${m.name}${onlineDot}</div>
-                  <div style="font-size:0.65rem;color:#645a78;">${m.code} ${m.is_admin ? '👑' : ''}</div>
+                  <div style="font-size:0.8rem;color:#e0d5f0;">${safeName}${onlineDot}</div>
+                  <div style="font-size:0.65rem;color:#645a78;">${safeCode} ${m.is_admin ? '👑' : ''}</div>
                 </div>
               </div>
               ${!m.is_admin ? `<button onclick="handleRemoveFromGroup('${escapeAttr(m.code)}')" style="background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);color:#ff6b6b;border-radius:6px;padding:4px 10px;font-size:0.65rem;cursor:pointer;">SACAR</button>` : '<span style="font-size:0.6rem;color:var(--gold-bright);">Admin</span>'}
             </div>`;
           }).join('');
         } catch(e) {
-          list.innerHTML = '<div style="padding:20px; text-align:center; color:#ff3b30;">Error: ' + e.message + '</div>';
+          list.innerHTML = '<div style="padding:20px; text-align:center; color:#ff3b30;">Error: ' + escapeHtml(e.message) + '</div>';
         }
       }
 
@@ -3676,7 +3713,7 @@ window.sb = window.API;
       window.pollAllConversations = pollAllConversations;
 
       // Iniciar polling global cada 5s
-      setInterval(pollAllConversations, 5000);
+      window._pollConversationsTimer = setInterval(pollAllConversations, 5000);
 
       // ==================== INICIALIZACIÓN GENERAL ====================
       async function initAllPanels() {
@@ -4707,7 +4744,8 @@ window.sb = window.API;
         });
         a.addEventListener('timeupdate', musicUpdateProgress);
         a.addEventListener('loadedmetadata', musicUpdateProgress);
-        setInterval(musicUpdateProgress, 1000);
+        if (window._musicProgressTimer) clearInterval(window._musicProgressTimer);
+        window._musicProgressTimer = setInterval(musicUpdateProgress, 1000);
         musicUpdateHeaderUI();
         musicLoad().then(() => musicAutoplayOnFirstInteraction());
       }
@@ -6076,7 +6114,6 @@ async function withTimeout(promise, ms) {
   } finally {
     clearTimeout(timer);
   }
-}
 }
 
 async function initAppLockUI() {
