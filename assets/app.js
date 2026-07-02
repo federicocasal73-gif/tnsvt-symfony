@@ -6068,30 +6068,58 @@ function updateAppLockUI(enabled) {
 
 async function withTimeout(promise, ms) {
   let timer;
-  return Promise.race([
-    promise,
-    new Promise(r => { timer = setTimeout(() => r(null), ms); })
-  ]).finally(() => clearTimeout(timer));
+  try {
+    return await Promise.race([
+      promise,
+      new Promise(r => { timer = setTimeout(() => r(null), ms); })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 }
 
 async function initAppLockUI() {
   const btn = document.getElementById('appLockToggleBtn');
   if (!btn) return;
-  const enabled = await withTimeout(window.BiometricAuth.isAppLockEnabled(), 3000);
-  if (enabled === null) {
-    btn.textContent = '❌ Error';
-    btn.style.color = '#f87171';
+
+  // ⛧ FIX APK crash: si BiometricAuth no existe (ej. plugin nativo no inicializado
+  // o no cargado aún), evitamos tirar un TypeError sync que provoca un
+  // unhandled rejection y puede crashear el WebView de Capacitor.
+  if (!window.BiometricAuth || typeof window.BiometricAuth.isAppLockEnabled !== 'function') {
+    console.warn('[AppLock] BiometricAuth plugin no disponible');
+    if (btn) {
+      btn.textContent = '⛔ Plugin no disponible';
+      btn.style.color = '#ffac33';
+    }
     return;
   }
-  updateAppLockUI(enabled);
-  const avail = await withTimeout(window.BiometricAuth.isAvailable(), 2000);
-  const has = await withTimeout(window.BiometricAuth.hasPin(), 2000);
-  const pinSection = document.getElementById('pinSetupSection');
-  if (pinSection) {
-    pinSection.style.display = !has ? 'block' : 'none';
+
+  try {
+    const enabled = await withTimeout(window.BiometricAuth.isAppLockEnabled(), 3000);
+    if (enabled === null) {
+      btn.textContent = '❌ Error';
+      btn.style.color = '#f87171';
+      return;
+    }
+    updateAppLockUI(enabled);
+    const avail = await withTimeout(window.BiometricAuth.isAvailable(), 2000);
+    const has = await withTimeout(window.BiometricAuth.hasPin(), 2000);
+    const pinSection = document.getElementById('pinSetupSection');
+    if (pinSection) {
+      pinSection.style.display = !has ? 'block' : 'none';
+    }
+    const pinStatus = document.getElementById('pinStatus');
+    if (pinStatus) pinStatus.textContent = has ? '🔑 PIN configurado' : '⚠️ Configurá un PIN de respaldo primero';
+  } catch (e) {
+    // ⛧ FIX: capturar cualquier error para evitar unhandled rejection
+    // que crashea el WebView de Capacitor (Android strict mode).
+    console.warn('[AppLock] error initializing UI:', e);
+    if (btn) {
+      btn.textContent = '❌ Error';
+      btn.style.color = '#f87171';
+    }
   }
-  const pinStatus = document.getElementById('pinStatus');
-  if (pinStatus) pinStatus.textContent = has ? '🔑 PIN configurado' : '⚠️ Configurá un PIN de respaldo primero';
 }
 
 window.toggleAppLock = toggleAppLock;
