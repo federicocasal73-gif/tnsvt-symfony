@@ -22,6 +22,24 @@ body.is-apk {
   touch-action: pan-y pinch-zoom;
   -webkit-user-select: none; user-select: none;
   background: #030106 !important;
+  /* ⛧ FIX: el body NO debe scrollear. El scroll debe ocurrir DENTRO
+     del .trading-main (cuando el sidebar está cerrado y estás en una
+     sección) o DENTRO del .trading-sidebar (cuando está abierto).
+     Sin overflow-y:hidden en body, el body crecía a 3000+ px por el
+     contenido del journal/feed, y el scroll del dedo iba al body en
+     vez del contenedor activo. */
+  overflow-y: hidden !important;
+  height: 100dvh !important;
+  position: relative !important;
+}
+
+/* Asegurar que el contenedor principal actúa como flex column vertical
+   para que sus hijos puedan hacer scroll propio sin expandir el body */
+body.is-apk #main-content {
+  height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 body.is-apk input, body.is-apk textarea, body.is-apk [contenteditable] {
   -webkit-user-select: text; user-select: text;
