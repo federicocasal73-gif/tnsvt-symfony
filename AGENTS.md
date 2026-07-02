@@ -4,11 +4,13 @@
 - `docs/arquitectura.md` / `docs/arquitectura.pdf` — Arquitectura técnica completa y guía de hosting (Jun 2026, 17 secciones, ~42 páginas).
 
 ## Commands
-- **Start server**: `cd C:\Users\HP 240 inch G9\tnsvt-symfony && php -S 192.168.1.2:8000 -t public`
+- **Start server**: `cd "C:\Users\HP 240 inch G9\Documents\TNSVT-WORK\tnsvt-symfony" && php -S 0.0.0.0:8000 -t public`
 - **Build game APK**: `cd game-app\android && gradlew.bat assembleDebug`
 - **Build web APK**: `cd android && gradlew.bat assembleDebug` (needs JAVA_HOME=C:\dev\jdk\jdk-21\jdk-21.0.7+6)
 - **Install via ADB**: `adb install -r path\to\app-debug.apk`
 - **Sync capacitor**: `npx cap sync android` (needs PATH with nodejs)
+- **Recompile assets**: `php bin/console asset-map:compile` (if Debug mode warning, delete `public/assets/` first)
+- **Tailscale Funnel**: `tailscale funnel --bg --yes 8000` (needs PHP on `0.0.0.0:8000`)
 
 ## Session 2026-06-24/25 — 1v1 Duel Backend + Game App fixes
 ### Commits (Symfony)
@@ -302,3 +304,31 @@
 - `src/Repository/ConversationRepository.php` — N+1 fix (refactor a 6 queries fijos)
 - `templates/base.html.twig` — CF widget completamente rediseñado (-569 líneas netas)
 - `migrations/Version20260629123000.php` (new) — schema migration
+
+## Session 2026-07-01 — Biometric App Lock (Fingerprint + PIN)
+### Commit
+- `97e0744` — fix: biometric app lock — native + JS keys match, global functions exposed, foldable layout fix, apk v4.2
+
+### What was done
+- **BiometricPlugin.java** (new) — custom Capacitor plugin with 9 native methods: `isAvailable`, `authenticate`, `setPin`, `verifyPin`, `hasPin`, `isAppLockEnabled`, `setAppLockEnabled`, `isBiometricEnabled`, `setBiometricEnabled`
+- **MainActivity.java** — app lock nativo con BiometricPrompt/PIN dialog, crash-loop detection (reset lock if 2+ startup failures), `decorView.post()` para deferred init
+- **SharedPreferences**: JS (via Preferences plugin) y native (MainActivity) ahora usan `"CapacitorStorage"` con keys coincidentes: `app_lock_enabled`, `pin_hash`
+- **Fix clave**: JS guardaba con keys `tnsvt_app_lock`/`tnsvt_pin_hash` pero native leía `app_lock_enabled`/`pin_hash` — ahora coinciden
+- **Fix ES module**: `toggleAppLock`, `savePin`, `updateAppLockUI`, `initAppLockUI` expuestas a `window` (app.js se carga como ES module via importmap)
+- **Responsive layout**: security tab cambió de `max-width:500px` a `max-width:min(90vw,600px)` para Z Fold 6
+- **Server bind**: cambiar a `0.0.0.0:8000` para compatibilidad con Tailscale Funnel (espera en `127.0.0.1`)
+
+### Key Bug
+- `CapacitorStorage` SharedPreferences keys must match between JS and native (`app_lock_enabled`, `pin_hash`)
+- Functions in ES modules are NOT global — need explicit `window.fn = fn` for `onclick` handlers
+
+### Files changed/created
+- `android/app/src/main/java/com/tnsvt/app/BiometricPlugin.java` (new)
+- `android/app/src/main/java/com/tnsvt/app/MainActivity.java` — app lock native + crash detection
+- `android/app/src/main/assets/capacitor.plugins.json` — added BiometricPlugin entry
+- `android/app/build.gradle` — added `androidx.biometric:biometric:1.2.0-alpha05`
+- `assets/app.js` — BiometricAuth module (~100 lines), window exports, key names fix
+- `assets/styles/app.css` — tab-content width fix
+- `templates/base.html.twig` — security tab UI (toggle + PIN setup), sidebar button
+- `migrations/Version20260701115530.php` — (other change)
+- `start-server.ps1` (new)

@@ -223,7 +223,9 @@ body.is-apk .hub-view .rect-node {
     background: rgba(0,0,0,0.55) !important;
     backdrop-filter: blur(2px) !important;
     z-index: 9994 !important;
+    pointer-events: auto !important;
   }
+  body.is-apk #sidebar-overlay.active { pointer-events: auto !important; }
   body.is-apk .trading-sidebar {
     position: fixed !important;
     top: 0 !important; left: 0 !important;
