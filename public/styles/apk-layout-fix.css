@@ -540,10 +540,11 @@ body.is-apk .modal-overlay { z-index: 100010 !important; }
    ═══════════════════════════════════════════════════════════════ */
 body.is-apk a, body.is-apk button {
   -webkit-tap-highlight-color: transparent;
-  /* ⛧ FIX scroll: antes era "manipulation" que bloqueaba el scroll vertical
-     cuando el dedo tocaba sobre un botón. Ahora pan-y pinch-zoom permite
-     scroll vertical y mantiene el tap para el click */
-  touch-action: pan-y pinch-zoom;
+  /* "manipulation" permite click rápido sin delay 300ms + scroll vertical.
+     Es el balance correcto para botones en WebView: ni bloquea el scroll
+     (como pasaba con touch-action:none) ni come el tap (como con pan-y
+     pinch-zoom en algunos WebView Android). */
+  touch-action: manipulation;
 }
 
 /* ⛧ FIX scroll: asegurar que contenedores con contenido scrollable
@@ -554,7 +555,11 @@ body.is-apk .tab-content,
 body.is-apk .feed-container,
 body.is-apk .feed,
 body.is-apk .trading-sidebar {
-  touch-action: pan-y pinch-zoom;
+  /* "manipulation" permite scroll vertical + click sin delay 300ms.
+     "pan-y pinch-zoom" causaba que el WebView interpretara taps como
+     inicio de scroll en algunos casos, anulando clicks en cards/botones. */
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
 }
 @media (hover: none) {
   body.is-apk button:active,
