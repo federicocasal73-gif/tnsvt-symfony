@@ -30,8 +30,9 @@ class DownloadController extends AbstractController
                 $this->projectDir . '/public/apk/tnsvt-v3.8.apk',
             ],
             'web' => [
-                $this->projectDir . '/public/apk/tnsvt-v1.6.2.apk',
-                $this->projectDir . '/public/apk/tnsvt-v3.8.apk',
+                $this->projectDir . '/public/apk/tnsvt-v4.12.apk',
+                $this->projectDir . '/public/apk/tnsvt-v4.10.apk',
+                $this->projectDir . '/public/apk/tnsvt-v4.9.apk',
                 $this->projectDir . '/public/downloads/tnsvt-app.apk',
             ],
         ];
@@ -138,7 +139,7 @@ HTML;
         $html .= '<h2>T.N.S.V.T Web App</h2>';
         $html .= '<div class="card-sub">🌐 Plataforma Completa <span class="size-badge">' . $webSizeMb . ' MB</span></div>';
         $html .= '<div class="card-info">Feed · Academia · Macroeconomía · 2-Step · Journal · Chat · Musica · Admin</div>';
-        $html .= '<a class="btn btn-violet" href="/api/app/download-web" download>⬇ Instalar Web TNSVT</a>';
+        $html .= '<a class="btn btn-violet" href="/api/app/download-web" download="tnsvt-v4.12.apk">⬇ Instalar Web TNSVT</a>';
         $html .= '</div>';
 
         $html .= '<div class="footer">T.N.S.V.T · Reino del Cristo Íntegro</div>';

@@ -24,8 +24,8 @@ class GameAppController extends AbstractController
     private const GAME_VERSION = '1.0.3';
     private const GAME_VERSION_CODE = 4;
     private const GAME_APK_FILENAME = 'tnsvt-market-instinct.apk';
-    private const WEB_APK_FILENAME = 'tnsvt-v3.8.apk';
-    private const WEB_VERSION = '3.8.0';
+    private const WEB_APK_FILENAME = 'tnsvt-v4.12.apk';
+    private const WEB_VERSION = '4.12.0';
 
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
@@ -92,25 +92,28 @@ class GameAppController extends AbstractController
     #[Route('/download-web', name: 'api_app_download_web', methods: ['GET'])]
     public function downloadWeb(): Response
     {
-        $apkPath = $this->projectDir . '/public/apk/' . self::WEB_APK_FILENAME;
-
-        if (!file_exists($apkPath)) {
-            // Fallback: apunta a /public/downloads/tnsvt-app.apk
-            $fallbackPath = $this->projectDir . '/public/downloads/tnsvt-app.apk';
-            if (file_exists($fallbackPath)) {
-                $apkPath = $fallbackPath;
-            } else {
-                return new JsonResponse([
-                    'error' => 'APK de la web no disponible. Pedile al admin que lo suba a public/apk/.',
-                ], 404);
-            }
+        // Prioridad: /public/apk/tnsvt-v{version}.apk → /public/downloads/tnsvt-app.apk
+        $candidates = [
+            $this->projectDir . '/public/apk/' . self::WEB_APK_FILENAME,
+            $this->projectDir . '/public/downloads/tnsvt-app.apk',
+        ];
+        $apkPath = null;
+        foreach ($candidates as $p) {
+            if (file_exists($p)) { $apkPath = $p; break; }
+        }
+        if ($apkPath === null) {
+            return new JsonResponse([
+                'error' => 'APK de la web no disponible. Pedile al admin que lo suba a public/apk/.',
+            ], 404);
         }
 
         $response = new BinaryFileResponse($apkPath);
         $response->headers->set('Content-Type', 'application/vnd.android.package-archive');
+        // ⛧ Fijamos el filename a tnsvt-v{version}.apk para que el archivo
+        // descargado diga exactamente ese nombre (no el filename del filesystem).
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'tnsvt-web-v' . self::WEB_VERSION . '.apk'
+            self::WEB_APK_FILENAME
         );
         $response->headers->set('Content-Length', (string) filesize($apkPath));
         $response->headers->set('X-App-Version', self::WEB_VERSION);
