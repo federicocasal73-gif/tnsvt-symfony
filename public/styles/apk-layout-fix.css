@@ -19,7 +19,7 @@
    ═══════════════════════════════════════════════════════════════ */
 body.is-apk {
   overscroll-behavior-y: contain;
-  touch-action: manipulation;
+  touch-action: pan-y pinch-zoom;
   -webkit-user-select: none; user-select: none;
   background: #030106 !important;
 }
@@ -305,10 +305,16 @@ body.is-apk .sidebar-btn.active {
    y .trading-main use min-height:0 + flex:1 + overflow-y:auto, lo cual SÍ activa scroll.
    ═══════════════════════════════════════════════════════════════ */
 body.is-apk #trading-panel {
-  display: flex !important;
+  /* NO usar display:flex !important — eso rompía el display:none inline cuando
+     el panel aún no se activó. Solo aplicar flex cuando ya está visible vía JS. */
   flex-direction: column !important;
-  /* Altura de pantalla completa menos topbar + safe areas + margen */
   min-height: calc(100dvh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom)) !important;
+}
+body.is-apk #trading-panel[style*="display: block"],
+body.is-apk #trading-panel[style*="display:block"],
+body.is-apk #trading-panel[style*="display: flex"],
+body.is-apk #trading-panel[style*="display:flex"] {
+  display: flex !important;
 }
 body.is-apk .inner-page {
   flex: 1 !important;
@@ -338,6 +344,16 @@ body.is-apk .trading-main {
   overscroll-behavior-y: contain !important;
   /* Compensa la altura del music bar para que el último item no quede tapado */
   padding-bottom: calc(var(--musicbar-h) + 16px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODULE PANEL (academia) — scroll fix
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk #module-panel {
+  max-height: calc(100dvh - var(--topbar-h) - var(--musicbar-h) - 40px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: calc(var(--musicbar-h) + 20px) !important;
 }
 body.is-apk .tab-content {
   padding-bottom: calc(var(--musicbar-h) + 20px) !important;
@@ -504,7 +520,21 @@ body.is-apk .modal-overlay { z-index: 100010 !important; }
    ═══════════════════════════════════════════════════════════════ */
 body.is-apk a, body.is-apk button {
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  /* ⛧ FIX scroll: antes era "manipulation" que bloqueaba el scroll vertical
+     cuando el dedo tocaba sobre un botón. Ahora pan-y pinch-zoom permite
+     scroll vertical y mantiene el tap para el click */
+  touch-action: pan-y pinch-zoom;
+}
+
+/* ⛧ FIX scroll: asegurar que contenedores con contenido scrollable
+   tengan touch-action explícito */
+body.is-apk .trading-main,
+body.is-apk .module-panel,
+body.is-apk .tab-content,
+body.is-apk .feed-container,
+body.is-apk .feed,
+body.is-apk .trading-sidebar {
+  touch-action: pan-y pinch-zoom;
 }
 @media (hover: none) {
   body.is-apk button:active,

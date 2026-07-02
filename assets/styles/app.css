@@ -203,7 +203,7 @@
     border-radius: 16px; padding: 20px; min-height: 500px;
     overflow-y: auto; overflow-x: hidden;
   }
-.tab-content { display: none; animation: fadeIn 0.3s ease; }
+.tab-content { display: none; animation: fadeIn 0.3s ease; width: 100%; box-sizing: border-box; overflow-x: hidden; }
 .tab-content.active { display: block; }
 
 /* Safe-area padding override for .inner-page (inline in template) */
@@ -2044,8 +2044,15 @@
     .trading-layout { flex-direction: column; }
     /* Font min 16px on inputs to prevent iOS auto-zoom */
     input, textarea, select { font-size: 16px !important; }
-    /* Reduce large min-heights for Z Fold 6 / mobile */
-    .trading-main { min-height: 300px !important; }
+    /* Reduce large min-heights for Z Fold 6 / mobile
+       ANTES: min-height: 300px !important; (rompía overflow-y auto en APK)
+       AHORA: clamp con max-height + min-height:0 → activa scroll vertical en WebView */
+    .trading-main {
+      min-height: 0 !important;
+      max-height: calc(100dvh - 160px) !important; /* 72 topbar + 56 musicbar + 32 margen */
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
     /* Increase interactive font sizes for readability on small screens */
     .mc-navbtn, .mc-scen-tab, .mc-cycle-tab .c-label,
     .tj-tool-btn, .tj-period-btn, .tj-cperiod-btn,

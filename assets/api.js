@@ -51,18 +51,27 @@ const API = {
       opts.headers = { 'Accept': 'application/json' };
       if (body) opts.body = body;
     }
-    if (extraOpts && extraOpts.headers) {
+    if (extraOpts && extraOpts.headers && Object.keys(extraOpts.headers).length > 0) {
       opts.headers = { ...(opts.headers || {}), ...extraOpts.headers };
     }
+    // FIX APK: AbortController con timeout para evitar cuelgues eternos
+    // en requests de carga (subir archivos grandes, red lenta).
+    const controller = new AbortController();
+    const timeoutMs = (extraOpts && extraOpts.timeoutMs) || 30000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    opts.signal = controller.signal;
     API.loadingCount++;
     API._emitLoading();
     try {
       const res = await fetch(url, opts);
+      clearTimeout(timeoutId);
       console.log('[API] ' + method + ' ' + url + ' -> ' + res.status);
       const data = await res.json();
       if (!res.ok && data.error) throw new Error(data.error);
       return data;
     } catch (e) {
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') throw new Error('Timeout: la petición tardó más de ' + Math.round(timeoutMs/1000) + 's');
       console.log('[API] ERROR ' + method + ' ' + url + ': ' + e.message);
       throw e;
     } finally {
@@ -229,7 +238,9 @@ async getNotifCount(userCode) {
     const form = new FormData();
     form.append('file', file);
     form.append('user_code', userCode);
-    return this.post('/api/chat/upload', form, { headers: {} });
+    // FIX APK: NO pasar { headers: {} } — eso anulaba el auto-Content-Type multipart
+    // del browser y el server colgaba esperando el boundary. timeoutMs alto para uploads.
+    return this.post('/api/chat/upload', form, { timeoutMs: 60000 });
   },
 
   async getNotificationSound(userCode) {

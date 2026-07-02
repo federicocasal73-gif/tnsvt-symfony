@@ -561,6 +561,7 @@
             <button class="sidebar-btn" onclick="switchTab('tab-journal')">📊 Trading Journal</button>
             <button class="sidebar-btn" onclick="switchTab('tab-leaderboard')">🏆 Leaderboard</button>
             <button class="sidebar-btn" onclick="switchTab('tab-academia')">🎓 Academia</button>
+            <button class="sidebar-btn" onclick="switchTab('tab-security')">🔒 Seguridad</button>
             <button class="sidebar-btn" onclick="switchTab('tab-social')">🔗 Social <span id="social-notif-badge" style="display:none;font-size:0.65rem;background:var(--gold);color:#0a0712;padding:1px 7px;border-radius:10px;margin-left:4px;"></span></button>
             <button class="sidebar-btn" onclick="window.open('/download/tnsvt-market','_blank')" style="background:linear-gradient(135deg,rgba(240,192,96,.15),rgba(147,83,255,.1));border:1px solid var(--gold);color:var(--gold);">🎮 Descargar T.N.S.V.T Market <span style="font-size:0.6rem;background:rgba(240,192,96,.2);padding:1px 6px;border-radius:8px;color:var(--gold);margin-left:4px;">APK</span></button>
             <button class="sidebar-btn" id="adminSidebarBtn" onclick="switchTab('tab-admin')" style="display:none;">⚙️ Admin</button>
@@ -3536,6 +3537,48 @@
 <!-- ==================== CHAT: Ahora es widget flotante CF (no necesita tab dedicado) ==================== -->
 
 
+<!-- ==================== SECURITY TAB ==================== -->
+<div id="tab-security" class="tab-content" style="padding:20px;">
+  <div class="ms-mystic-header" style="margin-bottom:24px;">
+    <div class="ms-mystic-eyebrow">
+      <span class="ms-mystic-line"></span>
+      <span class="ms-mystic-mark">🔒 SEGURIDAD</span>
+      <span class="ms-mystic-line"></span>
+    </div>
+    <h1 class="ms-mystic-title">Bloqueo de App</h1>
+    <p class="ms-mystic-quote">Protegé tu acceso con huella digital o PIN.</p>
+  </div>
+
+  <div style="width:100%; max-width:min(90vw,600px); margin:0 auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:rgba(13,8,24,0.8); border:1px solid rgba(138,60,255,0.2); border-radius:12px; margin-bottom:12px;">
+      <div>
+        <div style="font-size:0.9rem; color:#e2dcf0;">🔒 Bloqueo al iniciar</div>
+        <div style="font-size:0.75rem; color:#645a78;">Pedir huella o PIN al abrir la app</div>
+      </div>
+      <button id="appLockToggleBtn" onclick="toggleAppLock()" style="padding:6px 18px; border-radius:16px; border:1px solid rgba(138,60,255,0.3); background:rgba(138,60,255,0.1); color:#a499b8; font-size:0.8rem; cursor:pointer; min-width:80px; transition:all 0.2s;">Cargando...</button>
+    </div>
+
+    <div id="pinSetupSection" style="display:none; padding:14px 16px; background:rgba(13,8,24,0.8); border:1px solid rgba(138,60,255,0.2); border-radius:12px; margin-bottom:12px;">
+      <div style="font-size:0.85rem; color:#a499b8; margin-bottom:10px;">🔑 PIN de respaldo (4-6 dígitos):</div>
+      <div style="display:flex; gap:8px;">
+        <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="****" style="flex:1; padding:10px 14px; background:rgba(9,5,18,0.8); border:1px solid rgba(138,60,255,0.3); border-radius:8px; color:#e2dcf0; font-size:1.1rem; text-align:center; letter-spacing:6px; outline:none;">
+        <button onclick="savePin()" style="padding:10px 18px; border-radius:8px; border:1px solid rgba(52,199,89,0.3); background:rgba(52,199,89,0.1); color:#52c779; font-size:0.85rem; cursor:pointer; white-space:nowrap; transition:all 0.2s;">Guardar PIN</button>
+      </div>
+      <div id="pinStatus" style="font-size:0.75rem; margin-top:8px;"></div>
+    </div>
+
+    <div style="padding:14px 16px; background:rgba(13,8,24,0.6); border:1px solid rgba(138,60,255,0.15); border-radius:12px;">
+      <div style="font-size:0.8rem; color:#645a78; line-height:1.5;">
+        💡 <strong style="color:#a499b8;">¿Cómo funciona?</strong><br>
+        • Al activar, la app pedirá tu huella digital cada vez que la abras.<br>
+        • Si tu dispositivo no tiene huella o falla, podés usar un PIN de respaldo.<br>
+        • Si no configurás PIN y la huella no está disponible, no se puede activar el bloqueo.<br>
+        • Podés desactivarlo en cualquier momento desde acá.
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== SOCIAL TAB ==================== -->
 <div id="tab-social" class="tab-content">
   <div class="ms-mystic-header">
@@ -4266,18 +4309,32 @@
             return; // no limpiar nada
           }
           this._showError('⏳ Subiendo archivo…');
+          console.log('[CF] uploading file', file.name, file.type, file.size);
           const uploadRes = await window.API.uploadChatFile(file, window.TNSVT_USER.code);
-          if (uploadRes?.url) attachment = uploadRes;
-          else if (uploadRes?.error) {
+          console.log('[CF] upload response', uploadRes);
+          if (uploadRes?.url) {
+            attachment = { url: uploadRes.url, mime: uploadRes.mime, name: uploadRes.name, size: uploadRes.size };
+          } else if (uploadRes?.error) {
             this._showError('⚠ ' + uploadRes.error);
             return;
           } else {
-            this._showError('Error al subir archivo');
+            console.warn('[CF] uploadRes sin url ni error:', uploadRes);
+            this._showError('Error al subir archivo (respuesta vacía)');
             return;
           }
-        } catch(e) { console.warn('[CF] upload:', e); this._showError('Error al subir archivo'); return; }
+        } catch(e) {
+          console.warn('[CF] upload error:', e);
+          this._showError('Error al subir archivo: ' + (e.message || 'desconocido'));
+          return;
+        }
+      }
+      // Si llegamos aquí con archivo pero sin attachment, algo falló silenciosamente
+      if (file && !attachment) {
+        this._showError('No se pudo adjuntar el archivo');
+        return;
       }
       try {
+        console.log('[CF] sending message, attachment:', attachment);
         await window.API.sendMessage(this.state.currentConv, window.TNSVT_USER.code, txt, null, attachment);
         // Send OK → limpiar SOLO ahora
         inp.value = '';
@@ -4286,7 +4343,7 @@
           this._clearFile();
         }
         this._loadMessagesDirect(this.state.currentConv);
-      } catch(e) { console.warn('[CF] send:', e); this._showError('Error al enviar mensaje'); }
+      } catch(e) { console.warn('[CF] send:', e); this._showError('Error al enviar mensaje: ' + (e.message || 'desconocido')); }
     },
     _showError(msg) {
       const toast = document.getElementById('cfToast');

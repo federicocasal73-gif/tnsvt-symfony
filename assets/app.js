@@ -420,7 +420,7 @@ window.sb = window.API;
       window.toggleSidebar = toggleSidebar;
 
       function switchTab(tabId) {
-        if ((tabId === 'tab-admin' || tabId === 'tab-chart') &amp;&amp; !(window.TNSVT_USER &amp;&amp; window.TNSVT_USER.isAdmin)) {
+        if ((tabId === 'tab-admin' || tabId === 'tab-chart') && !(window.TNSVT_USER && window.TNSVT_USER.isAdmin)) {
           console.warn('[switchTab] Access denied: admin-only tab', tabId);
           return;
         }
@@ -441,6 +441,7 @@ window.sb = window.API;
         if (btn) btn.classList.add('active');
         updateBrandSub(tabId);
         // Chat: ahora se maneja con el CF widget flotante
+        if (tabId === 'tab-security') { initAppLockUI(); }
         if (tabId === 'tab-chat') {
           if (window.CF && typeof window.CF.open === 'function') {
             window.CF.open();
@@ -5910,19 +5911,47 @@ window.sb = window.API;
       })();
 
 /* ===================================================================================
-   BIOMETRIC AUTH — Wrapper para huella digital
+   BIOMETRIC AUTH — Wrapper para huella digital + App Lock
    ===================================================================================
-   Usa el plugin nativo de Capacitor en la app, o WebAuthn en navegadores modernos,
-   con fallback a contraseña manual.
+   Usa BiometricPlugin custom de Capacitor (Java nativo) en la app.
+   En navegador web, fallback false (sin huella).
    =================================================================================== */
 window.BiometricAuth = (() => {
-  const STORAGE_KEY = 'tnsvt_biometric_enabled_v1';
+  const P = () => window.Capacitor?.Plugins?.BiometricPlugin;
+  const PG = () => window.Capacitor?.Plugins?.Preferences;
 
+  async function prefsGet(key) {
+    try {
+      if (PG()) {
+        const r = await PG().get({ key });
+        return r.value;
+      }
+    } catch(_) {}
+    return null;
+  }
+
+  async function prefsSet(key, value) {
+    try {
+      if (PG()) await PG().set({ key, value });
+    } catch(_) {}
+  }
+
+  async function sha256(message) {
+    try {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch(_) {
+      return message;
+    }
+  }
+
+  // ---- Biometric hardware (needs native plugin) ----
   async function isAvailable() {
     try {
-      if (window.Capacitor?.Plugins?.BiometricAuthNative) {
-        const plugin = window.Capacitor.Plugins.BiometricAuthNative;
-        const info = await plugin.isAvailable();
+      if (P()) {
+        const info = await P().isAvailable();
         return info.isAvailable;
       }
     } catch(_) {}
@@ -5931,29 +5960,144 @@ window.BiometricAuth = (() => {
 
   async function authenticate(reason) {
     try {
-      if (window.Capacitor?.Plugins?.BiometricAuthNative) {
-        const plugin = window.Capacitor.Plugins.BiometricAuthNative;
-        await plugin.authenticate({ reason: reason || 'Desbloquear Diario Personal' });
+      if (P()) {
+        await P().authenticate({ reason: reason || 'Desbloquear' });
         return true;
       }
     } catch(e) {
-      if (e.code === 'userCancel' || e.code === 'systemCancel') return false;
+      const msg = (e.message || e.code || '').toLowerCase();
+      if (msg.includes('cancel')) return false;
       throw e;
     }
     return false;
   }
 
-  function isEnabled() {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+  // ---- Diario: biometric enable ----
+  async function isEnabled() {
+    const v = await prefsGet('tnsvt_biometric_enabled');
+    if (v !== null) return v === 'true';
+    return localStorage.getItem('tnsvt_biometric_enabled_v1') === 'true';
   }
 
-  function setEnabled(v) {
-    if (v) localStorage.setItem(STORAGE_KEY, 'true');
-    else localStorage.removeItem(STORAGE_KEY);
+  async function setEnabled(v) {
+    await prefsSet('tnsvt_biometric_enabled', v ? 'true' : 'false');
+    if (v) localStorage.setItem('tnsvt_biometric_enabled_v1', 'true');
+    else localStorage.removeItem('tnsvt_biometric_enabled_v1');
   }
 
-  return { isAvailable, authenticate, isEnabled, setEnabled };
+  // ---- App Lock ----
+  async function isAppLockEnabled() {
+    const v = await prefsGet('app_lock_enabled');
+    return v === 'true';
+  }
+
+  async function setAppLockEnabled(v) {
+    await prefsSet('app_lock_enabled', v ? 'true' : 'false');
+  }
+
+  // ---- PIN management ----
+  async function setPin(pin) {
+    const hash = await sha256(String(pin));
+    await prefsSet('pin_hash', hash);
+  }
+
+  async function verifyPin(pin) {
+    const stored = await prefsGet('pin_hash');
+    if (!stored || !pin) return false;
+    const hash = await sha256(String(pin));
+    return stored === hash;
+  }
+
+  async function hasPin() {
+    const v = await prefsGet('pin_hash');
+    return v !== null;
+  }
+
+  return { isAvailable, authenticate, isEnabled, setEnabled, isAppLockEnabled, setAppLockEnabled, setPin, verifyPin, hasPin };
 })();
+
+async function toggleAppLock() {
+  const btn = document.getElementById('appLockToggleBtn');
+  if (!btn) return;
+  const wasEnabled = await window.BiometricAuth.isAppLockEnabled();
+  if (!wasEnabled) {
+    const avail = await window.BiometricAuth.isAvailable();
+    const has = await window.BiometricAuth.hasPin();
+    if (!avail && !has) {
+      document.getElementById('pinSetupSection').style.display = 'block';
+      document.getElementById('pinStatus').textContent = '⚠️ Configurá un PIN primero';
+      document.getElementById('pinStatus').style.color = '#ffac33';
+      return;
+    }
+  }
+  await window.BiometricAuth.setAppLockEnabled(!wasEnabled);
+  updateAppLockUI(!wasEnabled);
+  const avail = await window.BiometricAuth.isAvailable();
+  const has = await window.BiometricAuth.hasPin();
+  document.getElementById('pinSetupSection').style.display = !wasEnabled && (!avail || !has) ? 'block' : 'none';
+}
+
+async function savePin() {
+  const input = document.getElementById('pinInput');
+  const status = document.getElementById('pinStatus');
+  const pin = input.value.trim();
+  if (!/^\d{4,6}$/.test(pin)) {
+    status.textContent = 'El PIN debe tener entre 4 y 6 dígitos';
+    status.style.color = '#ff6b6b';
+    return;
+  }
+  try {
+    await window.BiometricAuth.setPin(pin);
+    status.textContent = 'PIN guardado correctamente';
+    status.style.color = '#52c779';
+    input.value = '';
+  } catch(e) {
+    status.textContent = 'Error al guardar PIN';
+    status.style.color = '#ff6b6b';
+  }
+}
+
+function updateAppLockUI(enabled) {
+  const btn = document.getElementById('appLockToggleBtn');
+  if (!btn) return;
+  btn.textContent = enabled ? '✅ Activado' : '⭕ Desactivado';
+  btn.style.borderColor = enabled ? 'rgba(52,199,89,0.4)' : 'rgba(138,60,255,0.3)';
+  btn.style.background = enabled ? 'rgba(52,199,89,0.1)' : 'rgba(138,60,255,0.08)';
+  btn.style.color = enabled ? '#52c779' : '#a499b8';
+}
+
+async function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise(r => { timer = setTimeout(() => r(null), ms); })
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function initAppLockUI() {
+  const btn = document.getElementById('appLockToggleBtn');
+  if (!btn) return;
+  const enabled = await withTimeout(window.BiometricAuth.isAppLockEnabled(), 3000);
+  if (enabled === null) {
+    btn.textContent = '❌ Error';
+    btn.style.color = '#f87171';
+    return;
+  }
+  updateAppLockUI(enabled);
+  const avail = await withTimeout(window.BiometricAuth.isAvailable(), 2000);
+  const has = await withTimeout(window.BiometricAuth.hasPin(), 2000);
+  const pinSection = document.getElementById('pinSetupSection');
+  if (pinSection) {
+    pinSection.style.display = !has ? 'block' : 'none';
+  }
+  const pinStatus = document.getElementById('pinStatus');
+  if (pinStatus) pinStatus.textContent = has ? '🔑 PIN configurado' : '⚠️ Configurá un PIN de respaldo primero';
+}
+
+window.toggleAppLock = toggleAppLock;
+window.savePin = savePin;
+window.updateAppLockUI = updateAppLockUI;
+window.initAppLockUI = initAppLockUI;
 
 /* ===================================================================================
    DIARIO PERSONAL — Módulo de cifrado AES-256-GCM del lado del cliente
@@ -6119,7 +6263,8 @@ window.Diary = (() => {
       const bioBtn = el('dp-bio-btn');
       if (bioBtn) {
         const avail = await window.BiometricAuth.isAvailable();
-        bioBtn.style.display = avail && window.BiometricAuth.isEnabled() ? 'inline-flex' : 'none';
+        const ena = await window.BiometricAuth.isEnabled();
+        bioBtn.style.display = avail && ena ? 'inline-flex' : 'none';
       }
     } else {
       el('dp-setup-btn').style.display = 'inline-block';
@@ -6159,7 +6304,7 @@ window.Diary = (() => {
       const avail = await window.BiometricAuth.isAvailable();
       if (avail) {
         bioBtn.style.display = 'inline-flex';
-        const enabled = window.BiometricAuth.isEnabled();
+        const enabled = await window.BiometricAuth.isEnabled();
         bioBtn.textContent = enabled ? '🖐️ Huella Activada' : '🖐️ Activar Huella';
         bioBtn.style.borderColor = enabled ? 'rgba(52,199,89,0.4)' : 'rgba(147,83,255,0.3)';
         bioBtn.style.background = enabled ? 'rgba(52,199,89,0.1)' : 'rgba(147,83,255,0.08)';
@@ -6306,8 +6451,8 @@ window.Diary = (() => {
     if (!btn) return;
     const avail = await window.BiometricAuth.isAvailable();
     if (!avail) { _showError('Huella no disponible en este dispositivo'); return; }
-    const enabled = !window.BiometricAuth.isEnabled();
-    window.BiometricAuth.setEnabled(enabled);
+    const enabled = !(await window.BiometricAuth.isEnabled());
+    await window.BiometricAuth.setEnabled(enabled);
     btn.textContent = enabled ? '🖐️ Huella Activada' : '🖐️ Activar Huella';
     btn.style.borderColor = enabled ? 'rgba(52,199,89,0.4)' : 'rgba(147,83,255,0.3)';
     btn.style.background = enabled ? 'rgba(52,199,89,0.1)' : 'rgba(147,83,255,0.08)';
