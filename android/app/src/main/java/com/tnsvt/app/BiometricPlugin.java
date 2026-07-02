@@ -138,7 +138,7 @@ public class BiometricPlugin extends Plugin {
 
     @PluginMethod
     public void isAppLockEnabled(PluginCall call) {
-        boolean enabled = getPrefs().getBoolean(KEY_APP_LOCK, false);
+        boolean enabled = "true".equals(getPrefs().getString(KEY_APP_LOCK, "false"));
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
         call.resolve(ret);
@@ -147,7 +147,7 @@ public class BiometricPlugin extends Plugin {
     @PluginMethod
     public void setAppLockEnabled(PluginCall call) {
         boolean enabled = call.getBoolean("enabled", false);
-        getPrefs().edit().putBoolean(KEY_APP_LOCK, enabled).apply();
+        getPrefs().edit().putString(KEY_APP_LOCK, String.valueOf(enabled)).apply();
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
         call.resolve(ret);
@@ -155,7 +155,7 @@ public class BiometricPlugin extends Plugin {
 
     @PluginMethod
     public void isBiometricEnabled(PluginCall call) {
-        boolean enabled = getPrefs().getBoolean(KEY_BIOMETRIC_ENABLED, false);
+        boolean enabled = "true".equals(getPrefs().getString(KEY_BIOMETRIC_ENABLED, "false"));
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
         call.resolve(ret);
@@ -164,7 +164,7 @@ public class BiometricPlugin extends Plugin {
     @PluginMethod
     public void setBiometricEnabled(PluginCall call) {
         boolean enabled = call.getBoolean("enabled", false);
-        getPrefs().edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply();
+        getPrefs().edit().putString(KEY_BIOMETRIC_ENABLED, String.valueOf(enabled)).apply();
         JSObject ret = new JSObject();
         ret.put("enabled", enabled);
         call.resolve(ret);

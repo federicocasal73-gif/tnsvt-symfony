@@ -40,13 +40,13 @@ public class MainActivity extends BridgeActivity {
 
         // Detect crash loops: if app locked and we crashed 3x within 60s, reset lock
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        int fails = prefs.getInt(KEY_STARTUP_FAIL, 0);
-        long firstFailTime = prefs.getLong("startup_first_fail_time", 0);
-        boolean lockEnabled = prefs.getBoolean(KEY_APP_LOCK, false);
+        int fails = Integer.parseInt(prefs.getString(KEY_STARTUP_FAIL, "0"));
+        long firstFailTime = Long.parseLong(prefs.getString("startup_first_fail_time", "0"));
+        boolean lockEnabled = "true".equals(prefs.getString(KEY_APP_LOCK, "false"));
         if (lockEnabled && fails >= 3 && (System.currentTimeMillis() - firstFailTime) < 60_000L) {
             android.util.Log.w("TNSVT", "Detected " + fails + " startup failures within 60s, resetting app lock");
             prefs.edit()
-                .putBoolean(KEY_APP_LOCK, false)
+                .putString(KEY_APP_LOCK, "false")
                 .remove(KEY_PIN_HASH)
                 .remove(KEY_PIN_ATTEMPTS)
                 .remove(KEY_PIN_LOCKOUT_UNTIL)
@@ -70,13 +70,13 @@ public class MainActivity extends BridgeActivity {
         getWindow().getDecorView().post(() -> {
             try {
                 SharedPreferences p = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                boolean appLock = p.getBoolean(KEY_APP_LOCK, false);
+                boolean appLock = "true".equals(p.getString(KEY_APP_LOCK, "false"));
                 if (appLock) {
-                    int failCount = p.getInt(KEY_STARTUP_FAIL, 0) + 1;
+                    int failCount = Integer.parseInt(p.getString(KEY_STARTUP_FAIL, "0")) + 1;
                     SharedPreferences.Editor ed = p.edit();
-                    ed.putInt(KEY_STARTUP_FAIL, failCount);
+                    ed.putString(KEY_STARTUP_FAIL, String.valueOf(failCount));
                     if (failCount == 1) {
-                        ed.putLong("startup_first_fail_time", System.currentTimeMillis());
+                        ed.putString("startup_first_fail_time", String.valueOf(System.currentTimeMillis()));
                     }
                     ed.apply();
 
@@ -92,7 +92,7 @@ public class MainActivity extends BridgeActivity {
                 android.util.Log.e("TNSVT", "app lock init failed", e);
                 ensureWebViewVisible();
                 getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit().putInt(KEY_STARTUP_FAIL, 99).apply();
+                    .edit().putString(KEY_STARTUP_FAIL, "99").apply();
             }
         });
     }
@@ -173,7 +173,7 @@ public class MainActivity extends BridgeActivity {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
         // Check lockout
-        long lockoutUntil = prefs.getLong(KEY_PIN_LOCKOUT_UNTIL, 0);
+        long lockoutUntil = Long.parseLong(prefs.getString(KEY_PIN_LOCKOUT_UNTIL, "0"));
         if (lockoutUntil > System.currentTimeMillis()) {
             long remaining = (lockoutUntil - System.currentTimeMillis()) / 1000;
             showLockoutDialog((int) remaining);
@@ -189,7 +189,7 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
-        int attempts = prefs.getInt(KEY_PIN_ATTEMPTS, 0);
+        int attempts = Integer.parseInt(prefs.getString(KEY_PIN_ATTEMPTS, "0"));
         int remainingAttempts = PIN_LOCKOUT_THRESHOLD - attempts;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -217,10 +217,10 @@ public class MainActivity extends BridgeActivity {
                 unlockApp();
             } else {
                 int newAttempts = attempts + 1;
-                prefs.edit().putInt(KEY_PIN_ATTEMPTS, newAttempts).apply();
+                prefs.edit().putString(KEY_PIN_ATTEMPTS, String.valueOf(newAttempts)).apply();
                 if (newAttempts >= PIN_LOCKOUT_THRESHOLD) {
                     long lockUntil = System.currentTimeMillis() + PIN_LOCKOUT_DURATION_MS;
-                    prefs.edit().putLong(KEY_PIN_LOCKOUT_UNTIL, lockUntil).apply();
+                    prefs.edit().putString(KEY_PIN_LOCKOUT_UNTIL, String.valueOf(lockUntil)).apply();
                     Toast.makeText(this, "PIN incorrecto. App bloqueada 30s.", Toast.LENGTH_SHORT).show();
                     showLockoutDialog(30);
                 } else {
@@ -258,9 +258,12 @@ public class MainActivity extends BridgeActivity {
 
     private void unlockApp() {
         appUnlocked = true;
-        getBridge().getWebView().post(() -> {
-            getBridge().getWebView().setVisibility(View.VISIBLE);
-        });
+        try {
+            View wv = getBridge().getWebView();
+            if (wv != null) {
+                wv.post(() -> wv.setVisibility(View.VISIBLE));
+            }
+        } catch (Exception ignored) {}
     }
 
     private boolean verifyPin(String pin) {
