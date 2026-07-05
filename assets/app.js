@@ -4998,15 +4998,19 @@ window.sb = window.API;
         const avatar = n.sender_avatar || iconMap[type] || '🔔';
         const preview = n.preview || n.text || '';
         const hasNumericId = /^\d+$/.test(String(n.id));
-
         const link = n.link || '';
+        const socialLink = (type === 'access_request' || type === 'access_accepted' || type === 'access_rejected' || type === 'connection_removed' || type === 'permissions_changed');
+        const actionHtml = socialLink
+          ? `<button class="notif-action-btn" onclick="event.stopPropagation();deleteNotif('${idEscaped}');showSocialSection('requests')">Ver</button>`
+          : '';
+
         return `
           <div class="notif-item ${n.read ? '' : 'unread'} type-${type} ${n.read ? 'history' : ''}" data-type="${type}" data-related-url="${escapeHtml(n.related_url || 'feed')}" data-link="${escapeHtml(link)}" onclick="markOneRead('${idEscaped}')">
             <div class="notif-icon ${type}">${avatar}</div>
             <div class="notif-body">
               <div class="notif-title">${escapeHtml(title)} ${sender}</div>
               <div class="notif-text">${escapeHtml(preview)}</div>
-              <div class="notif-time">${timeStr}</div>
+              <div class="notif-time">${timeStr} ${actionHtml}</div>
             </div>
             ${hasNumericId ? `<button class="notif-delete-btn" onclick="event.stopPropagation();deleteNotif('${idEscaped}')" title="Borrar notificacion" aria-label="Borrar">✕</button>` : ''}
           </div>`;
@@ -5121,9 +5125,10 @@ window.sb = window.API;
         // Social badge for pending access requests
         const socialBadge = document.getElementById('social-notif-badge');
         if (socialBadge) {
-          const reqCount = notifList.filter(n => n.type === 'access_request' && !n.read).length;
-          if (reqCount > 0) {
-            socialBadge.textContent = reqCount > 9 ? '9+' : reqCount;
+          const socialTypes = ['access_request', 'access_accepted', 'access_rejected', 'connection_removed', 'permissions_changed'];
+          const socialCount = notifList.filter(n => socialTypes.includes(n.type) && !n.read).length;
+          if (socialCount > 0) {
+            socialBadge.textContent = socialCount > 9 ? '9+' : socialCount;
             socialBadge.style.display = 'inline';
           } else {
             socialBadge.style.display = 'none';
@@ -5204,11 +5209,14 @@ window.sb = window.API;
           if (btnSenales) btnSenales.click();
         }
 
-        // Si es social, abrir el panel de solicitudes si es access_request
-        if (relatedUrl === 'social' && n.type === 'access_request') {
+        // Social: deep-link al sub-panel correcto
+        if (relatedUrl === 'social') {
           setTimeout(() => {
-            const reqBtn = document.querySelector('[onclick*="showAccessRequests"]');
-            if (reqBtn) reqBtn.click();
+            if (n.type === 'access_request') {
+              showSocialSection('requests');
+            } else if (n.type === 'access_accepted' || n.type === 'access_rejected' || n.type === 'connection_removed' || n.type === 'permissions_changed') {
+              showSocialSection('users');
+            }
           }, 300);
         }
       }
@@ -5226,27 +5234,39 @@ window.sb = window.API;
         if (!toastQueue.length) { toastShowing = false; return; }
         toastShowing = true;
         const { type, text } = toastQueue.shift();
-        const iconMap = { signal: '📊', like: '♥', comment: '💬', post: '✨', dm: '💬', task: '✅', academia: '🎓', access_request: '🔗' };
-        const titleMap = { signal: 'Nueva Señal', like: 'Nuevo Like', comment: 'Nuevo Comentario', post: 'Nuevo Post', dm: 'Mensaje Directo', task: 'Nueva Tarea', academia: 'Academia', access_request: 'Solicitud de Acceso' };
-        const relatedUrls = { signal: 'signals', dm: 'chat', task: 'tasks', academia: 'academia', access_request: 'social', access_accepted: 'social', access_rejected: 'social' };
+        const iconMap = { signal: '📊', like: '♥', comment: '💬', post: '✨', dm: '💬', task: '✅', academia: '🎓', access_request: '🔗', access_accepted: '✅', access_rejected: '❌', connection_removed: '✂️', permissions_changed: '🔑' };
+        const titleMap = { signal: 'Nueva Señal', like: 'Nuevo Like', comment: 'Nuevo Comentario', post: 'Nuevo Post', dm: 'Mensaje Directo', task: 'Nueva Tarea', academia: 'Academia', access_request: 'Solicitud de Acceso', access_accepted: 'Acceso Aceptado', access_rejected: 'Acceso Rechazado', connection_removed: 'Conexion Eliminada', permissions_changed: 'Permisos Actualizados' };
+        const relatedUrls = { signal: 'signals', dm: 'chat', task: 'tasks', academia: 'academia', access_request: 'social', access_accepted: 'social', access_rejected: 'social', connection_removed: 'social', permissions_changed: 'social' };
+        const actionLabels = { access_request: 'Ver solicitud', access_accepted: 'Ver conexiones', access_rejected: 'Ver', connection_removed: 'Ver conexiones', permissions_changed: 'Ver permisos', dm: 'Responder', signal: 'Ver senal', task: 'Ver tarea' };
         const el = document.createElement('div');
         el.className = 'push-toast';
         const toastRelated = relatedUrls[type] || 'feed';
+        const actionLabel = actionLabels[type] || 'Ver';
         el.innerHTML = `
           <div class="push-toast-icon">${iconMap[type] || '🔔'}</div>
-          <div>
-            <div class="push-toast-title">${titleMap[type] || 'Notificación'}</div>
+          <div class="push-toast-body">
+            <div class="push-toast-title">${titleMap[type] || 'Notificacion'}</div>
             <div class="push-toast-msg">${text}</div>
+            <button class="push-toast-action" onclick="event.stopPropagation();this.closest('.push-toast').dispatchEvent(new CustomEvent('toast-action'))">${actionLabel}</button>
           </div>
           <button class="push-toast-close" onclick="event.stopPropagation();this.closest('.push-toast').remove()">✕</button>`;
         el.dataset.relatedUrl = toastRelated;
-        el.onclick = (e) => {
-          if (e.target.classList.contains('push-toast-close')) return;
+        el.addEventListener('toast-action', () => {
           const relatedUrl = el.dataset.relatedUrl || 'feed';
           const tabMap = { 'feed':'tab-posts', 'chat':'tab-chat', 'signals':'tab-posts', 'academia':'tab-academia', 'tasks':'tab-tasks', 'journal':'tab-journal', 'calendar':'tab-calendar', 'social':'tab-social' };
           const tabId = tabMap[relatedUrl] || 'tab-posts';
           if (typeof switchTab === 'function') switchTab(tabId);
+          if (relatedUrl === 'social') {
+            setTimeout(() => {
+              if (type === 'access_request') showSocialSection('requests');
+              else showSocialSection('users');
+            }, 300);
+          }
           el.remove();
+        });
+        el.onclick = (e) => {
+          if (e.target.classList.contains('push-toast-close') || e.target.classList.contains('push-toast-action')) return;
+          el.dispatchEvent(new CustomEvent('toast-action'));
         };
         playNotifSound();
         document.body.appendChild(el);
@@ -5255,7 +5275,7 @@ window.sb = window.API;
             el.classList.add('hiding');
             setTimeout(() => { el.remove(); setTimeout(processToastQueue, 200); }, 300);
           } else { setTimeout(processToastQueue, 200); }
-        }, 5000);
+        }, 6000);
       }
 
       // ---- Notificaciones del navegador (Web Push API) ----

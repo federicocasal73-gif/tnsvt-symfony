@@ -656,6 +656,14 @@
   .push-toast-icon { font-size: 1.3rem; flex-shrink: 0; }
   .push-toast-title { font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 1px; text-transform: uppercase; color: var(--gold-bright); margin-bottom: 3px; }
   .push-toast-msg { font-size: 0.78rem; color: #e2dcf0; line-height: 1.4; }
+  .push-toast-body { flex: 1; min-width: 0; padding-right: 16px; }
+  .push-toast-action {
+    margin-top: 8px; padding: 4px 12px; font-size: 0.6rem;
+    font-family: 'Orbitron', sans-serif; letter-spacing: 0.5px;
+    background: rgba(138,60,255,0.15); border: 1px solid rgba(138,60,255,0.4);
+    border-radius: 6px; color: #c4a0ff; cursor: pointer; transition: all 0.2s;
+  }
+  .push-toast-action:hover { background: rgba(138,60,255,0.3); transform: translateY(-1px); }
   .push-toast-close { position: absolute; top: 8px; right: 10px; background: none; border: none; color: #645a78; cursor: pointer; font-size: 1rem; line-height: 1; }
   @keyframes slideInRight { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
@@ -2897,7 +2905,17 @@ button[onclick*="hamburger"]:hover {
   border-radius: 8px; margin-bottom: 6px; font-size: 0.75rem;
 }
 .social-history-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.social-history-info .social-avatar { width: 28px; height: 28px; font-size: 0.6rem; }
+  .social-history-info .social-avatar { width: 28px; height: 28px; font-size: 0.6rem; }
+
+/* Notification action button */
+.notif-action-btn {
+  margin-left: 8px; padding: 1px 8px; font-size: 0.55rem;
+  font-family: 'Orbitron', sans-serif; letter-spacing: 0.3px;
+  background: rgba(138,60,255,0.12); border: 1px solid rgba(138,60,255,0.3);
+  border-radius: 4px; color: #c4a0ff; cursor: pointer; transition: all 0.2s;
+  vertical-align: middle;
+}
+.notif-action-btn:hover { background: rgba(138,60,255,0.25); }
 
 /* Section transition */
 .social-section { animation: socialSectionIn 0.25s ease; }
