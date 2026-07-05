@@ -561,6 +561,9 @@ window.sb = window.API;
             window.initChartTab();
           }
         }
+        if (tabId === 'tab-social') {
+          if (typeof showSocialSection === 'function') showSocialSection('users');
+        }
         if (tabId === 'tab-leaderboard') {
           if (typeof lbRefresh === 'function') lbRefresh();
         }
@@ -6716,7 +6719,7 @@ document.addEventListener('DOMContentLoaded', function(){
    =================================================================================== */
 (function() {
   const $ = id => document.getElementById(id);
-  const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
   let _searchTimer = null;
   let _socialUsers = [];
