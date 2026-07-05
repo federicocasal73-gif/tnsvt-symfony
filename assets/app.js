@@ -6775,8 +6775,8 @@ document.addEventListener('DOMContentLoaded', function(){
       list.innerHTML = '<p class="mf-text" style="padding:16px;text-align:center;">No se encontraron usuarios</p>';
       return;
     }
-    list.innerHTML = users.map(u => `
-      <div class="social-user-card" data-code="${esc(u.code)}">
+    list.innerHTML = users.map((u, i) => `
+      <div class="social-user-card social-card-enter" data-code="${esc(u.code)}" style="animation-delay:${Math.min(i * 50, 400)}ms;">
         ${_socialAvatar(u)}
         <div class="social-user-info">
           <div class="social-user-name">${esc(u.name || u.code)}</div>
@@ -6793,7 +6793,16 @@ document.addEventListener('DOMContentLoaded', function(){
   window.showSocialSection = function(section) {
     ['socialUsersSection', 'socialRequestsSection', 'socialSettingsSection'].forEach(id => {
       const el = $(id);
-      if (el) el.style.display = id.includes(section) ? 'block' : 'none';
+      if (!el) return;
+      if (id.includes(section)) {
+        el.style.display = 'block';
+        el.classList.remove('social-section');
+        void el.offsetWidth; // force reflow
+        el.classList.add('social-section');
+      } else {
+        el.style.display = 'none';
+        el.classList.remove('social-section');
+      }
     });
     // Update active tab button
     document.querySelectorAll('.social-tab-btn').forEach(b => b.classList.remove('active'));
@@ -6815,7 +6824,17 @@ document.addEventListener('DOMContentLoaded', function(){
 
   async function loadAllUsers() {
     const list = $('socialUsersList');
-    if (list) list.innerHTML = '<p class="mf-text" style="padding:16px;text-align:center;">⏳ Cargando usuarios...</p>';
+    if (list) {
+      list.innerHTML = Array(5).fill('').map((_, i) => `
+        <div class="social-skeleton" style="animation-delay:${i * 80}ms;">
+          <div class="social-skeleton-avatar"></div>
+          <div style="flex:1;">
+            <div class="social-skeleton-line w60"></div>
+            <div class="social-skeleton-line w40"></div>
+          </div>
+        </div>
+      `).join('');
+    }
     try {
       const data = await API.getAllUsers(window.TNSVT_USER.code);
       _socialUsers = (data.users || []).filter(u => u.code !== window.TNSVT_USER?.code);
@@ -6865,8 +6884,8 @@ document.addEventListener('DOMContentLoaded', function(){
       if (data.received.length === 0) {
         received.innerHTML = '<p class="mf-text" style="padding:8px;">No hay solicitudes pendientes</p>';
       } else {
-        received.innerHTML = data.received.map(r => `
-          <div class="social-user-card">
+        received.innerHTML = data.received.map((r, i) => `
+          <div class="social-user-card social-card-enter" style="animation-delay:${i * 60}ms;">
             ${_socialAvatar({ code: r.requester_code, name: r.requester_name })}
             <div class="social-user-info">
               <div class="social-user-name">${esc(r.requester_name)}</div>
@@ -6883,8 +6902,8 @@ document.addEventListener('DOMContentLoaded', function(){
       if (data.sent.length === 0) {
         sent.innerHTML = '<p class="mf-text" style="padding:8px;">No enviaste solicitudes pendientes</p>';
       } else {
-        sent.innerHTML = data.sent.map(r => `
-          <div class="social-user-card">
+        sent.innerHTML = data.sent.map((r, i) => `
+          <div class="social-user-card social-card-enter" style="animation-delay:${i * 60}ms;">
             ${_socialAvatar({ code: r.target_code, name: r.target_name })}
             <div class="social-user-info">
               <div class="social-user-name">${esc(r.target_name)}</div>
