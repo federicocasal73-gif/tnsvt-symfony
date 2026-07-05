@@ -3601,49 +3601,48 @@
     <p class="ms-mystic-quote">"Conéctate, comparte y aprende de otros ejecutores."</p>
   </div>
 
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
-    <input type="text" id="socialUserSearch" placeholder="🔍 Buscar usuario por código..." oninput="debounceSocialSearch()" style="flex:1; min-width:150px; padding:10px 14px; background:rgba(9,5,18,0.8); border:1px solid rgba(138,60,255,0.3); border-radius:8px; color:#e2dcf0; font-size:0.85rem; outline:none;">
-    <button onclick="showSocialSection('requests')" class="post-btn" style="padding:8px 14px;">📨 Solicitudes</button>
-    <button onclick="showSocialSection('connections')" class="post-btn" style="padding:8px 14px;">🔗 Conexiones</button>
-    <button onclick="showSocialSection('settings')" class="post-btn" style="padding:8px 14px;">⚙️ Privacidad</button>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+    <button onclick="showSocialSection('users')" class="post-btn social-tab-btn active" id="socialTabUsers">👥 Ejecutores</button>
+    <button onclick="showSocialSection('requests')" class="post-btn social-tab-btn" id="socialTabRequests">📨 Solicitudes</button>
+    <button onclick="showSocialSection('settings')" class="post-btn social-tab-btn" id="socialTabSettings">⚙️ Privacidad</button>
   </div>
 
-  <!-- User search results -->
-  <div id="socialSearchResults" style="display:none;"></div>
+  <!-- Users list (default) -->
+  <div id="socialUsersSection" style="display:block;">
+    <input type="text" id="socialUserSearch" placeholder="🔍 Filtrar por nombre o código..." oninput="debounceSocialSearch()" style="width:100%; padding:10px 14px; margin-bottom:12px; background:rgba(9,5,18,0.8); border:1px solid rgba(138,60,255,0.3); border-radius:8px; color:#e2dcf0; font-size:0.85rem; outline:none;">
+    <div id="socialUsersList"><p class="mf-text" style="padding:16px;text-align:center;">⏳ Cargando...</p></div>
+  </div>
 
   <!-- Access requests -->
   <div id="socialRequestsSection" style="display:none;">
-    <div class="mf-section-title">📨 Solicitudes Recibidas</div>
+    <div class="mf-section-title">📨 Recibidas</div>
     <div id="socialRequestsReceived"><p class="mf-text">Cargando...</p></div>
-    <div class="mf-section-title" style="margin-top:16px;">📨 Solicitudes Enviadas</div>
+    <div class="mf-section-title" style="margin-top:16px;">📤 Enviadas</div>
     <div id="socialRequestsSent"><p class="mf-text">Cargando...</p></div>
-  </div>
-
-  <!-- Connections list -->
-  <div id="socialConnectionsSection" style="display:none;">
-    <div class="mf-section-title">🔗 Mis Conexiones</div>
-    <div id="socialConnectionsList"><p class="mf-text">Cargando...</p></div>
   </div>
 
   <!-- Privacy settings -->
   <div id="socialSettingsSection" style="display:none;">
     <div class="mf-section-title">⚙️ Privacidad del Journal</div>
     <div style="margin:12px 0;">
-      <label style="font-size:0.8rem; color:#a499b8; display:block; margin-bottom:8px;">Visibilidad del Journal:</label>
+      <label style="font-size:0.8rem; color:#a499b8; display:block; margin-bottom:8px;">Quién puede ver tu journal:</label>
       <select id="socialVisibilitySelect" onchange="updateJournalVisibility()" style="width:100%; padding:10px; background:rgba(9,5,18,0.8); border:1px solid rgba(138,60,255,0.3); border-radius:8px; color:#e2dcf0; font-size:0.85rem;">
-        <option value="public">🌍 Público (todos ven estadísticas)</option>
-        <option value="connections">🔗 Solo Conexiones (ven según permisos)</option>
-        <option value="private">🔒 Privado (solo yo)</option>
+        <option value="public">🌍 Público — todos ven estadísticas básicas</option>
+        <option value="connections">🔗 Solo Conexiones — ven trades según permisos</option>
+        <option value="private">🔒 Privado — nadie ve tu journal</option>
       </select>
     </div>
-    <p class="mf-text" style="font-size:0.78rem; color:#645a78; margin-top:8px;">
-      🌍 <strong>Público:</strong> cualquier usuario ve tus estadísticas agregadas.<br>
-      🔗 <strong>Conexiones:</strong> solo usuarios conectados ven trades según permisos.<br>
-      🔒 <strong>Privado:</strong> nadie excepto vos ve tu journal.
-    </p>
+    <div style="margin-top:16px; padding:12px; background:rgba(13,8,24,0.6); border-radius:10px; border:1px solid rgba(138,60,255,0.15);">
+      <div style="font-size:0.75rem; color:#645a78; line-height:1.6;">
+        <strong style="color:#a499b8;">Cómo funciona:</strong><br>
+        🌍 <strong>Público:</strong> cualquier usuario ve tu nombre, trades y PnL aggregate.<br>
+        🔗 <strong>Conexiones:</strong> solo usuarios aceptados ven trades. Vos controlás qué ven con los permisos.<br>
+        🔒 <strong>Privado:</strong> solo vos podés ver tu journal.
+      </div>
+    </div>
   </div>
 
-  <!-- Profile Modal -->
+  <!-- Permissions Modal -->
   <div id="socialProfileModal" class="modal-overlay" style="display:none;">
     <div class="modal" style="max-width:480px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">

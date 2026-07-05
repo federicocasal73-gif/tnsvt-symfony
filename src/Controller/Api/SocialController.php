@@ -434,6 +434,69 @@ class SocialController extends AbstractController
         ]);
     }
 
+    // ── ALL USERS WITH STATUS ──
+
+    #[Route('/users/all', name: 'api_users_all', methods: ['GET'])]
+    public function allUsers(Request $request): JsonResponse
+    {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
+        $users = $this->userRepo->createQueryBuilder('u')
+            ->orderBy('u.code', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $userCodes = array_map(fn(User $u) => $u, $users);
+
+        // Batch fetch connections for current user
+        $myConnections = $this->connectionRepo->findByUser($currentUser);
+        $connectedCodes = [];
+        foreach ($myConnections as $conn) {
+            $connectedCodes[] = $conn->getConnectedUser()->getCode();
+        }
+
+        // Batch fetch pending requests
+        $pendingSent = $this->accessRequestRepo->findByRequesterAndStatus($currentUser, AccessRequest::STATUS_PENDING);
+        $pendingSentCodes = [];
+        foreach ($pendingSent as $ar) {
+            $pendingSentCodes[] = $ar->getTarget()->getCode();
+        }
+
+        $pendingReceived = $this->accessRequestRepo->findByTargetAndStatus($currentUser, AccessRequest::STATUS_PENDING);
+        $pendingReceivedCodes = [];
+        foreach ($pendingReceived as $ar) {
+            $pendingReceivedCodes[] = $ar->getRequester()->getCode();
+        }
+
+        $result = [];
+        foreach ($users as $u) {
+            $code = $u->getCode();
+            if ($code === $currentUser->getCode()) {
+                $status = 'owner';
+            } elseif (in_array($code, $connectedCodes)) {
+                $status = 'connected';
+            } elseif (in_array($code, $pendingSentCodes)) {
+                $status = 'pending_sent';
+            } elseif (in_array($code, $pendingReceivedCodes)) {
+                $status = 'pending_received';
+            } else {
+                $status = 'none';
+            }
+
+            $result[] = [
+                'code' => $code,
+                'name' => $u->getName(),
+                'avatar_url' => $u->getAvatarUrl(),
+                'avatar_color' => $u->getAvatarColor(),
+                'is_admin' => $u->getIsAdmin(),
+                'status' => $status,
+            ];
+        }
+
+        return $this->json(['success' => true, 'users' => $result]);
+    }
+
     // ── USER SEARCH ──
 
     #[Route('/users/search', name: 'api_users_search', methods: ['GET'])]

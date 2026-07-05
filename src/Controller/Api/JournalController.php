@@ -62,8 +62,9 @@ class JournalController extends AbstractController
         if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
 
         $isOwner = $currentUser === $target;
+        $isAdmin = $currentUser->getIsAdmin();
 
-        if (!$isOwner) {
+        if (!$isOwner && !$isAdmin) {
             $setting = $this->settingRepo->findByUser($target);
             $visibility = $setting?->getVisibility() ?? JournalSetting::VISIBILITY_PUBLIC;
 

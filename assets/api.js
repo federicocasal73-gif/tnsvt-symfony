@@ -345,6 +345,10 @@ async getNotifCount(userCode) {
 
   // ── Social / Access Requests ──
 
+  async getAllUsers(userCode) {
+    return this.get(`/api/users/all?user_code=${encodeURIComponent(userCode)}`);
+  },
+
   async searchUsers(q) {
     return this.get(`/api/users/search?q=${encodeURIComponent(q)}`);
   },
