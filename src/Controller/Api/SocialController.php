@@ -13,6 +13,7 @@ use App\Repository\ConnectionRepository;
 use App\Repository\JournalPermissionRepository;
 use App\Repository\JournalSettingRepository;
 use App\Repository\UserRepository;
+use App\Repository\TradeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -30,6 +31,7 @@ class SocialController extends AbstractController
         private ConnectionRepository $connectionRepo,
         private JournalPermissionRepository $permissionRepo,
         private JournalSettingRepository $settingRepo,
+        private TradeRepository $tradeRepo,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -484,6 +486,11 @@ class SocialController extends AbstractController
                 $status = 'none';
             }
 
+            $stats = null;
+            if ($status === 'connected') {
+                $stats = $this->tradeRepo->computeStatsForUser($u);
+            }
+
             $result[] = [
                 'code' => $code,
                 'name' => $u->getName(),
@@ -491,6 +498,7 @@ class SocialController extends AbstractController
                 'avatar_color' => $u->getAvatarColor(),
                 'is_admin' => $u->getIsAdmin(),
                 'status' => $status,
+                'stats' => $stats,
             ];
         }
 

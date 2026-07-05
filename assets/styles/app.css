@@ -2786,12 +2786,46 @@ button[onclick*="hamburger"]:hover {
   background: rgba(13,8,24,0.8); border: 1px solid rgba(138,60,255,0.2);
   border-radius: 12px; padding: 12px 16px; margin-bottom: 8px;
   transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s, background 0.3s;
+  cursor: pointer; position: relative;
 }
 .social-user-card:hover {
   border-color: rgba(138,60,255,0.4);
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(138,60,255,0.12);
   background: rgba(13,8,24,0.92);
+}
+
+/* Mini stats bar */
+.social-user-stats {
+  display: flex; gap: 10px; font-size: 0.62rem; margin-top: 4px;
+  font-family: 'Orbitron', sans-serif; letter-spacing: 0.3px;
+}
+.social-user-stats .stat { display: flex; align-items: center; gap: 3px; color: #645a78; }
+.social-user-stats .stat-pos { color: #34c759; }
+.social-user-stats .stat-neg { color: #ff6b6b; }
+
+/* Expanded panel */
+.social-user-expanded {
+  grid-column: 1 / -1;
+  overflow: hidden; max-height: 0; opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, margin 0.25s ease;
+  margin-top: 0;
+}
+.social-user-card.expanded .social-user-expanded {
+  max-height: 200px; opacity: 1; margin-top: 8px;
+}
+.social-expanded-inner {
+  padding: 12px; background: rgba(9,5,18,0.6); border-radius: 10px;
+  border: 1px solid rgba(138,60,255,0.12);
+}
+.social-expanded-row {
+  display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.75rem;
+  color: #a499b8; margin-bottom: 8px;
+}
+.social-expanded-row strong { color: #e2dcf0; }
+.social-expanded-actions {
+  display: flex; gap: 8px; margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(138,60,255,0.1);
 }
 
 /* Skeleton loader */

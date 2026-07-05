@@ -6745,20 +6745,53 @@ document.addEventListener('DOMContentLoaded', function(){
     return `<span class="social-status-badge ${b.cls}">${b.label}</span>`;
   }
 
+  function _socialMiniStats(stats) {
+    if (!stats) return '';
+    const pnlClass = stats.total_pnl >= 0 ? 'stat-pos' : 'stat-neg';
+    const pnlSign = stats.total_pnl >= 0 ? '+' : '';
+    return `<div class="social-user-stats">
+      <span class="stat">📊 ${stats.total} trades</span>
+      <span class="stat">📈 ${stats.win_rate}%</span>
+      <span class="stat ${pnlClass}">💰 ${pnlSign}$${Math.abs(stats.total_pnl).toLocaleString()}</span>
+    </div>`;
+  }
+
+  function _socialExpandedStats(u) {
+    if (u.status !== 'connected' || !u.stats) return '';
+    const s = u.stats;
+    const pnlClass = s.total_pnl >= 0 ? 'stat-pos' : 'stat-neg';
+    const pnlSign = s.total_pnl >= 0 ? '+' : '';
+    return `<div class="social-user-expanded">
+      <div class="social-expanded-inner">
+        <div class="social-expanded-row">
+          <span>📊 <strong>${s.total}</strong> trades</span>
+          <span>✅ <strong>${s.wins}</strong> wins</span>
+          <span>❌ <strong>${s.losses}</strong> losses</span>
+        </div>
+        <div class="social-expanded-row">
+          <span>📈 Win Rate: <strong>${s.win_rate}%</strong></span>
+          <span class="${pnlClass}">💰 PnL: <strong>${pnlSign}$${Math.abs(s.total_pnl).toLocaleString()}</strong></span>
+        </div>
+        <div class="social-expanded-actions">
+          <button class="social-btn social-btn-view" onclick="event.stopPropagation();viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver Journal Completo</button>
+          <button class="social-btn social-btn-perms" onclick="event.stopPropagation();openPermsModal('${esc(u.code)}','${esc(u.name)}')">🔑 Permisos</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function _socialActions(u) {
-    const me = window.TNSVT_USER?.code;
     if (u.status === 'owner') return '';
     let btns = '';
-    // Ver Journal siempre disponible (admin bypass en backend)
-    btns += `<button class="social-btn social-btn-view" onclick="viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver</button>`;
+    btns += `<button class="social-btn social-btn-view" onclick="event.stopPropagation();viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver</button>`;
     if (u.status === 'none') {
-      btns += `<button class="social-btn social-btn-request" onclick="sendAccessReq('${esc(u.code)}')">➕ Conectar</button>`;
+      btns += `<button class="social-btn social-btn-request" onclick="event.stopPropagation();sendAccessReq('${esc(u.code)}')">➕ Conectar</button>`;
     } else if (u.status === 'pending_sent') {
       btns += `<button class="social-btn social-btn-pending" disabled>⏳ Enviada</button>`;
     } else if (u.status === 'pending_received') {
-      btns += `<button class="social-btn social-btn-accept" onclick="acceptFromList('${esc(u.code)}')">✅ Aceptar</button>`;
+      btns += `<button class="social-btn social-btn-accept" onclick="event.stopPropagation();acceptFromList('${esc(u.code)}')">✅ Aceptar</button>`;
     } else if (u.status === 'connected') {
-      btns += `<button class="social-btn social-btn-perms" onclick="openPermsModal('${esc(u.code)}','${esc(u.name)}')">🔑</button>`;
+      btns += `<button class="social-btn social-btn-perms" onclick="event.stopPropagation();openPermsModal('${esc(u.code)}','${esc(u.name)}')">🔑</button>`;
     }
     return btns;
   }
@@ -6776,19 +6809,29 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
     list.innerHTML = users.map((u, i) => `
-      <div class="social-user-card social-card-enter" data-code="${esc(u.code)}" style="animation-delay:${Math.min(i * 50, 400)}ms;">
+      <div class="social-user-card social-card-enter" data-code="${esc(u.code)}" onclick="toggleSocialExpand(this)" style="animation-delay:${Math.min(i * 50, 400)}ms;">
         ${_socialAvatar(u)}
         <div class="social-user-info">
           <div class="social-user-name">${esc(u.name || u.code)}</div>
           <div class="social-user-code">@${esc(u.code)}${u.is_admin ? ' <span class="social-admin-tag">Admin</span>' : ''}</div>
+          ${_socialMiniStats(u.stats)}
         </div>
         <div class="social-user-right">
           ${_socialBadge(u.status)}
           <div class="social-actions">${_socialActions(u)}</div>
         </div>
+        ${_socialExpandedStats(u)}
       </div>
     `).join('');
   }
+
+  window.toggleSocialExpand = function(card) {
+    const wasExpanded = card.classList.contains('expanded');
+    // Collapse all others
+    document.querySelectorAll('.social-user-card.expanded').forEach(c => c.classList.remove('expanded'));
+    // Toggle clicked
+    if (!wasExpanded) card.classList.add('expanded');
+  };
 
   window.showSocialSection = function(section) {
     ['socialUsersSection', 'socialRequestsSection', 'socialSettingsSection'].forEach(id => {

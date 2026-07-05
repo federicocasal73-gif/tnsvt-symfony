@@ -29,5 +29,29 @@ class TradeRepository extends ServiceEntityRepository
     {
         return (int) $this->count(['user' => $user, 'account' => $account]);
     }
+
+    public function computeStatsForUser(User $user): array
+    {
+        $result = $this->createQueryBuilder('t')
+            ->select(
+                'COUNT(t.id) as total',
+                'SUM(CASE WHEN t.pnl >= 0 THEN 1 ELSE 0 END) as wins',
+                'ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl'
+            )
+            ->where('t.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleResult();
+
+        $total = (int) $result['total'];
+        $wins = (int) $result['wins'];
+        return [
+            'total' => $total,
+            'wins' => $wins,
+            'losses' => $total - $wins,
+            'win_rate' => $total > 0 ? round($wins / $total * 100, 1) : 0,
+            'total_pnl' => (float) $result['total_pnl'],
+        ];
+    }
 }
 
