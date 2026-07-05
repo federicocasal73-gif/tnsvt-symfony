@@ -147,6 +147,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getConnections(): Collection { return $this->connections; }
     public function getJournalSetting(): ?JournalSetting { return $this->journalSetting; }
 
+    public function getAvatarUrl(): ?string
+    {
+        $code = $this->code;
+        if (!$code) return null;
+        $avatarDir = dirname(__DIR__, 2) . '/public/uploads/avatars';
+        foreach (['jpg', 'jpeg', 'png', 'gif', 'webp'] as $ext) {
+            if (is_file("$avatarDir/$code.$ext")) {
+                return "/uploads/avatars/$code.$ext";
+            }
+        }
+        return null;
+    }
+
+    public function getAvatarColor(): ?string { return null; }
+
+    public function getIsAdmin(): bool
+    {
+        return in_array('ROLE_ADMIN', $this->roles, true);
+    }
+
     public function getUserIdentifier(): string { return $this->code ?? ''; }
     public function eraseCredentials(): void {}
 }

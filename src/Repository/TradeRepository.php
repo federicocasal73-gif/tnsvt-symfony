@@ -36,7 +36,7 @@ class TradeRepository extends ServiceEntityRepository
             ->select(
                 'COUNT(t.id) as total',
                 'SUM(CASE WHEN t.pnl >= 0 THEN 1 ELSE 0 END) as wins',
-                'ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl'
+                'COALESCE(SUM(t.pnl), 0) as total_pnl'
             )
             ->where('t.user = :user')
             ->setParameter('user', $user)
