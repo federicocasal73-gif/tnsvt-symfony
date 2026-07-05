@@ -1,0 +1,419 @@
+/* ═══════════════════════════════════════════════════════════════
+   ⛧ TNSVT — APK FULL OVERRIDES v2 (basado en screenshots reales)
+   Cubre TODA la web tal cual está hoy + adapta a todos los celulares.
+   Pegá <link rel="stylesheet" href="{{ asset('styles/apk-full.css') }}?v={{ 'now'|date('U') }}">
+   al FINAL del bloque stylesheets de base.html.twig.
+   Las reglas viven bajo body.is-apk → la web NO se rompe.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  --topbar-h: 72px;
+  --musicbar-h: 64px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   🌐 GLOBAL — aplica en TODA la APK
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk {
+  overscroll-behavior-y: contain;
+  touch-action: manipulation;
+  -webkit-user-select: none; user-select: none;
+}
+body.is-apk input, body.is-apk textarea, body.is-apk [contenteditable] {
+  -webkit-user-select: text; user-select: text;
+  font-size: max(16px, 1rem) !important; /* evita zoom iOS */
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📱 TOPBAR FIJO arriba — respeta status bar + notch + island
+   (visto en screenshots: T.N.S.V.T + 🔔 + 👑 ADMIN + SALIR)
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk .topbar,
+body.is-apk header.topbar,
+body.is-apk .tnsvt-topbar,
+body.is-apk #topbar {
+  padding-top:    max(14px, calc(var(--safe-top) + 6px)) !important;
+  padding-left:   max(14px, var(--safe-left)) !important;
+  padding-right:  max(14px, var(--safe-right)) !important;
+  padding-bottom: 10px !important;
+  z-index: 9990 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📑 SIDEBAR — overlay full-height en mobile, fijo en desplegado
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk .sidebar,
+body.is-apk #sidebar,
+body.is-apk aside.sidebar {
+  padding-top: calc(var(--safe-top) + var(--topbar-h) + 8px) !important;
+  padding-bottom: calc(var(--safe-bottom) + var(--musicbar-h) + 20px) !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   🎵 MUSIC PLAYER — píldora flotante con margen
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk .music-player-bar,
+body.is-apk #musicPlayerBar,
+body.is-apk .player-bar {
+  bottom: max(12px, calc(var(--safe-bottom) + 12px)) !important;
+  left:   max(12px, var(--safe-left)) !important;
+  right:  max(96px, calc(var(--safe-right) + 96px)) !important;
+  z-index: 9950 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   💬 CHAT FAB + BURBUJAS
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk .cf-fab {
+  bottom: max(20px, calc(var(--safe-bottom) + 20px)) !important;
+  right:  max(20px, calc(var(--safe-right) + 20px)) !important;
+  z-index: 9970 !important;
+}
+body.is-apk .cf-presence {
+  bottom: max(90px, calc(var(--safe-bottom) + 90px)) !important;
+  right:  max(28px, calc(var(--safe-right) + 28px)) !important;
+}
+body.is-apk .cf-panel {
+  bottom: max(86px, calc(var(--safe-bottom) + 86px)) !important;
+  right:  max(20px, calc(var(--safe-right) + 20px)) !important;
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 140px) !important;
+}
+body.is-apk.keyboard-open .cf-panel,
+body.is-apk.keyboard-open .modal {
+  bottom: calc(var(--keyboard-height, 0px) + 20px) !important;
+  max-height: calc(100vh - var(--keyboard-height, 0px) - var(--safe-top) - 80px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📐 PLEGADO / mobiles angostos (≤420px) — Z Fold 6 cover incluido
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 420px) {
+
+  /* TOPBAR compacto */
+  body.is-apk .topbar,
+  body.is-apk .tnsvt-topbar,
+  body.is-apk header.topbar {
+    gap: 6px !important; padding: max(10px, var(--safe-top)) 10px 8px !important;
+  }
+  body.is-apk .brand h1, body.is-apk .tnsvt-brand h1 {
+    font-size: 0.95rem !important; letter-spacing: 1.5px !important;
+  }
+  body.is-apk .brand .sub, body.is-apk .tnsvt-brand-sub { display: none !important; }
+  body.is-apk .admin-info, body.is-apk .tnsvt-admin-info,
+  body.is-apk .admin-tag, body.is-apk .tnsvt-admin-tag { display: none !important; }
+  body.is-apk .admin-block, body.is-apk .tnsvt-admin-block {
+    padding: 3px !important; background: transparent !important; border: none !important;
+  }
+  body.is-apk .admin-avatar, body.is-apk .tnsvt-admin-avatar {
+    width: 36px !important; height: 36px !important; font-size: 1rem !important;
+  }
+  body.is-apk .logout-btn, body.is-apk .salir-btn,
+  body.is-apk button[onclick*="logout"], body.is-apk a[href*="logout"] {
+    padding: 6px 10px !important; font-size: 0.65rem !important; letter-spacing: 1px !important;
+  }
+
+  /* SIDEBAR overlay */
+  body.is-apk .sidebar, body.is-apk #sidebar {
+    position: fixed !important; top: 0 !important; left: 0 !important;
+    width: 86vw !important; max-width: 340px !important;
+    height: 100vh !important; height: 100dvh !important;
+    z-index: 9985 !important;
+    background: rgba(10,5,22,0.97) !important;
+    backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
+    border-right: 1px solid rgba(212,175,55,0.25) !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.6) !important;
+    transform: translateX(-100%); transition: transform .3s ease;
+    overflow-y: auto !important;
+  }
+  body.is-apk .sidebar.open, body.is-apk .sidebar.active,
+  body.is-apk #sidebar.open, body.is-apk #sidebar.active { transform: translateX(0) !important; }
+  body.sidebar-open::after {
+    content:""; position:fixed; inset:0; left:86vw;
+    background:rgba(0,0,0,0.55); backdrop-filter:blur(2px);
+    z-index:9984; pointer-events:none;
+  }
+
+  /* CONTENT base */
+  body.is-apk .tab-content, body.is-apk .main-content, body.is-apk main {
+    padding-left: 10px !important; padding-right: 10px !important;
+    padding-bottom: max(110px, calc(var(--safe-bottom) + 110px)) !important;
+  }
+
+  /* MUSIC PLAYER ultra-compacto */
+  body.is-apk .music-player-bar, body.is-apk #musicPlayerBar {
+    height: 56px !important; padding: 0 10px !important; gap: 8px !important; border-radius: 12px !important;
+    right: max(74px, calc(var(--safe-right) + 74px)) !important;
+  }
+  body.is-apk .music-cover { width: 38px !important; height: 38px !important; }
+  body.is-apk .music-info { flex: 0 0 70px !important; }
+  body.is-apk .music-info .title { font-size: 0.72rem !important; }
+  body.is-apk .music-info .sub { font-size: 0.55rem !important; }
+  body.is-apk .progress-wrap, body.is-apk .vol-wrap { display: none !important; }
+  body.is-apk .expand-btn, body.is-apk .reproductor-tag,
+  body.is-apk button[onclick*="MusicLightbox"] { display: none !important; }
+  body.is-apk .play-btn { width: 32px !important; height: 32px !important; }
+
+  /* CHAT FAB */
+  body.is-apk .cf-fab { width: 50px !important; height: 50px !important; font-size: 1.2rem !important; }
+
+  /* ─── TRADING JOURNAL ─── (visto en screenshot 9) */
+  body.is-apk .tj-stats, body.is-apk .stats-grid,
+  body.is-apk #tab-journal [class*="stat"],
+  body.is-apk #tab-journal .row-stats {
+    grid-template-columns: 1fr 1fr !important; gap: 8px !important;
+  }
+  body.is-apk .tj-cuenta-row, body.is-apk .cuenta-row {
+    flex-direction: column !important; align-items: stretch !important; gap: 8px !important;
+  }
+  body.is-apk .tj-cuenta-row input, body.is-apk .tj-cuenta-row select { width: 100% !important; }
+  body.is-apk .tj-tabs, body.is-apk .journal-tabs {
+    flex-wrap: wrap !important; gap: 4px !important;
+  }
+  body.is-apk .tj-tabs button, body.is-apk .journal-tabs button {
+    flex: 1 1 calc(50% - 2px) !important; font-size: 0.7rem !important; padding: 8px 6px !important;
+  }
+  body.is-apk .tj-tools, body.is-apk .export-buttons {
+    flex-wrap: wrap !important; gap: 6px !important;
+  }
+  body.is-apk .tj-tools button, body.is-apk .export-buttons button {
+    flex: 1 1 calc(50% - 3px) !important; font-size: 0.7rem !important; padding: 8px 10px !important;
+  }
+  body.is-apk .tj-equity, body.is-apk .tj-pl-chart, body.is-apk .equity-curve {
+    overflow-x: auto !important; -webkit-overflow-scrolling: touch !important;
+  }
+  body.is-apk .tj-equity svg, body.is-apk .tj-pl-chart svg { min-width: 100% !important; }
+  body.is-apk .tj-cal-grid, body.is-apk .calendar-grid {
+    grid-template-columns: repeat(7, 1fr) !important; gap: 2px !important;
+  }
+  body.is-apk .tj-cal-day, body.is-apk .cal-day {
+    aspect-ratio: 1 !important; font-size: 0.6rem !important; padding: 2px !important;
+  }
+  body.is-apk .tj-cal-day .pnl, body.is-apk .cal-day .pnl { font-size: 0.5rem !important; }
+
+  /* ─── MACROECONOMÍA (screenshot 4) ─── */
+  body.is-apk #tab-macro .macro-nav,
+  body.is-apk #tab-macro .macro-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  body.is-apk #tab-macro .macro-nav button {
+    font-size: 0.62rem !important; padding: 8px 6px !important; letter-spacing: 1px !important;
+  }
+  body.is-apk #tab-macro .bank-grid,
+  body.is-apk #tab-macro [class*="bank"] {
+    grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important;
+  }
+  body.is-apk #tab-macro .ejemplo-carlitos input[type="range"] { width: 100% !important; }
+
+  /* ─── METODOLOGÍA 2 STEPS (screenshot 5) ─── */
+  body.is-apk #tab-method .mf-tabs,
+  body.is-apk #tab-method .method-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  body.is-apk #tab-method .fractal-grid,
+  body.is-apk #tab-method [class*="fractal"] {
+    grid-template-columns: 1fr !important;
+  }
+  body.is-apk #tab-method .step-diagram {
+    flex-direction: column !important; gap: 14px !important; align-items: stretch !important;
+  }
+
+  /* ─── CALENDAR ECONÓMICO (screenshot 7) ─── */
+  body.is-apk #tab-calendar .cal-filters,
+  body.is-apk #tab-calendar .filter-row {
+    flex-wrap: wrap !important; gap: 6px !important;
+  }
+  body.is-apk #tab-calendar .cal-filters button { font-size: 0.62rem !important; padding: 6px 10px !important; }
+  body.is-apk #tab-calendar .pares-list { gap: 5px !important; }
+  body.is-apk #tab-calendar .pair-row {
+    font-size: 0.68rem !important; padding: 6px 8px !important;
+  }
+  body.is-apk #tab-calendar .timeline-event,
+  body.is-apk #tab-calendar .event-row {
+    padding: 8px 10px !important;
+  }
+  body.is-apk #tab-calendar .event-row .title { font-size: 0.7rem !important; }
+  body.is-apk #tab-calendar .event-row .meta { font-size: 0.55rem !important; }
+
+  /* ─── ADMIN PANEL (screenshot 1, 12) ─── */
+  body.is-apk #tab-admin .admin-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  body.is-apk #tab-admin .users-table {
+    font-size: 0.62rem !important;
+  }
+  body.is-apk #tab-admin .users-table th,
+  body.is-apk #tab-admin .users-table td {
+    padding: 6px 4px !important;
+  }
+  body.is-apk #tab-admin .actions-cell button {
+    width: 28px !important; height: 28px !important; padding: 0 !important;
+  }
+  /* Tabla → scroll horizontal en pantallas chicas */
+  body.is-apk #tab-admin .users-table-wrap {
+    overflow-x: auto !important; -webkit-overflow-scrolling: touch !important;
+  }
+  body.is-apk #tab-admin .users-table { min-width: 540px !important; }
+
+  /* ─── MANUSCRITO (screenshot 3) ─── */
+  body.is-apk #tab-posts .feed-cats {
+    flex-wrap: wrap !important; gap: 4px !important;
+  }
+  body.is-apk #tab-posts .feed-cats button {
+    font-size: 0.62rem !important; padding: 7px 11px !important;
+  }
+  body.is-apk #tab-posts .post-composer textarea { min-height: 88px !important; }
+  body.is-apk #tab-posts .composer-actions {
+    flex-wrap: wrap !important; gap: 6px !important;
+  }
+
+  /* ─── DIARIO (screenshot 8) ─── */
+  body.is-apk #tab-diary .dp-entries-grid,
+  body.is-apk #dp-entries-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─── LEADERBOARD (screenshot 10) ─── */
+  body.is-apk #tab-leaderboard table {
+    font-size: 0.7rem !important;
+  }
+  body.is-apk #tab-leaderboard th, body.is-apk #tab-leaderboard td {
+    padding: 8px 6px !important;
+  }
+
+  /* ─── SOCIAL (screenshot 6) ─── */
+  body.is-apk #tab-social .social-actions {
+    flex-wrap: wrap !important; gap: 6px !important;
+  }
+  body.is-apk #tab-social .social-actions button {
+    flex: 1 1 calc(50% - 3px) !important; font-size: 0.7rem !important; padding: 10px 8px !important;
+  }
+  body.is-apk #tab-social input[type="text"] { width: 100% !important; box-sizing: border-box !important; }
+
+  /* TITULARES generales */
+  body.is-apk h1.module-title, body.is-apk .module-title { font-size: 1.5rem !important; text-wrap: balance !important; }
+  body.is-apk .module-sub { font-size: 0.78rem !important; }
+
+  /* MODALS */
+  body.is-apk .modal-content, body.is-apk .modal-dialog {
+    width: 95vw !important; max-width: 95vw !important; max-height: 90vh !important;
+    overflow-y: auto !important; -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* NOTIFICACIONES dropdown */
+  body.is-apk .notif-dropdown, body.is-apk .notification-dropdown, body.is-apk #notifPanel {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 64px) !important;
+    left: 8px !important; right: 8px !important;
+    width: auto !important; max-width: none !important; max-height: 60vh !important;
+    overflow-y: auto !important; -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Ultra-angosto: Z Fold cover (374) e iPhone SE landscape, etc. */
+@media (max-width: 380px) {
+  body.is-apk .brand h1, body.is-apk .tnsvt-brand h1 { font-size: 0.88rem !important; }
+  body.is-apk .tnsvt-hamburger, body.is-apk .hamburger, body.is-apk #hamburgerBtn { width:38px !important; height:38px !important; }
+  body.is-apk .notif-btn, body.is-apk .tnsvt-notif-btn { width:36px !important; height:36px !important; }
+  body.is-apk #tab-admin .admin-stats { grid-template-columns: 1fr 1fr !important; }
+  body.is-apk #tab-journal [class*="stat"]:not(.stat-box-row) { grid-template-columns: 1fr !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📐 DESPLEGADO — Z Fold 6 inner (884-1280px)
+   Aprovecha el ancho con sidebar fijo + 2-pane
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 884px) and (max-width: 1280px) {
+  body.is-apk.layout-fold-open .sidebar,
+  body.is-apk.layout-fold-open #sidebar {
+    position: fixed !important; top: 0 !important; left: 0 !important;
+    width: 260px !important; height: 100vh !important; height: 100dvh !important;
+    transform: translateX(0) !important;
+    background: rgba(10,5,22,0.94) !important; backdrop-filter: blur(14px) !important;
+    border-right: 1px solid rgba(212,175,55,0.18) !important;
+    padding-top: calc(var(--safe-top) + var(--topbar-h) + 8px) !important;
+    padding-bottom: calc(var(--safe-bottom) + var(--musicbar-h) + 20px) !important;
+    overflow-y: auto !important; z-index: 50 !important;
+  }
+  body.is-apk.layout-fold-open .main-content,
+  body.is-apk.layout-fold-open .tab-content,
+  body.is-apk.layout-fold-open main { margin-left: 260px !important; }
+  body.is-apk.layout-fold-open .topbar,
+  body.is-apk.layout-fold-open .tnsvt-topbar { left: 260px !important; right: 0 !important; }
+
+  /* Trading Journal: equity + calendar 2-pane */
+  body.is-apk.layout-fold-open #tab-journal .tj-charts-wrap,
+  body.is-apk.layout-fold-open #tab-journal .tj-main-grid {
+    display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 18px !important;
+  }
+  body.is-apk.layout-fold-open .tj-stats { grid-template-columns: repeat(4, 1fr) !important; }
+
+  /* Macro: bancos en 4 cols */
+  body.is-apk.layout-fold-open #tab-macro .bank-grid { grid-template-columns: repeat(4, 1fr) !important; }
+
+  /* Manuscrito: feed 2 cols */
+  body.is-apk.layout-fold-open #tab-posts .feed,
+  body.is-apk.layout-fold-open #tab-posts #feedList {
+    display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 16px !important;
+  }
+
+  /* Calendar: timeline + panel próximo */
+  body.is-apk.layout-fold-open #tab-calendar {
+    display: grid !important; grid-template-columns: 1fr 320px !important; gap: 20px !important;
+  }
+
+  /* Music centrado abajo */
+  body.is-apk.layout-fold-open .music-player-bar,
+  body.is-apk.layout-fold-open #musicPlayerBar {
+    left: calc(260px + 24px) !important;
+    right: 120px !important;
+  }
+
+  /* Hamburger desaparece (sidebar es fijo) */
+  body.is-apk.layout-fold-open .tnsvt-hamburger,
+  body.is-apk.layout-fold-open .hamburger,
+  body.is-apk.layout-fold-open #hamburgerBtn { display: none !important; }
+
+  /* Modal max-width respetando crease */
+  body.is-apk.layout-fold-open .modal-content,
+  body.is-apk.layout-fold-open .modal-dialog {
+    max-width: 600px !important; max-height: 80vh !important;
+  }
+}
+
+/* Visual Viewport Segments — modal evita crease físico */
+@media (horizontal-viewport-segments: 2) {
+  body.is-apk.is-spanned .modal-content,
+  body.is-apk.is-spanned .modal-dialog {
+    max-width: 45vw !important; margin-left: 2vw !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   🔒 BUILD SAFETY — evitar problemas comunes en Android Studio
+   ═══════════════════════════════════════════════════════════════ */
+body.is-apk a, body.is-apk button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+@media (hover: none) {
+  body.is-apk button:active,
+  body.is-apk .cf-bubble:active,
+  body.is-apk .cf-fab:active,
+  body.is-apk .tnsvt-hamburger:active { transform: scale(0.94); transition: transform 0.1s ease; }
+}
+/* Animaciones simples → mejor performance en WebView Android antiguo */
+@media (prefers-reduced-motion: reduce) {
+  body.is-apk *, body.is-apk *::before, body.is-apk *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

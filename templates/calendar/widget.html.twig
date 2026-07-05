@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Calendario Económico</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #0a0516;
+      color: #e2dcf0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+    }
+    .header {
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #1a0d2e 0%, #0a0516 100%);
+      border-bottom: 1px solid rgba(212,175,55,0.2);
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header h1 {
+      margin: 0; font-size: 14px; letter-spacing: 1px;
+      color: #d4af37; font-weight: 700;
+    }
+    .header .source { font-size: 10px; color: #a499b8; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    thead th {
+      background: #14082a; color: #a499b8;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+      padding: 8px 10px; text-align: left; position: sticky; top: 41px;
+      border-bottom: 1px solid rgba(212,175,55,0.2);
+    }
+    tbody tr { border-bottom: 1px solid rgba(212,175,55,0.05); }
+    tbody tr:hover { background: rgba(212,175,55,0.05); }
+    tbody td { padding: 8px 10px; vertical-align: middle; }
+    .imp { display: inline-flex; gap: 2px; }
+    .imp-dot { width: 7px; height: 7px; border-radius: 50%; background: #555; }
+    .imp-1 .imp-dot:nth-child(1) { background: #34c759; }
+    .imp-2 .imp-dot:nth-child(-n+2) { background: #ff9500; }
+    .imp-3 .imp-dot { background: #ff3b30; }
+    .time { color: #a499b8; font-size: 11px; white-space: nowrap; }
+    .country { font-weight: 600; font-size: 11px; white-space: nowrap; }
+    .title { color: #e2dcf0; }
+    .val { color: #34c759; font-size: 11px; font-family: monospace; }
+    .val.actual { color: #d4af37; font-weight: 600; }
+    .empty {
+      padding: 40px 20px; text-align: center; color: #a499b8;
+    }
+    .empty h2 { color: #d4af37; margin: 0 0 8px; }
+    .empty p { margin: 4px 0; font-size: 12px; }
+    .badge {
+      display: inline-block; padding: 2px 6px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+      background: rgba(212,175,55,0.15); color: #d4af37;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 CALENDARIO ECONÓMICO</h1>
+    <span class="source">Reuters · {{ filtered_count }} de {{ total_count }} eventos</span>
+  </div>
+
+  {% if has_data %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Hora (AR)</th>
+            <th>Moneda</th>
+            <th>Impacto</th>
+            <th>Evento</th>
+            <th>Actual</th>
+            <th>Previsión</th>
+            <th>Anterior</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+            <tr>
+              <td class="time">{{ e.datetime_label }}</td>
+              <td class="country">{{ e.country }}</td>
+              <td>
+                <span class="imp imp-{{ e.importance }}">
+                  <span class="imp-dot"></span>
+                  <span class="imp-dot"></span>
+                  <span class="imp-dot"></span>
+                </span>
+              </td>
+              <td class="title" title="{{ e.original_title }}">{{ e.title }}</td>
+              <td class="val actual">{{ e.actual }}</td>
+              <td class="val">{{ e.forecast }}</td>
+              <td class="val">{{ e.previous }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">
+      <h2>⚠️ Sin eventos para los filtros</h2>
+      <p>Probá con otros países o quitá algunos niveles de impacto.</p>
+    </div>
+  {% endif %}
+
+  <script>
+    setTimeout(() => location.reload(), 600000);
+  </script>
+</body>
+</html>

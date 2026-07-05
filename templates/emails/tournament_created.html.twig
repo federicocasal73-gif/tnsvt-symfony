@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body{font-family:'Inter',Arial,sans-serif;background:#0d0818;color:#e8e0ff;margin:0;padding:0}
+.container{max-width:600px;margin:0 auto;background:#1a1228;padding:24px;border-radius:14px}
+h1{color:#d4af37;font-family:'Cinzel',serif;font-size:24px;margin:0 0 16px}
+.cta{display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#d4af37,#8b6914);color:#0d0818;text-decoration:none;border-radius:8px;font-weight:700;margin:16px 0}
+.box{background:rgba(13,8,24,.4);padding:16px;border-radius:10px;margin:16px 0}
+.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d1f55}
+.row:last-child{border-bottom:0}
+.muted{color:#a090c0;font-size:13px;line-height:1.6}
+.label{color:#6a5a8a;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.value{color:#e8e0ff;font-weight:600;font-family:'JetBrains Mono',monospace}
+.amount{color:#4ade80;font-weight:700;font-family:'JetBrains Mono',monospace}
+.gold{color:#f0c060;font-weight:700}
+.footer{font-size:11px;color:#666;margin-top:32px;text-align:center;border-top:1px solid #2d1f55;padding-top:16px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏆 Nuevo torneo: {{ tournament.name }}</h1>
+
+  <p class="muted">Hola <strong>{{ user.name }}</strong>,</p>
+  <p class="muted">Se abrió un nuevo torneo en TNSVT. Inscripción abierta.</p>
+
+  <div class="box">
+    <div class="row"><span class="label">Entry fee</span><span class="amount">${{ tournament.entryFee }}</span></div>
+    <div class="row"><span class="label">Pozo inicial</span><span class="gold">${{ base_prize }}</span></div>
+    <div class="row"><span class="label">Distribución</span><span class="value">{{ tournament.prizeDistribution }}</span></div>
+    <div class="row"><span class="label">Max jugadores</span><span class="value">{{ tournament.maxPlayers }}</span></div>
+    <div class="row"><span class="label">Cierra</span><span class="value">{{ end_date }}</span></div>
+  </div>
+
+  {% if tournament.description %}
+  <p class="muted">{{ tournament.description }}</p>
+  {% endif %}
+
+  <a href="{{ server_url }}" class="cta">Inscribirme</a>
+
+  <div class="footer">
+    T.N.S.V.T · Cristo Íntegro<br>
+    {{ server_url }}
+  </div>
+</div>
+</body>
+</html>

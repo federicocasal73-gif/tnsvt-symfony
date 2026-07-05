@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="T.N.S.V.T — Two-Step Multifractal Theory. Sistema algorítmico institucional EURUSD. Bot propio basado en LST + SMC con ONNX. Forward en vivo, track record auditado.">
+<title>T.N.S.V.T — Two-Step Multifractal Theory</title>
+
+<style>
+:root {
+  --black: #08080a;
+  --black2: #101014;
+  --black3: #16161c;
+  --black4: #1e1e28;
+  --violet: #7c3aed;
+  --violet-mid: #6d28d9;
+  --violet-dim: #2d1b69;
+  --violet-glow: rgba(124,58,237,0.18);
+  --violet-line: rgba(124,58,237,0.35);
+  --white: #f4f4f8;
+  --white2: #c8c8d8;
+  --muted: #6b6b80;
+  --border: rgba(124,58,237,0.2);
+  --border2: rgba(255,255,255,0.06);
+  --radius: 10px;
+  --font: 'Inter', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--black);
+  color: var(--white);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── TIPOGRAFÍA ── */
+h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+h2 { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+h3 { font-size: 1.1rem; font-weight: 600; }
+p  { color: var(--white2); font-size: .95rem; }
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 2rem;
+  background: rgba(8,8,10,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border2);
+}
+.logo {
+  font-size: 1.05rem; font-weight: 700; letter-spacing: .12em;
+  color: var(--white); text-decoration: none;
+}
+.logo span { color: var(--violet); }
+.nav-links { display: flex; align-items: center; gap: 1.8rem; list-style: none; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: .85rem; letter-spacing: .04em; transition: color .2s; }
+.nav-links a:hover { color: var(--white); }
+.nav-cta {
+  background: var(--violet); color: #fff !important; font-weight: 600;
+  padding: .45rem 1.1rem; border-radius: 6px; font-size: .82rem !important;
+  letter-spacing: .03em !important; transition: background .2s !important;
+}
+.nav-cta:hover { background: var(--violet-mid) !important; color: #fff !important; }
+.hamburger { display: none; background: none; border: none; cursor: pointer; color: var(--white); font-size: 1.4rem; }
+.mobile-menu {
+  display: none; position: fixed; top: 56px; left: 0; right: 0;
+  background: var(--black2); border-bottom: 1px solid var(--border2);
+  padding: 1.5rem 2rem; z-index: 998;
+}
+.mobile-menu a { display: block; padding: .65rem 0; color: var(--white2); text-decoration: none; border-bottom: 1px solid var(--border2); font-size: .95rem; }
+.mobile-menu a:last-child { border-bottom: none; }
+
+/* ── SISTEMA STATUS BAR ── */
+.status-bar {
+  margin-top: 56px;
+  background: var(--black2);
+  border-bottom: 1px solid var(--border);
+  padding: .5rem 2rem;
+  display: flex; align-items: center; gap: 1.5rem;
+  font-size: .75rem; font-family: 'Courier New', monospace;
+  color: var(--muted); overflow-x: auto;
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; flex-shrink: 0; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.status-item { white-space: nowrap; }
+.status-val { color: var(--violet); font-weight: 600; }
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 6rem 2rem 4rem;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: -30%; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 700px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(124,58,237,0.13) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  font-size: .75rem; letter-spacing: .2em; color: var(--violet);
+  font-weight: 600; margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: .7rem;
+}
+.hero-eyebrow::before {
+  content: ''; display: block; width: 28px; height: 1px; background: var(--violet);
+}
+.hero-title { max-width: 800px; margin-bottom: 1.5rem; }
+.hero-title em { font-style: normal; color: var(--violet); }
+.hero-sub { max-width: 520px; font-size: 1.05rem; color: var(--white2); margin-bottom: 2.5rem; line-height: 1.7; }
+.hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 4rem; }
+.btn-primary {
+  background: var(--violet); color: #fff; font-weight: 700;
+  padding: .8rem 1.8rem; border-radius: var(--radius);
+  text-decoration: none; font-size: .95rem; letter-spacing: .02em;
+  transition: background .2s, transform .15s; border: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .5rem;
+}
+.btn-primary:hover { background: var(--violet-mid); transform: translateY(-1px); }
+.btn-outline {
+  background: transparent; color: var(--white2); font-weight: 600;
+  padding: .8rem 1.8rem; border-radius: var(--radius);
+  text-decoration: none; font-size: .95rem;
+  border: 1px solid var(--border); transition: border-color .2s, color .2s;
+  display: inline-flex; align-items: center; gap: .5rem;
+}
+.btn-outline:hover { border-color: var(--violet); color: var(--white); }
+
+.hero-kpis { display: flex; gap: 2rem; flex-wrap: wrap; }
+.kpi-item { display: flex; flex-direction: column; }
+.kpi-num { font-size: 2rem; font-weight: 700; color: var(--white); line-height: 1; }
+.kpi-num.violet { color: var(--violet); }
+.kpi-label { font-size: .72rem; color: var(--muted); letter-spacing: .08em; margin-top: .25rem; }
+.kpi-divider { width: 1px; background: var(--border2); align-self: stretch; }
+
+/* ── SECCIONES GENERALES ── */
+section { padding: 5rem 2rem; }
+.container { max-width: 1080px; margin: 0 auto; }
+.section-eyebrow {
+  font-size: .72rem; letter-spacing: .18em; color: var(--violet);
+  font-weight: 600; margin-bottom: 1rem;
+  display: flex; align-items: center; gap: .6rem;
+}
+.section-eyebrow::before { content: '//'; color: var(--muted); }
+.section-title { margin-bottom: 1rem; }
+.section-sub { color: var(--white2); font-size: 1rem; max-width: 580px; margin-bottom: 3rem; }
+
+/* ── GRID QUÉ ES ── */
+.que-es-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+.que-es-text p { margin-bottom: 1rem; }
+.pillars { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
+.pillar {
+  background: var(--black2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 1.1rem;
+  border-left: 2px solid var(--violet);
+}
+.pillar-tag { font-size: .68rem; letter-spacing: .14em; color: var(--violet); margin-bottom: .4rem; font-weight: 600; }
+.pillar h4 { font-size: .9rem; font-weight: 600; color: var(--white); margin-bottom: .25rem; }
+.pillar p { font-size: .82rem; color: var(--muted); }
+
+/* ── STEPS ── */
+.steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 1.5rem; }
+.step-card {
+  background: var(--black2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 1.5rem; position: relative;
+  transition: border-color .2s;
+}
+.step-card:hover { border-color: var(--violet-line); }
+.step-num {
+  font-size: .75rem; font-family: 'Courier New', monospace;
+  color: var(--violet); font-weight: 700; margin-bottom: 1rem; letter-spacing: .1em;
+}
+.step-card h4 { font-size: .95rem; margin-bottom: .5rem; }
+.step-card p { font-size: .83rem; color: var(--muted); }
+.step-arrow {
+  position: absolute; top: 1.5rem; right: -1rem;
+  color: var(--violet); font-size: .9rem; z-index: 2;
+}
+
+/* ── LIVE STATUS ── */
+.live-section { background: var(--black2); border-top: 1px solid var(--border2); border-bottom: 1px solid var(--border2); }
+.live-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+}
+.live-badge {
+  display: flex; align-items: center; gap: .5rem;
+  background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3);
+  color: #22c55e; font-size: .75rem; font-weight: 700; letter-spacing: .1em;
+  padding: .35rem .8rem; border-radius: 20px;
+}
+.live-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: pulse 1.5s infinite; }
+.live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.live-card {
+  background: var(--black3); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 1.2rem;
+}
+.live-card-label { font-size: .7rem; color: var(--muted); letter-spacing: .08em; margin-bottom: .4rem; }
+.live-card-val { font-size: 1.6rem; font-weight: 700; color: var(--white); }
+.live-card-val.green { color: #22c55e; }
+.live-card-val.violet { color: var(--violet); }
+.live-card-sub { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+.live-note {
+  font-size: .78rem; color: var(--muted);
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: .75rem 1rem; display: flex; gap: .6rem; align-items: flex-start;
+}
+
+/* ── PERFORMANCE ── */
+.perf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+.perf-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.perf-card {
+  background: var(--black2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 1.2rem;
+}
+.perf-card.accent { border-color: var(--violet-line); background: rgba(124,58,237,0.06); }
+.perf-label { font-size: .7rem; color: var(--muted); letter-spacing: .08em; margin-bottom: .3rem; }
+.perf-val { font-size: 1.5rem; font-weight: 700; }
+.perf-val.violet { color: var(--violet); }
+.perf-val.green { color: #22c55e; }
+.perf-sub { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+.equity-chart-box {
+  background: var(--black2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 1.5rem;
+}
+.equity-chart-box h4 { font-size: .85rem; color: var(--white2); margin-bottom: 1rem; }
+.chart-canvas-wrap { position: relative; width: 100%; height: 200px; }
+
+/* ── SERVICIOS ── */
+.services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+.service-card {
+  background: var(--black2); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 1.8rem; display: flex; flex-direction: column;
+  transition: border-color .2s, transform .15s;
+}
+.service-card:hover { border-color: var(--violet-line); transform: translateY(-2px); }
+.service-card.featured {
+  border-color: var(--violet);
+  background: linear-gradient(145deg, rgba(124,58,237,0.08), var(--black2));
+}
+.service-featured-badge {
+  display: inline-block; background: var(--violet); color: #fff;
+  font-size: .68rem; font-weight: 700; letter-spacing: .1em;
+  padding: .25rem .7rem; border-radius: 4px; margin-bottom: 1rem;
+}
+.service-icon { font-size: 1.5rem; margin-bottom: .8rem; }
+.service-name { font-size: 1.05rem; font-weight: 700; margin-bottom: .5rem; }
+.service-desc { font-size: .84rem; color: var(--muted); margin-bottom: 1.2rem; flex-grow: 1; }
+.service-features { list-style: none; margin-bottom: 1.5rem; }
+.service-features li {
+  font-size: .82rem; color: var(--white2); padding: .3rem 0;
+  border-bottom: 1px solid var(--border2); display: flex; align-items: center; gap: .5rem;
+}
+.service-features li::before { content: '→'; color: var(--violet); font-size: .8rem; flex-shrink: 0; }
+.service-price { margin-bottom: 1.2rem; }
+.price-amount { font-size: 1.6rem; font-weight: 700; color: var(--white); }
+.price-period { font-size: .8rem; color: var(--muted); }
+.price-alt { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
+.service-btn {
+  display: block; text-align: center; text-decoration: none;
+  background: var(--violet); color: #fff; font-weight: 700;
+  padding: .7rem; border-radius: var(--radius);
+  font-size: .88rem; transition: background .2s; cursor: pointer; border: none;
+}
+.service-btn:hover { background: var(--violet-mid); }
+.service-btn.outline {
+  background: transparent; color: var(--white2);
+  border: 1px solid var(--border);
+}
+.service-btn.outline:hover { border-color: var(--violet); color: var(--white); background: transparent; }
+.payments-note {
+  margin-top: 2rem; text-align: center; font-size: .8rem; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; gap: .5rem; flex-wrap: wrap;
+}
+.pay-badge {
+  background: var(--black3); border: 1px solid var(--border2);
+  border-radius: 4px; padding: .2rem .6rem; font-size: .75rem; color: var(--white2);
+}
+
+/* ── MODAL LOGIN ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.75); backdrop-filter: blur(6px);
+  z-index: 2000; align-items: center; justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--black2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 2rem; width: 100%; max-width: 380px;
+  position: relative;
+}
+.modal-logo { font-size: .9rem; font-weight: 700; letter-spacing: .14em; color: var(--muted); margin-bottom: .4rem; }
+.modal-logo span { color: var(--violet); }
+.modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: .3rem; }
+.modal-sub { font-size: .83rem; color: var(--muted); margin-bottom: 1.5rem; }
+.modal-close {
+  position: absolute; top: 1rem; right: 1rem;
+  background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.2rem;
+}
+.modal-tabs { display: flex; gap: .5rem; margin-bottom: 1.5rem; }
+.modal-tab {
+  flex: 1; text-align: center; padding: .5rem; font-size: .83rem; font-weight: 600;
+  border-radius: 6px; cursor: pointer; border: 1px solid var(--border2);
+  background: transparent; color: var(--muted); transition: all .2s;
+}
+.modal-tab.active { background: var(--violet); color: #fff; border-color: var(--violet); }
+.form-group { margin-bottom: 1rem; }
+.form-group label { font-size: .78rem; color: var(--muted); display: block; margin-bottom: .35rem; letter-spacing: .04em; }
+.form-group input {
+  width: 100%; background: var(--black3); border: 1px solid var(--border2);
+  color: var(--white); border-radius: var(--radius); padding: .65rem .9rem;
+  font-size: .9rem; transition: border-color .2s; outline: none;
+}
+.form-group input:focus { border-color: var(--violet); }
+.form-submit {
+  width: 100%; background: var(--violet); color: #fff; border: none;
+  border-radius: var(--radius); padding: .75rem; font-size: .95rem; font-weight: 700;
+  cursor: pointer; transition: background .2s; margin-top: .5rem;
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+}
+.form-submit:hover { background: var(--violet-mid); }
+.modal-panel { display: none; }
+.modal-panel.active { display: block; }
+
+/* ── ONNX / IA ── */
+.onnx-section { background: var(--black2); border-top: 1px solid var(--border2); border-bottom: 1px solid var(--border2); }
+.onnx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+.onnx-pills { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.5rem; }
+.onnx-pill {
+  background: var(--black3); border: 1px solid var(--border);
+  border-radius: 20px; padding: .3rem .9rem; font-size: .78rem; color: var(--white2);
+}
+.onnx-pill span { color: var(--violet); font-weight: 700; }
+.score-bars { display: flex; flex-direction: column; gap: .8rem; }
+.score-row { display: flex; align-items: center; gap: .8rem; }
+.score-label { font-size: .78rem; color: var(--muted); width: 70px; flex-shrink: 0; }
+.score-bar { flex: 1; background: var(--black3); border-radius: 3px; height: 5px; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 3px; background: var(--violet); }
+.score-pct { font-size: .78rem; color: var(--white2); width: 35px; text-align: right; flex-shrink: 0; }
+
+/* ── COMUNIDAD ── */
+.comunidad-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.comunidad-card {
+  background: var(--black2); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 1.8rem;
+}
+.comunidad-card.featured { border-color: var(--violet); }
+.com-tag { font-size: .68rem; letter-spacing: .14em; font-weight: 700; color: var(--violet); margin-bottom: .8rem; }
+.com-tag.pronto { color: var(--muted); }
+.com-name { font-size: 1.1rem; font-weight: 700; margin-bottom: .8rem; }
+.com-list { list-style: none; margin-bottom: 1.5rem; }
+.com-list li {
+  font-size: .85rem; color: var(--white2); padding: .35rem 0;
+  border-bottom: 1px solid var(--border2); display: flex; align-items: center; gap: .5rem;
+}
+.com-list li::before { content: '→'; color: var(--violet); }
+
+/* ── FAQ ── */
+.faq-list { max-width: 720px; }
+.faq-item {
+  border-bottom: 1px solid var(--border2); padding: 1rem 0;
+}
+.faq-q {
+  font-size: .95rem; font-weight: 600; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 1rem; user-select: none;
+}
+.faq-q::after { content: '+'; color: var(--violet); font-size: 1.2rem; flex-shrink: 0; transition: transform .2s; }
+.faq-item.open .faq-q::after { content: '−'; }
+.faq-a { font-size: .87rem; color: var(--muted); margin-top: .75rem; display: none; line-height: 1.7; }
+.faq-item.open .faq-a { display: block; }
+
+/* ── DISCLAIMER ── */
+.disclaimer {
+  background: rgba(255,255,255,.02); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 1.2rem 1.5rem;
+  font-size: .77rem; color: var(--muted); line-height: 1.7; max-width: 860px; margin: 3rem auto 0;
+}
+
+/* ── FOOTER ── */
+footer {
+  background: var(--black2); border-top: 1px solid var(--border2);
+  padding: 3rem 2rem 1.5rem;
+}
+.footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 2rem; max-width: 1080px; margin: 0 auto 2rem; }
+.footer-logo { font-size: 1rem; font-weight: 700; letter-spacing: .1em; margin-bottom: .75rem; }
+.footer-logo span { color: var(--violet); }
+.footer-desc { font-size: .83rem; color: var(--muted); line-height: 1.6; margin-bottom: 1rem; }
+.footer-links h5 { font-size: .78rem; letter-spacing: .1em; color: var(--muted); margin-bottom: .8rem; font-weight: 600; }
+.footer-links a { display: block; font-size: .84rem; color: var(--white2); text-decoration: none; padding: .25rem 0; transition: color .2s; }
+.footer-links a:hover { color: var(--violet); }
+.footer-bottom {
+  max-width: 1080px; margin: 0 auto;
+  border-top: 1px solid var(--border2); padding-top: 1.2rem;
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem;
+}
+.footer-copy { font-size: .77rem; color: var(--muted); }
+.footer-version { font-size: .72rem; color: var(--muted); font-family: 'Courier New', monospace; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .hamburger { display: block; }
+  .que-es-grid, .perf-grid, .onnx-grid, .comunidad-cards { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr 1fr; }
+  .pillars { grid-template-columns: 1fr; }
+  .perf-stats { grid-template-columns: 1fr 1fr; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .footer-grid > :first-child { grid-column: 1/-1; }
+  .step-arrow { display: none; }
+  .hero-kpis { gap: 1.2rem; }
+  .kpi-divider { display: none; }
+}
+@media (max-width: 520px) {
+  .steps { grid-template-columns: 1fr; }
+  .hero-btns { flex-direction: column; }
+  .btn-primary, .btn-outline { text-align: center; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── MODAL LOGIN / REGISTRO ── -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-logo">T.N.S.V.<span>T</span></div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('login')">Ingresar</button>
+      <button class="modal-tab" onclick="switchTab('register')">Crear cuenta</button>
+    </div>
+
+    <div class="modal-panel active" id="panelLogin">
+      <div class="modal-title">Acceso seguro</div>
+      <div class="modal-sub">Ingresá para acceder a los programas activos.</div>
+      <div class="form-group">
+        <label>USUARIO O EMAIL</label>
+        <input type="text" placeholder="tu@email.com">
+      </div>
+      <div class="form-group">
+        <label>CONTRASEÑA</label>
+        <input type="password" placeholder="••••••••">
+      </div>
+      <button class="form-submit">Ingresar al sistema →</button>
+      <p style="text-align:center;margin-top:1rem;font-size:.78rem;color:var(--muted)">
+        <a href="#" style="color:var(--violet);text-decoration:none">Recuperar contraseña</a>
+      </p>
+    </div>
+
+    <div class="modal-panel" id="panelRegister">
+      <div class="modal-title">Nuevo registro</div>
+      <div class="modal-sub">Creá tu cuenta de acceso al sistema.</div>
+      <div class="form-group"><label>NOMBRE COMPLETO</label><input type="text" placeholder="Tu nombre"></div>
+      <div class="form-group"><label>EMAIL</label><input type="email" placeholder="tu@email.com"></div>
+      <div class="form-group"><label>CONTRASEÑA</label><input type="password" placeholder="Mínimo 8 caracteres"></div>
+      <button class="form-submit">Crear cuenta →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="#" class="logo">T.N.S.V.<span>T</span></a>
+  <ul class="nav-links">
+    <li><a href="#que-es">Sistema</a></li>
+    <li><a href="#envivo">En vivo</a></li>
+    <li><a href="#performance">Performance</a></li>
+    <li><a href="#servicios">Servicios</a></li>
+    <li><a href="#comunidad">Comunidad</a></li>
+    <li><a href="#faq">FAQ</a></li>
+    <li><a href="#" class="nav-cta" onclick="openModal();return false;">Acceder →</a></li>
+  </ul>
+  <button class="hamburger" onclick="toggleMenu()">☰</button>
+</nav>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#que-es" onclick="toggleMenu()">Sistema</a>
+  <a href="#envivo" onclick="toggleMenu()">En vivo</a>
+  <a href="#performance" onclick="toggleMenu()">Performance</a>
+  <a href="#servicios" onclick="toggleMenu()">Servicios</a>
+  <a href="#comunidad" onclick="toggleMenu()">Comunidad</a>
+  <a href="#faq" onclick="toggleMenu()">FAQ</a>
+  <a href="#" onclick="openModal();toggleMenu();return false;" style="color:var(--violet);font-weight:700">Crear cuenta →</a>
+</div>
+
+<!-- ── STATUS BAR ── -->
+<div class="status-bar">
+  <div class="status-dot"></div>
+  <span class="status-item">SISTEMA: <span class="status-val">OPERANDO</span></span>
+  <span class="status-item">PAR: <span class="status-val">EURUSD M15</span></span>
+  <span class="status-item">VERSIÓN: <span class="status-val">v6.0 ONNX</span></span>
+  <span class="status-item">ESTRATEGIA: <span class="status-val">LST · SMC · BOS · LG · ORDER BLOCKS</span></span>
+  <span class="status-item">FONDEO: <span class="status-val">FTMO $25k</span></span>
+  <span class="status-item">FORWARD: <span class="status-val">ACTIVO</span></span>
+</div>
+
+<!-- ── HERO ── -->
+<section class="hero" id="top">
+  <div class="container">
+    <div class="hero-eyebrow">SISTEMA ALGORÍTMICO INSTITUCIONAL · EURUSD</div>
+    <h1 class="hero-title">
+      Trading con lógica<br>de <em>dinero institucional</em>
+    </h1>
+    <p class="hero-sub">
+      T.N.S.V.T aplica Two-Step Multifractal Theory sobre EURUSD M15.
+      Bot propio basado en LST + SMC + ONNX, forward corriendo en vivo,
+      track record auditado. Sin promesas — solo método y transparencia.
+    </p>
+    <div class="hero-btns">
+      <a href="#servicios" class="btn-primary">Ver programas →</a>
+      <a href="#envivo" class="btn-outline">Estado en vivo</a>
+    </div>
+    <div class="hero-kpis">
+      <div class="kpi-item">
+        <span class="kpi-num violet">$4.232</span>
+        <span class="kpi-label">MEJOR PROFIT (M15)</span>
+      </div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item">
+        <span class="kpi-num">4.87</span>
+        <span class="kpi-label">PROFIT FACTOR</span>
+      </div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item">
+        <span class="kpi-num">3.85%</span>
+        <span class="kpi-label">DD MÁXIMO TOP CONFIGS</span>
+      </div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item">
+        <span class="kpi-num">1.894</span>
+        <span class="kpi-label">CONFIGS BALANCEADAS</span>
+      </div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item">
+        <span class="kpi-num">9.821</span>
+        <span class="kpi-label">PASADAS OPTIMIZACIÓN</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── QUÉ ES ── -->
+<section id="que-es">
+  <div class="container">
+    <div class="que-es-grid">
+      <div class="que-es-text">
+        <div class="section-eyebrow">QUÉ ES</div>
+        <h2 class="section-title">Un sistema que explica<br>cada decisión</h2>
+        <p>T.N.S.V.T es un sistema algorítmico construido sobre la Two-Step Multifractal Theory. No lanza señales al azar: lee la estructura del mercado en tres timeframes simultáneos y solo opera cuando el contexto institucional, la zona y el patrón de entrada se alinean.</p>
+        <p style="margin-top:.8rem">El bot incluye filtro de inteligencia artificial (ONNX) que evalúa la probabilidad de éxito de cada señal antes de entrar. Más selectivo, más eficiente.</p>
+        <p style="margin-top:.8rem">No administramos fondos de terceros. Vos operás tu propia cuenta bajo tu propio control.</p>
+        <div class="pillars">
+          <div class="pillar">
+            <div class="pillar-tag">// ESTRUCTURA</div>
+            <h4>LST Models</h4>
+            <p>Liquidity Side Theory: modelos 1, 2, 3 y CRT para detectar el patrón exacto de entrada.</p>
+          </div>
+          <div class="pillar">
+            <div class="pillar-tag">// CONTEXTO</div>
+            <h4>BOS + LG</h4>
+            <p>Break of Structure y Liquidity Grab en tres timeframes para confirmar el flujo institucional.</p>
+          </div>
+          <div class="pillar">
+            <div class="pillar-tag">// ZONAS</div>
+            <h4>Order Blocks</h4>
+            <p>Zonas de precio donde el dinero grande entró antes. SL inteligente desde el OB más cercano.</p>
+          </div>
+          <div class="pillar">
+            <div class="pillar-tag">// FILTRO IA</div>
+            <h4>ONNX Filter</h4>
+            <p>Modelo de Machine Learning que evalúa cada señal y solo habilita las de mayor probabilidad.</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="background:var(--black2);border:1px solid var(--border2);border-radius:14px;padding:1.8rem">
+          <div style="font-size:.72rem;letter-spacing:.14em;color:var(--violet);margin-bottom:1.2rem;font-weight:600">// ARQUITECTURA DEL SISTEMA</div>
+          <div style="display:flex;flex-direction:column;gap:.7rem">
+            <div style="background:var(--black3);border-radius:var(--radius);padding:1rem;border-left:2px solid var(--violet)">
+              <div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">CAPA 1 — CONTEXTO</div>
+              <div style="font-size:.9rem;font-weight:600">HTF H4 → Tendencia principal + BOS</div>
+            </div>
+            <div style="display:flex;justify-content:center;color:var(--violet)">↓</div>
+            <div style="background:var(--black3);border-radius:var(--radius);padding:1rem;border-left:2px solid rgba(124,58,237,.5)">
+              <div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">CAPA 2 — ESTRUCTURA</div>
+              <div style="font-size:.9rem;font-weight:600">MTF H1 → LG + Order Block</div>
+            </div>
+            <div style="display:flex;justify-content:center;color:var(--violet)">↓</div>
+            <div style="background:var(--black3);border-radius:var(--radius);padding:1rem;border-left:2px solid rgba(124,58,237,.3)">
+              <div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">CAPA 3 — ENTRADA</div>
+              <div style="font-size:.9rem;font-weight:600">LTF M15 → Patrón LST + CRT</div>
+            </div>
+            <div style="display:flex;justify-content:center;color:var(--violet)">↓</div>
+            <div style="background:rgba(124,58,237,.1);border:1px solid var(--violet-line);border-radius:var(--radius);padding:1rem">
+              <div style="font-size:.7rem;color:var(--violet);margin-bottom:.2rem">FILTRO IA</div>
+              <div style="font-size:.9rem;font-weight:600">ONNX → Score ≥ 0.60 → ✓ Ejecutar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CÓMO FUNCIONA ── -->
+<section style="background:var(--black2);border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)">
+  <div class="container">
+    <div class="section-eyebrow">CÓMO FUNCIONA</div>
+    <h2 class="section-title" style="margin-bottom:.75rem">Qué hace el bot, paso a paso</h2>
+    <p class="section-sub">No ejecuta a ciegas. Evalúa contexto, detecta zona, confirma patrón y consulta a la IA antes de entrar.</p>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">→ 01</div>
+        <h4>Lee el contexto</h4>
+        <p>Analiza H4 y H1 para determinar el sesgo institucional del día: ¿el dinero grande está comprando o vendiendo?</p>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">→ 02</div>
+        <h4>Detecta la zona</h4>
+        <p>Identifica el Order Block más fresco, confirma el Liquidity Grab y mide la estructura BOS en múltiples timeframes.</p>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">→ 03</div>
+        <h4>Confirma el patrón</h4>
+        <p>Exige un patrón LST válido (M1, M2, M3 o CRT) en M15 con confluencia mínima de 2 condiciones simultáneas.</p>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">→ 04</div>
+        <h4>IA da el OK</h4>
+        <p>El filtro ONNX evalúa 10 variables del contexto y solo autoriza la entrada si la probabilidad de éxito supera el umbral.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ESTADO EN VIVO ── -->
+<section class="live-section" id="envivo">
+  <div class="container">
+    <div class="live-header">
+      <div>
+        <div class="section-eyebrow">ESTADO EN VIVO</div>
+        <h2 style="margin-bottom:0">El forward está corriendo ahora</h2>
+      </div>
+      <div class="live-badge"><span class="dot"></span>FORWARD ACTIVO</div>
+    </div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:1.5rem">
+      Perfil CONSERVADOR · aprobado.set · EURUSD M15 · FTMO-Demo $25.000 USD
+    </div>
+    <div class="live-grid">
+      <div class="live-card">
+        <div class="live-card-label">NET R SEMANA</div>
+        <div class="live-card-val green">+2.5R</div>
+        <div class="live-card-sub">Semana en curso</div>
+      </div>
+      <div class="live-card">
+        <div class="live-card-label">TRADES EJECUTADOS</div>
+        <div class="live-card-val violet">3</div>
+        <div class="live-card-sub">Esta semana</div>
+      </div>
+      <div class="live-card">
+        <div class="live-card-label">SETUPS EVALUADOS</div>
+        <div class="live-card-val">35</div>
+        <div class="live-card-sub">Señales revisadas</div>
+      </div>
+      <div class="live-card">
+        <div class="live-card-label">DD ACTIVO</div>
+        <div class="live-card-val">0.4%</div>
+        <div class="live-card-sub">Límite: 2% diario</div>
+      </div>
+      <div class="live-card">
+        <div class="live-card-label">BALANCE</div>
+        <div class="live-card-val">$25.432</div>
+        <div class="live-card-sub">Inicio: $25.000</div>
+      </div>
+      <div class="live-card">
+        <div class="live-card-label">SCORE IA PROM.</div>
+        <div class="live-card-val violet">0.71</div>
+        <div class="live-card-sub">ONNX filter activo</div>
+      </div>
+    </div>
+    <div class="live-note">
+      <span style="color:var(--violet)">ℹ</span>
+      El EA no opera dinero real de terceros. Está en fase de validación forward (simulación en vivo) con el mismo perfil que el backtest optimizado. Muestra inicial — estadística válida requiere mínimo 50 trades cerrados. Actualizado cada semana.
+    </div>
+  </div>
+</section>
+
+<!-- ── PERFORMANCE ── -->
+<section id="performance">
+  <div class="container">
+    <div class="section-eyebrow">PERFORMANCE</div>
+    <h2 class="section-title">Track record auditado</h2>
+    <p class="section-sub">Backtest sobre 9.821 pasadas de optimización en EURUSD M15, cuenta demo $25.000 FTMO. Feb–Jun 2026.</p>
+    <div class="perf-grid">
+      <div>
+        <div class="perf-stats">
+          <div class="perf-card accent">
+            <div class="perf-label">PROFIT (MEJOR CONFIG)</div>
+            <div class="perf-val violet">$4.232</div>
+            <div class="perf-sub">EURUSD M15 · 22 trades</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">PROFIT FACTOR</div>
+            <div class="perf-val">4.87</div>
+            <div class="perf-sub">Top config balanceada</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">EQUITY DD MÁXIMO</div>
+            <div class="perf-val green">3.85%</div>
+            <div class="perf-sub">Límite fondeo: 8%</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">SHARPE RATIO</div>
+            <div class="perf-val">16.40</div>
+            <div class="perf-sub">Excelente ajuste riesgo</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">CONFIGS BALANCEADAS</div>
+            <div class="perf-val">1.894</div>
+            <div class="perf-sub">de 9.821 pasadas</div>
+          </div>
+          <div class="perf-card">
+            <div class="perf-label">MEJOR M3 (PF)</div>
+            <div class="perf-val violet">57.4</div>
+            <div class="perf-sub">EURUSD M3 · 22 trades</div>
+          </div>
+        </div>
+      </div>
+      <div class="equity-chart-box">
+        <h4>Curva de equity simulada — Top configs balanceadas</h4>
+        <div class="chart-canvas-wrap">
+          <canvas id="equityChart" role="img" aria-label="Curva de equity simulada de las mejores configuraciones balanceadas del backtest TSMT v6">Curva de equity: crecimiento desde $25.000 hasta ~$29.200 en las mejores configuraciones balanceadas.</canvas>
+        </div>
+        <div style="margin-top:.75rem;font-size:.73rem;color:var(--muted)">
+          Simulación basada en top configs con PF&gt;2, DD&lt;8%, ≥20 trades. Pasado no garantiza futuro.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ONNX ── -->
+<section class="onnx-section" id="onnx">
+  <div class="container">
+    <div class="onnx-grid">
+      <div>
+        <div class="section-eyebrow">FILTRO IA</div>
+        <h2 class="section-title">ONNX — inteligencia artificial<br>integrada al bot</h2>
+        <p>El sistema incluye un modelo de Machine Learning entrenado con el historial real de trades. Evalúa 10 variables de cada señal y solo habilita la entrada si la probabilidad de éxito supera el umbral configurado.</p>
+        <div class="onnx-pills">
+          <div class="onnx-pill">Score <span>≥ 0.60</span> recomendado</div>
+          <div class="onnx-pill">Score <span>≥ 0.70</span> ultra-selectivo</div>
+          <div class="onnx-pill"><span>GradientBoosting</span> classifier</div>
+          <div class="onnx-pill">Reentrenar c/ <span>2–3 meses</span></div>
+          <div class="onnx-pill">AUC-ROC <span>&gt; 0.65</span> = útil</div>
+        </div>
+      </div>
+      <div style="background:var(--black3);border:1px solid var(--border2);border-radius:14px;padding:1.5rem">
+        <div style="font-size:.72rem;letter-spacing:.14em;color:var(--violet);margin-bottom:1.2rem;font-weight:600">// IMPORTANCIA DE VARIABLES</div>
+        <div class="score-bars">
+          <div class="score-row"><div class="score-label">hora del día</div><div class="score-bar"><div class="score-fill" style="width:92%"></div></div><div class="score-pct">22%</div></div>
+          <div class="score-row"><div class="score-label">RR ratio</div><div class="score-bar"><div class="score-fill" style="width:77%"></div></div><div class="score-pct">18%</div></div>
+          <div class="score-row"><div class="score-label">SL pips</div><div class="score-bar"><div class="score-fill" style="width:59%"></div></div><div class="score-pct">14%</div></div>
+          <div class="score-row"><div class="score-label">vol. norm.</div><div class="score-bar"><div class="score-fill" style="width:50%"></div></div><div class="score-pct">12%</div></div>
+          <div class="score-row"><div class="score-label">día semana</div><div class="score-bar"><div class="score-fill" style="width:42%"></div></div><div class="score-pct">10%</div></div>
+          <div class="score-row"><div class="score-label">sesión</div><div class="score-bar"><div class="score-fill" style="width:38%"></div></div><div class="score-pct">9%</div></div>
+          <div class="score-row"><div class="score-label">dirección</div><div class="score-bar"><div class="score-fill" style="width:29%"></div></div><div class="score-pct">7%</div></div>
+          <div class="score-row"><div class="score-label">otros</div><div class="score-bar"><div class="score-fill" style="width:33%"></div></div><div class="score-pct">8%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SERVICIOS ── -->
+<section id="servicios">
+  <div class="container">
+    <div class="section-eyebrow">PROGRAMAS</div>
+    <h2 class="section-title">Elegí cómo acceder al sistema</h2>
+    <p class="section-sub">Cupos limitados para mantener la calidad. Consultá disponibilidad antes de adquirir.</p>
+    <div class="services-grid">
+
+      <div class="service-card">
+        <div class="service-icon">📡</div>
+        <div class="service-name">Señales EURUSD</div>
+        <div class="service-desc">Señales en tiempo real con entrada, SL y TP. Seguimiento de cada trade y soporte por Telegram.</div>
+        <ul class="service-features">
+          <li>3–10 señales por semana</li>
+          <li>Sesión Londres y New York</li>
+          <li>Seguimiento y gestión incluida</li>
+          <li>Canal privado de comunidad</li>
+          <li>Soporte vía Telegram</li>
+        </ul>
+        <div class="service-price">
+          <div class="price-amount">$59 <span class="price-period">/ mes</span></div>
+          <div class="price-alt">$99 / año · ahorrás $609</div>
+        </div>
+        <button class="service-btn outline" onclick="openModal()">Crear cuenta →</button>
+      </div>
+
+      <div class="service-card featured">
+        <div class="service-featured-badge">⭐ MÁS POPULAR</div>
+        <div class="service-icon">🤖</div>
+        <div class="service-name">IA T.N.S.V.T 1.0</div>
+        <div class="service-desc">Sistema 100% automático que opera EURUSD en tu cuenta MT5. Vos no hacés nada, solo lo dejás corriendo.</div>
+        <ul class="service-features">
+          <li>Bot operando solo en tu MT5</li>
+          <li>Gestión de riesgo dinámica (FTMO)</li>
+          <li>Filtro IA ONNX integrado</li>
+          <li>Sin intervención manual</li>
+          <li>Soporte técnico incluido</li>
+        </ul>
+        <div class="service-price">
+          <div class="price-amount">$300 <span class="price-period">/ 3 meses</span></div>
+          <div class="price-alt">$800 / año · $1500 de por vida</div>
+        </div>
+        <button class="service-btn" onclick="openModal()">Comprar acceso →</button>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">🎓</div>
+        <div class="service-name">Mentoría 1 a 1</div>
+        <div class="service-desc">Sesiones individuales para aprender LST, SMC y gestión de riesgo aplicada a EURUSD. Incluye acceso de por vida a señales.</div>
+        <ul class="service-features">
+          <li>Sesiones 1 a 1 por videollamada</li>
+          <li>LST Models 1, 2, 3 + CRT</li>
+          <li>Order Blocks y BOS aplicados</li>
+          <li>Gestión para prop firms</li>
+          <li>Señales de por vida incluidas</li>
+        </ul>
+        <div class="service-price">
+          <div class="price-amount">$300 <span class="price-period">pago único</span></div>
+          <div class="price-alt">Clases pregrabadas + 1 a 1 en vivo</div>
+        </div>
+        <button class="service-btn outline" onclick="openModal()">Reservar cupo →</button>
+      </div>
+
+    </div>
+    <div class="payments-note">
+      <span>Pagos aceptados:</span>
+      <span class="pay-badge">USDT TRC20</span>
+      <span class="pay-badge">PayPal</span>
+      <span class="pay-badge">Transferencia bancaria</span>
+      <span style="color:var(--muted)">· Aprobación en minutos después del pago</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMUNIDAD ── -->
+<section id="comunidad" style="background:var(--black2);border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)">
+  <div class="container">
+    <div class="section-eyebrow">COMUNIDAD</div>
+    <h2 class="section-title">Sumate a la comunidad</h2>
+    <p class="section-sub">Todo el contenido esencial, gratis para quien quiere aprender el método.</p>
+    <div class="comunidad-cards">
+      <div class="comunidad-card featured">
+        <div class="com-tag">// FREE · DISPONIBLE</div>
+        <div class="com-name">Comunidad Telegram</div>
+        <ul class="com-list">
+          <li>Señales educativas sobre EURUSD</li>
+          <li>Análisis de market structure en vivo</li>
+          <li>Order Blocks y LG explicados en tiempo real</li>
+          <li>Noticias de alto impacto y horarios clave</li>
+          <li>Estado semanal del forward</li>
+          <li>Acceso al canal de la comunidad</li>
+        </ul>
+        <a href="https://t.me/" class="btn-primary" style="display:inline-flex">Unirme gratis →</a>
+      </div>
+      <div class="comunidad-card">
+        <div class="com-tag pronto">// VIP · PRÓXIMAMENTE</div>
+        <div class="com-name">Acceso VIP</div>
+        <ul class="com-list">
+          <li>Clases y formación en vivo</li>
+          <li>Mentoría grupal mensual</li>
+          <li>Acceso anticipado a nuevas versiones del bot</li>
+          <li>Sesiones de análisis privadas</li>
+          <li>Comunidad de traders activos</li>
+          <li>Dashboard de performance en tiempo real</li>
+        </ul>
+        <button class="btn-outline" style="border:1px solid var(--border);color:var(--muted);padding:.7rem 1.5rem;border-radius:var(--radius);font-size:.9rem;font-weight:600;cursor:not-allowed;background:transparent">Muy pronto</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CÓMO UNIRTE ── -->
+<section>
+  <div class="container">
+    <div class="section-eyebrow">TU CAPITAL · TU CONTROL</div>
+    <h2 class="section-title" style="margin-bottom:.75rem">Cómo empezar en 4 pasos</h2>
+    <p class="section-sub">Siempre operás en tu propia cuenta, a tu nombre. T.N.S.V.T nunca administra fondos de terceros.</p>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">→ 01</div>
+        <h4>Sumate al Telegram</h4>
+        <p>Gratis. Conocé la comunidad, el método y el estado del sistema antes de decidir.</p>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">→ 02</div>
+        <h4>Creá tu cuenta</h4>
+        <p>Registro instantáneo. Sin esperar aprobación. Desde el panel elegís el programa que querés activar.</p>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">→ 03</div>
+        <h4>Pagás y se desbloquea</h4>
+        <p>En USDT, PayPal o transferencia. Aprobación en minutos. El acceso queda activo al instante.</p>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="step-card">
+        <div class="step-num">→ 04</div>
+        <h4>Tu cuenta, tu control</h4>
+        <p>Depositás, retirás y pausás cuando quieras. Nosotros proveemos el sistema, vos controlás el capital.</p>
+      </div>
+    </div>
+    <div style="margin-top:2.5rem;text-align:center">
+      <button class="btn-primary" onclick="openModal()">Crear cuenta gratis →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section id="faq" style="background:var(--black2);border-top:1px solid var(--border2)">
+  <div class="container">
+    <div class="section-eyebrow">FAQ</div>
+    <h2 class="section-title" style="margin-bottom:2rem">Lo que preguntan</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿T.N.S.V.T garantiza ganancias?</div>
+        <div class="faq-a">No. El trading conlleva riesgo real de pérdida y nadie puede garantizar resultados futuros. Los números que mostramos son del backtest y del forward en simulación. Las decisiones y el riesgo son siempre de cada persona.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿Necesito experiencia para usar la IA?</div>
+        <div class="faq-a">No para el sistema automático. El bot opera solo en tu MT5 — solo necesitás una cuenta con tu broker, capital mínimo y MT5 abierto. Para las señales y mentorías, lo explicamos desde cero con el método propio.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿Qué es el ONNX y para qué sirve?</div>
+        <div class="faq-a">Es un filtro de Machine Learning integrado al bot que evalúa la probabilidad de éxito de cada señal antes de entrar. Se entrena con el historial real de trades y mejora con el tiempo. Reduce los trades malos sin afectar los buenos, subiendo el Profit Factor del sistema.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿El bot sirve para pasar una prop firm como FTMO?</div>
+        <div class="faq-a">El sistema fue optimizado específicamente sobre una cuenta demo de $25.000 FTMO con las reglas de esa prop: DD máximo 8%, DD diario 2%, objetivo 8%. El riesgo dinámico por fases está diseñado para respetar esas reglas. Sin embargo, el backtest no garantiza el resultado en el challenge real.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿Puedo apagar la PC y dejar el bot operando?</div>
+        <div class="faq-a">No si apagás la PC. MT5 necesita estar abierto para que el bot opere. Para que funcione 24/5 sin depender de tu máquina, recomendamos contratar un VPS especializado en Forex (Contabo, BeeksFX o el VPS de MQL5) desde ~$5/mes.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿Cómo se paga y en cuánto se activa el acceso?</div>
+        <div class="faq-a">Pagamos en USDT TRC20, PayPal o transferencia bancaria. Una vez que pagás y subís el comprobante desde tu panel, la activación es manual en minutos a pocas horas. El acceso queda desbloqueado en tu cuenta.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">¿Hay devoluciones?</div>
+        <div class="faq-a">No. Por la naturaleza del producto (acceso a sistema, código y contenido educativo) las compras son finales. Si tenés dudas antes de comprar, escribinos al Telegram de soporte y te respondemos todo sin compromiso.</div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      ⚠️ <strong>Aviso de riesgo:</strong> El trading de instrumentos financieros conlleva un alto riesgo y puede ocasionar la pérdida total del capital. El contenido de T.N.S.V.T es educativo e informativo y no constituye asesoramiento financiero ni de inversión. Los resultados provienen de backtesting y simulación sobre datos históricos; los resultados pasados no garantizan resultados futuros. El sistema está en fase de validación y no opera dinero real de terceros. No inviertas dinero que no puedas permitirte perder.
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-logo">T.N.S.V.<span>T</span></div>
+      <div class="footer-desc">Two-Step Multifractal Theory. Sistema algorítmico institucional sobre EURUSD. Bot propio con ONNX, forward en vivo y track record auditado.</div>
+      <div style="display:flex;gap:.8rem">
+        <a href="https://t.me/" style="color:var(--violet);text-decoration:none;font-size:.83rem">✈ Telegram</a>
+      </div>
+    </div>
+    <div class="footer-links">
+      <h5>SISTEMA</h5>
+      <a href="#que-es">Qué es</a>
+      <a href="#envivo">Estado en vivo</a>
+      <a href="#performance">Performance</a>
+      <a href="#onnx">Filtro IA</a>
+    </div>
+    <div class="footer-links">
+      <h5>ACCESO</h5>
+      <a href="#servicios">Programas</a>
+      <a href="#comunidad">Comunidad</a>
+      <a href="#faq">FAQ</a>
+      <a href="#" onclick="openModal();return false;">Crear cuenta</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">El trading conlleva riesgo de pérdida. Contenido educativo, no asesoramiento de inversión. © 2026 T.N.S.V.T</div>
+    <div class="footer-version">v6.0 ONNX // SISTEMA ACTIVO</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+function openModal(){ document.getElementById('modalOverlay').classList.add('active'); }
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('active'); }
+document.getElementById('modalOverlay').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+function switchTab(t){
+  document.querySelectorAll('.modal-tab').forEach((el,i)=>el.classList.toggle('active',['login','register'][i]===t));
+  document.querySelectorAll('.modal-panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById(t==='login'?'panelLogin':'panelRegister').classList.add('active');
+}
+
+function toggleMenu(){
+  const m=document.getElementById('mobileMenu');
+  m.style.display = m.style.display==='block' ? 'none' : 'block';
+}
+
+function toggleFaq(el){
+  el.parentElement.classList.toggle('open');
+}
+
+const labels = ['Feb','Mar','Abr','May','Jun'];
+const data   = [25000,25800,26900,27800,29200];
+new Chart(document.getElementById('equityChart'),{
+  type:'line',
+  data:{
+    labels,
+    datasets:[{
+      label:'Equity ($)',
+      data,
+      borderColor:'#7c3aed',
+      backgroundColor:'rgba(124,58,237,0.08)',
+      borderWidth:2,
+      pointBackgroundColor:'#7c3aed',
+      pointRadius:4,
+      tension:.35,
+      fill:true
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ ticks:{ color:'#6b6b80', font:{size:11} }, grid:{ color:'rgba(255,255,255,0.04)' } },
+      y:{ ticks:{ color:'#6b6b80', font:{size:11}, callback:v=>'$'+v.toLocaleString() }, grid:{ color:'rgba(255,255,255,0.04)' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

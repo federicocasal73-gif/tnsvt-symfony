@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body{font-family:'Inter',Arial,sans-serif;background:#0d0818;color:#e8e0ff;margin:0;padding:0}
+.container{max-width:600px;margin:0 auto;background:#1a1228;padding:24px;border-radius:14px}
+h1{color:#d4af37;font-family:'Cinzel',serif;font-size:24px;margin:0 0 16px}
+h2{color:#c8a0ff;font-size:18px;margin:24px 0 8px}
+table{width:100%;border-collapse:collapse;margin:12px 0}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #2d1f55}
+th{color:#f0c060;font-size:12px;text-transform:uppercase;letter-spacing:1px}
+.amount{color:#4ade80;font-weight:700;font-family:'JetBrains Mono',monospace}
+.prize{background:rgba(212,175,55,.1);padding:16px;border-radius:10px;margin:16px 0;text-align:center}
+.prize-rank{color:#d4af37;font-size:14px;font-weight:700;margin-bottom:6px}
+.prize-amount{color:#4ade80;font-size:32px;font-weight:900;margin:8px 0}
+.cta{display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#d4af37,#8b6914);color:#0d0818;text-decoration:none;border-radius:8px;font-weight:700;margin:16px 0}
+.footer{font-size:11px;color:#666;margin-top:32px;text-align:center;border-top:1px solid #2d1f55;padding-top:16px}
+.muted{color:#a090c0;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏆 {{ tournament.name }}</h1>
+
+  <p class="muted">Hola <strong>{{ user.name }}</strong>,</p>
+
+  <p class="muted">El torneo <strong>{{ tournament.name }}</strong> cerró y aquí está el resumen final de tu participación.</p>
+
+  {% if is_winner %}
+  <div class="prize">
+    <div class="prize-rank">🏅 Posición #{{ entry.rank }} de {{ total_entries }}</div>
+    <div class="prize-amount">${{ prize_amount }}</div>
+    <div class="muted">Premio acreditado a tu wallet TNSVT</div>
+  </div>
+  {% else %}
+  <h2>📊 Tu resultado</h2>
+  <table>
+    <tr><th>Posición</th><td>#{{ entry.finalRank }} de {{ total_entries }}</td></tr>
+    <tr><th>PnL</th><td class="amount">{{ entry.pnlPct }}%</td></tr>
+    <tr><th>Equity final</th><td>${{ entry.finalEquity }}</td></tr>
+  </table>
+  <p class="muted">Gracias por participar. El próximo torneo arranca pronto.</p>
+  {% endif %}
+
+  <h2>📋 Podio del torneo</h2>
+  <table>
+    <tr><th>Pos</th><th>Jugador</th><th>PnL</th><th>Premio</th></tr>
+    {% for w in winners %}
+    <tr>
+      <td>#{{ loop.index }}</td>
+      <td>{{ w.username }}</td>
+      <td class="amount">{{ w.pnl_pct }}%</td>
+      <td class="amount">${{ w.prize }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <a href="{{ server_url }}" class="cta">Ver en TNSVT</a>
+
+  <div class="footer">
+    T.N.S.V.T · Cristo Íntegro<br>
+    {{ server_url }}
+  </div>
+</div>
+</body>
+</html>

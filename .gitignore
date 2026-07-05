@@ -1,0 +1,89 @@
+
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+/php-ext/
+###< symfony/framework-bundle ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
+
+###> tnsvt/music ###
+# No commitear el archivo de música subido por el admin ni su metadata
+/public/audio/bg-music.*
+/public/audio/current.json
+/public/audio/external-cache.bin
+/public/audio/external-cache.meta.json
+/public/audio/cache-*.bin
+/public/audio/cache-*.bin.meta.json
+/public/audio/track-*.*
+###< tnsvt/music ###
+
+# Backups locales (no commitear)
+/.git.zip
+*.zip
+/_backup/
+*.tar.gz
+*.bak
+
+# Keystore de firma del APK (NO commitear, es privado!)
+/android/app/tnsvt-release.keystore
+/android/app/keystore.properties
+/android/*.jks
+/android/*.keystore
+
+# Secretos de Firebase (NUNCA commitear)
+/android/app/google-services.json
+/android/app/*-firebase-adminsdk-*.json
+
+# Archivos de release APK (se generan en build, no en repo)
+/public/apk/*.apk
+/public/downloads/*.apk
+
+# Archivos de usuario generados en runtime
+/_archive_apks/
+/public/docs/
+/public/uploads/avatars/
+
+###> capacitor ###
+# Android build output y cache (no commitear)
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/capacitor-cordova-android-plugins/
+/android/.idea/
+/android/*.iml
+/android/app/release/
+# Assets compilados que el sync de Capacitor copia desde public/ a android/
+# Se regeneran corriendo `npx cap sync` antes del build
+/android/app/src/main/assets/public/assets/
+# Pero SI commitear: configuracion, manifest, recursos, gradle
+# (la carpeta android/ queda commiteada parcialmente via .gitignore)
+###< capacitor ###
+
+# Node y npm
+/node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build output de Capacitor
+/public/assets/
+
+# Game app TNSVT Market Instinct (separado a su propio repo: tnsvt-market-instinct)
+/game-app/
+public/downloads/*.bundle
+
+public/uploads/chat/

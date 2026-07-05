@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="T.N.S.V.T — Two-Step Multifractal Theory. Sistema algorítmico institucional EURUSD. Bot propio basado en LST + SMC con ONNX. Forward en vivo, track record auditado.">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="T.N.S.V.T — Two-Step Multifractal Theory">
+<meta property="og:description" content="Sistema algorítmico institucional EURUSD. Bot propio con ONNX, forward en vivo, track record auditado.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tnsvt.netlify.app">
+<meta property="og:image" content="https://tnsvt.netlify.app/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#7c3aed">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<title>T.N.S.V.T — Two-Step Multifractal Theory</title>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "T.N.S.V.T TSMT v6",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "MT5",
+  "description": "Sistema algorítmico institucional EURUSD con filtro ONNX",
+  "offers": { "@type": "Offer", "price": "300", "priceCurrency": "USD" }
+}
+</script>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   T.N.S.V.T — GLOW UP CSS
+   ══════════════════════════════════════════════════════════════ */
+:root{--black:#06060a;--black2:#0c0c14;--black3:#12121e;--black4:#1a1a2e;--violet:#7c3aed;--violet-mid:#6d28d9;--violet-dim:#2d1b69;--violet-glow:rgba(124,58,237,.25);--violet-line:rgba(124,58,237,.4);--white:#f0f0f8;--white2:#b8b8cc;--muted:#5a5a72;--border:rgba(124,58,237,.25);--border2:rgba(255,255,255,.06);--radius:12px;--radius-lg:20px;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;--glow:0 0 40px rgba(124,58,237,.15);--glow-strong:0 0 80px rgba(124,58,237,.25)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{font-family:var(--font);background:var(--black);color:var(--white);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:var(--violet);color:#fff}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--black2)}
+::-webkit-scrollbar-thumb{background:var(--violet-dim);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--violet)}
+
+/* ── TIPOGRAFÍA ── */
+h1{font-size:clamp(2.6rem,7vw,4.8rem);font-weight:900;letter-spacing:-.04em;line-height:1.05}
+h2{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;letter-spacing:-.02em;line-height:1.15}
+h3{font-size:1.1rem;font-weight:600}
+p{color:var(--white2);font-size:.95rem}
+
+/* ── ANIMACIONES ── */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 20px rgba(124,58,237,.2)}50%{box-shadow:0 0 40px rgba(124,58,237,.4)}}
+@keyframes gradient-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInLeft{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeInRight{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes borderGlow{0%,100%{border-color:rgba(124,58,237,.2)}50%{border-color:rgba(124,58,237,.5)}}
+@keyframes typewriter{from{width:0}to{width:100%}}
+@keyframes blink{50%{border-color:transparent}}
+@keyframes orbit{0%{transform:rotate(0deg) translateX(120px) rotate(0deg)}100%{transform:rotate(360deg) translateX(120px) rotate(-360deg)}}
+@keyframes particle-float{0%,100%{transform:translate(0,0) scale(1);opacity:.6}25%{transform:translate(10px,-20px) scale(1.1);opacity:.8}50%{transform:translate(-5px,-40px) scale(.9);opacity:.4}75%{transform:translate(15px,-20px) scale(1.05);opacity:.7}}
+
+/* ── REVEAL ON SCROLL ── */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-left{opacity:0;transform:translateX(-40px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal-left.visible{opacity:1;transform:translateX(0)}
+.reveal-right{opacity:0;transform:translateX(40px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal-right.visible{opacity:1;transform:translateX(0)}
+.reveal-scale{opacity:0;transform:scale(.85);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal-scale.visible{opacity:1;transform:scale(1)}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:999;display:flex;align-items:center;justify-content:space-between;padding:.9rem 2.5rem;background:rgba(6,6,10,.6);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid rgba(255,255,255,.04);transition:all .3s ease}
+nav.scrolled{background:rgba(6,6,10,.92);border-bottom:1px solid var(--border);padding:.7rem 2.5rem;box-shadow:0 4px 30px rgba(0,0,0,.4)}
+.logo{font-size:1.1rem;font-weight:900;letter-spacing:.14em;color:var(--white);text-decoration:none;display:flex;align-items:center;gap:.5rem}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--violet);animation:glow-pulse 2s infinite}
+.logo span{color:var(--violet)}
+.nav-links{display:flex;align-items:center;gap:2rem;list-style:none}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:.82rem;letter-spacing:.06em;font-weight:500;transition:color .25s;position:relative}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:1.5px;background:var(--violet);transition:width .3s ease}
+.nav-links a:hover{color:var(--white)}
+.nav-links a:hover::after{width:100%}
+.nav-cta{background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff!important;font-weight:700!important;padding:.5rem 1.2rem;border-radius:8px;font-size:.8rem!important;letter-spacing:.04em!important;transition:all .3s!important;box-shadow:0 2px 15px rgba(124,58,237,.3)}
+.nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 25px rgba(124,58,237,.5)!important}
+.nav-cta::after{display:none!important}
+.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--white);font-size:1.5rem;padding:.3rem}
+.mobile-menu{display:none;position:fixed;top:60px;left:0;right:0;background:rgba(12,12,20,.98);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:1.5rem 2rem;z-index:998;animation:slideDown .3s ease}
+.mobile-menu a{display:block;padding:.7rem 0;color:var(--white2);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.04);font-size:.95rem;transition:color .2s}
+.mobile-menu a:last-child{border-bottom:none}
+.mobile-menu a:hover{color:var(--violet)}
+
+/* ── STATUS BAR ── */
+.status-bar{margin-top:60px;background:linear-gradient(90deg,var(--black2),var(--black3),var(--black2));border-bottom:1px solid var(--border);padding:.55rem 2.5rem;display:flex;align-items:center;gap:2rem;font-size:.72rem;font-family:var(--mono);color:var(--muted);overflow-x:auto;animation:glow-pulse 4s infinite}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,.6)}
+.status-item{white-space:nowrap;transition:color .2s}
+.status-item:hover{color:var(--white)}
+.status-val{color:var(--violet);font-weight:700}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:7rem 2.5rem 5rem;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.hero-orb{position:absolute;border-radius:50%;filter:blur(80px);animation:float 6s ease-in-out infinite}
+.hero-orb-1{width:500px;height:500px;background:rgba(124,58,237,.12);top:-15%;left:40%;animation-delay:0s}
+.hero-orb-2{width:350px;height:350px;background:rgba(147,51,234,.08);bottom:10%;right:10%;animation-delay:2s}
+.hero-orb-3{width:200px;height:200px;background:rgba(124,58,237,.15);top:30%;left:10%;animation-delay:4s}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(124,58,237,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,.03) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%)}
+.hero-particles{position:absolute;inset:0;pointer-events:none}
+.particle{position:absolute;width:3px;height:3px;background:var(--violet);border-radius:50%;opacity:.4;animation:particle-float 4s ease-in-out infinite}
+.hero-content{position:relative;z-index:2}
+.hero-eyebrow{font-size:.72rem;letter-spacing:.25em;color:var(--violet);font-weight:700;margin-bottom:2rem;display:flex;align-items:center;gap:.8rem;animation:fadeInLeft .8s ease .2s both}
+.hero-eyebrow::before{content:'';display:block;width:32px;height:2px;background:linear-gradient(90deg,var(--violet),transparent)}
+.hero-eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--violet);animation:pulse 2s infinite}
+.hero-title{max-width:850px;margin-bottom:1.8rem;animation:fadeInUp .8s ease .4s both}
+.hero-title em{font-style:normal;background:linear-gradient(135deg,var(--violet),#a855f7,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;background-size:200% 200%;animation:gradient-shift 4s ease infinite}
+.hero-sub{max-width:540px;font-size:1.1rem;color:var(--white2);margin-bottom:3rem;line-height:1.8;animation:fadeInUp .8s ease .6s both}
+.hero-btns{display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:5rem;animation:fadeInUp .8s ease .8s both}
+.btn-primary{background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff;font-weight:700;padding:.9rem 2rem;border-radius:var(--radius);text-decoration:none;font-size:.95rem;letter-spacing:.02em;transition:all .3s;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:.6rem;box-shadow:0 4px 20px rgba(124,58,237,.35);position:relative;overflow:hidden}
+.btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);opacity:0;transition:opacity .3s}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 35px rgba(124,58,237,.5)}
+.btn-primary:hover::before{opacity:1}
+.btn-outline{background:rgba(255,255,255,.03);color:var(--white2);font-weight:600;padding:.9rem 2rem;border-radius:var(--radius);text-decoration:none;font-size:.95rem;border:1px solid rgba(255,255,255,.1);transition:all .3s;display:inline-flex;align-items:center;gap:.6rem;backdrop-filter:blur(10px)}
+.btn-outline:hover{border-color:var(--violet);color:var(--white);background:rgba(124,58,237,.08);transform:translateY(-2px);box-shadow:var(--glow)}
+.hero-kpis{display:flex;gap:2.5rem;flex-wrap:wrap}
+.kpi-item{display:flex;flex-direction:column;position:relative}
+.kpi-num{font-size:2.2rem;font-weight:900;color:var(--white);line-height:1;font-family:var(--mono)}
+.kpi-num.violet{color:var(--violet)}
+.kpi-label{font-size:.68rem;color:var(--muted);letter-spacing:.1em;margin-top:.35rem;font-weight:500}
+.kpi-divider{width:1px;background:linear-gradient(180deg,transparent,var(--border),transparent);align-self:stretch}
+.kpi-item::after{content:'';position:absolute;bottom:-8px;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--violet),transparent);opacity:0;transition:opacity .3s}
+.kpi-item:hover::after{opacity:1}
+
+/* ── SECCIONES ── */
+section{padding:6rem 2.5rem}
+.container{max-width:1120px;margin:0 auto}
+.section-header{margin-bottom:3.5rem}
+.section-eyebrow{font-size:.7rem;letter-spacing:.2em;color:var(--violet);font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.7rem}
+.section-eyebrow::before{content:'//';color:var(--muted);font-family:var(--mono)}
+.section-title{margin-bottom:1rem}
+.section-sub{color:var(--white2);font-size:1.05rem;max-width:600px;margin-bottom:0;line-height:1.8}
+
+/* ── CARDS GLOW ── */
+.card-glow{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:2rem;position:relative;overflow:hidden;transition:all .4s cubic-bezier(.16,1,.3,1)}
+.card-glow::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--violet),transparent);opacity:0;transition:opacity .4s}
+.card-glow:hover{border-color:var(--violet-line);transform:translateY(-4px);box-shadow:var(--glow)}
+.card-glow:hover::before{opacity:1}
+
+/* ── QUÉ ES ── */
+.que-es-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.que-es-text p{margin-bottom:1.2rem;font-size:1rem;line-height:1.8}
+.pillars{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:2rem}
+.pillar{background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:var(--radius);padding:1.3rem;border-left:3px solid var(--violet);transition:all .3s}
+.pillar:hover{background:rgba(124,58,237,.05);border-color:var(--violet-line)}
+.pillar-tag{font-size:.65rem;letter-spacing:.15em;color:var(--violet);margin-bottom:.5rem;font-weight:700;font-family:var(--mono)}
+.pillar h4{font-size:.95rem;font-weight:700;color:var(--white);margin-bottom:.3rem}
+.pillar p{font-size:.82rem;color:var(--muted);line-height:1.6}
+
+/* ── ARQUITECTURA ── */
+.arch-card{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:2rem;position:relative;overflow:hidden}
+.arch-card::after{content:'';position:absolute;top:-50%;right:-50%;width:200px;height:200px;background:radial-gradient(circle,rgba(124,58,237,.08),transparent);pointer-events:none}
+.arch-tag{font-size:.7rem;letter-spacing:.15em;color:var(--violet);margin-bottom:1.5rem;font-weight:700;font-family:var(--mono)}
+.arch-layers{display:flex;flex-direction:column;gap:.8rem}
+.arch-layer{background:var(--black3);border-radius:10px;padding:1.1rem 1.3rem;border-left:3px solid var(--violet);transition:all .3s;position:relative}
+.arch-layer:hover{background:rgba(124,58,237,.08);transform:translateX(4px)}
+.arch-layer-label{font-size:.65rem;color:var(--muted);margin-bottom:.2rem;font-family:var(--mono);letter-spacing:.1em}
+.arch-layer-val{font-size:.92rem;font-weight:700;color:var(--white)}
+.arch-layer:nth-child(2){border-left-color:rgba(124,58,237,.6)}
+.arch-layer:nth-child(3){border-left-color:rgba(124,58,237,.4)}
+.arch-layer:nth-child(4){border-left-color:rgba(124,58,237,.7);background:rgba(124,58,237,.08);border:1px solid var(--violet-line)}
+.arch-arrow{display:flex;justify-content:center;color:var(--violet);font-size:.8rem;opacity:.5}
+
+/* ── STEPS ── */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem}
+.step-card{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.8rem;position:relative;transition:all .4s cubic-bezier(.16,1,.3,1);overflow:hidden}
+.step-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--violet),transparent);transform:scaleX(0);transform-origin:left;transition:transform .4s ease}
+.step-card:hover{border-color:var(--violet-line);transform:translateY(-6px);box-shadow:var(--glow)}
+.step-card:hover::before{transform:scaleX(1)}
+.step-num{font-size:.7rem;font-family:var(--mono);color:var(--violet);font-weight:700;margin-bottom:1.2rem;letter-spacing:.15em}
+.step-card h4{font-size:1rem;margin-bottom:.6rem;font-weight:700}
+.step-card p{font-size:.85rem;color:var(--muted);line-height:1.6}
+.step-arrow{position:absolute;top:1.8rem;right:-.5rem;color:var(--violet);font-size:.85rem;z-index:2;opacity:.5;transition:all .3s}
+.step-card:hover .step-arrow{opacity:1;transform:translateX(4px)}
+
+/* ── LIVE STATUS ── */
+.live-section{background:linear-gradient(180deg,var(--black2),var(--black3),var(--black2));border-top:1px solid var(--border2);border-bottom:1px solid var(--border2);position:relative}
+.live-section::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:400px;height:1px;background:linear-gradient(90deg,transparent,var(--violet),transparent)}
+.live-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem}
+.live-badge{display:flex;align-items:center;gap:.6rem;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#22c55e;font-size:.72rem;font-weight:700;letter-spacing:.12em;padding:.4rem 1rem;border-radius:30px;animation:borderGlow 3s infinite}
+.live-badge .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite;box-shadow:0 0 8px rgba(34,197,94,.6)}
+.live-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:2rem}
+.live-card{background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:var(--radius);padding:1.3rem;transition:all .3s;position:relative;overflow:hidden}
+.live-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--violet),transparent);opacity:0;transition:opacity .3s}
+.live-card:hover{border-color:var(--violet-line);transform:translateY(-2px)}
+.live-card:hover::after{opacity:1}
+.live-card-label{font-size:.68rem;color:var(--muted);letter-spacing:.1em;margin-bottom:.5rem;font-family:var(--mono)}
+.live-card-val{font-size:1.7rem;font-weight:900;color:var(--white);font-family:var(--mono)}
+.live-card-val.green{color:#22c55e}
+.live-card-val.violet{color:var(--violet)}
+.live-card-sub{font-size:.7rem;color:var(--muted);margin-top:.25rem}
+.live-note{font-size:.8rem;color:var(--muted);border:1px solid var(--border2);border-radius:var(--radius);padding:1rem 1.2rem;display:flex;gap:.7rem;align-items:flex-start;background:rgba(255,255,255,.01);line-height:1.7}
+
+/* ── PERFORMANCE ── */
+.perf-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:start}
+.perf-stats{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.perf-card{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.4rem;transition:all .3s}
+.perf-card.accent{border-color:var(--violet-line);background:linear-gradient(135deg,rgba(124,58,237,.06),var(--black2))}
+.perf-card:hover{transform:translateY(-3px);box-shadow:var(--glow)}
+.perf-label{font-size:.68rem;color:var(--muted);letter-spacing:.1em;margin-bottom:.4rem;font-family:var(--mono)}
+.perf-val{font-size:1.6rem;font-weight:900;font-family:var(--mono)}
+.perf-val.violet{color:var(--violet)}
+.perf-val.green{color:#22c55e}
+.perf-sub{font-size:.7rem;color:var(--muted);margin-top:.25rem}
+.equity-chart-box{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.8rem;position:relative;overflow:hidden}
+.equity-chart-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--violet),transparent)}
+.equity-chart-box h4{font-size:.9rem;color:var(--white);margin-bottom:1.2rem;font-weight:700}
+.chart-canvas-wrap{position:relative;width:100%;height:220px}
+
+/* ── ONNX ── */
+.onnx-section{background:linear-gradient(180deg,var(--black2),var(--black3),var(--black2));border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)}
+.onnx-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.onnx-pills{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.8rem}
+.onnx-pill{background:rgba(255,255,255,.03);border:1px solid rgba(124,58,237,.2);border-radius:30px;padding:.35rem 1rem;font-size:.78rem;color:var(--white2);transition:all .3s}
+.onnx-pill:hover{border-color:var(--violet);background:rgba(124,58,237,.08)}
+.onnx-pill span{color:var(--violet);font-weight:700}
+.score-bars{display:flex;flex-direction:column;gap:.9rem}
+.score-row{display:flex;align-items:center;gap:.9rem}
+.score-label{font-size:.78rem;color:var(--muted);width:75px;flex-shrink:0}
+.score-bar{flex:1;background:var(--black3);border-radius:4px;height:6px;overflow:hidden}
+.score-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--violet),#a855f7);transition:width 1.5s cubic-bezier(.16,1,.3,1)}
+.score-pct{font-size:.78rem;color:var(--white2);width:35px;text-align:right;flex-shrink:0;font-family:var(--mono);font-weight:700}
+
+/* ── SERVICIOS ── */
+.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
+.service-card{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:2rem;display:flex;flex-direction:column;transition:all .4s cubic-bezier(.16,1,.3,1);position:relative;overflow:hidden}
+.service-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--violet),transparent);opacity:0;transition:opacity .4s}
+.service-card:hover{border-color:var(--violet-line);transform:translateY(-6px);box-shadow:var(--glow-strong)}
+.service-card:hover::before{opacity:1}
+.service-card.featured{border-color:var(--violet);background:linear-gradient(160deg,rgba(124,58,237,.08),var(--black2) 60%)}
+.service-card.featured::after{content:'';position:absolute;top:-100px;right:-100px;width:250px;height:250px;background:radial-gradient(circle,rgba(124,58,237,.1),transparent);pointer-events:none}
+.service-featured-badge{display:inline-block;background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff;font-size:.65rem;font-weight:700;letter-spacing:.12em;padding:.3rem .8rem;border-radius:6px;margin-bottom:1.2rem;width:fit-content}
+.service-icon{font-size:1.8rem;margin-bottom:1rem}
+.service-name{font-size:1.15rem;font-weight:700;margin-bottom:.6rem}
+.service-desc{font-size:.88rem;color:var(--muted);margin-bottom:1.5rem;flex-grow:1;line-height:1.7}
+.service-features{list-style:none;margin-bottom:1.8rem}
+.service-features li{font-size:.85rem;color:var(--white2);padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:.6rem}
+.service-features li::before{content:'→';color:var(--violet);font-size:.85rem;flex-shrink:0;font-weight:700}
+.service-price{margin-bottom:1.5rem}
+.price-amount{font-size:1.8rem;font-weight:900;color:var(--white);font-family:var(--mono)}
+.price-period{font-size:.85rem;color:var(--muted);font-weight:400}
+.price-alt{font-size:.82rem;color:var(--muted);margin-top:.3rem}
+.service-btn{display:block;text-align:center;text-decoration:none;background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff;font-weight:700;padding:.85rem;border-radius:var(--radius);font-size:.92rem;transition:all .3s;cursor:pointer;border:none;width:100%;box-shadow:0 4px 15px rgba(124,58,237,.3)}
+.service-btn:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(124,58,237,.5)}
+.service-btn.outline{background:transparent;color:var(--white2);border:1px solid var(--border);box-shadow:none}
+.service-btn.outline:hover{border-color:var(--violet);color:var(--white);background:rgba(124,58,237,.08)}
+.payments-note{margin-top:2.5rem;text-align:center;font-size:.82rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:.6rem;flex-wrap:wrap}
+.pay-badge{background:var(--black3);border:1px solid var(--border2);border-radius:6px;padding:.25rem .7rem;font-size:.78rem;color:var(--white2);transition:border-color .3s}
+.pay-badge:hover{border-color:var(--violet)}
+
+/* ── TESTIMONIOS ── */
+.testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.testimonial-card{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.8rem;position:relative;transition:all .3s}
+.testimonial-card:hover{border-color:var(--violet-line);transform:translateY(-3px)}
+.testimonial-card::before{content:'"';position:absolute;top:1rem;right:1.5rem;font-size:3rem;color:var(--violet);opacity:.15;font-family:Georgia,serif;line-height:1}
+.testimonial-text{font-size:.9rem;color:var(--white2);line-height:1.7;margin-bottom:1.2rem;font-style:italic}
+.testimonial-author{display:flex;align-items:center;gap:.8rem}
+.testimonial-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--violet),#9333ea);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff}
+.testimonial-name{font-size:.82rem;font-weight:700;color:var(--white)}
+.testimonial-role{font-size:.72rem;color:var(--muted)}
+
+/* ── COMUNIDAD ── */
+.comunidad-cards{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.comunidad-card{background:var(--black2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:2rem;transition:all .4s}
+.comunidad-card:hover{transform:translateY(-4px);box-shadow:var(--glow)}
+.comunidad-card.featured{border-color:var(--violet);background:linear-gradient(160deg,rgba(124,58,237,.06),var(--black2))}
+.com-tag{font-size:.65rem;letter-spacing:.15em;font-weight:700;color:var(--violet);margin-bottom:1rem;font-family:var(--mono)}
+.com-tag.pronto{color:var(--muted)}
+.com-name{font-size:1.2rem;font-weight:700;margin-bottom:1rem}
+.com-list{list-style:none;margin-bottom:1.8rem}
+.com-list li{font-size:.88rem;color:var(--white2);padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:.6rem}
+.com-list li::before{content:'→';color:var(--violet);font-weight:700}
+
+/* ── FAQ ── */
+.faq-list{max-width:750px}
+.faq-item{border-bottom:1px solid rgba(255,255,255,.06);padding:1.2rem 0}
+.faq-q{font-size:1rem;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:1rem;user-select:none;transition:color .2s}
+.faq-q:hover{color:var(--violet)}
+.faq-q::after{content:'+';color:var(--violet);font-size:1.3rem;flex-shrink:0;transition:transform .3s;font-weight:300}
+.faq-item.open .faq-q::after{content:'−';transform:rotate(180deg)}
+.faq-a{font-size:.9rem;color:var(--muted);margin-top:.8rem;display:none;line-height:1.8;animation:fadeInUp .4s ease}
+.faq-item.open .faq-a{display:block}
+
+/* ── DISCLAIMER ── */
+.disclaimer{background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:var(--radius);padding:1.3rem 1.8rem;font-size:.78rem;color:var(--muted);line-height:1.8;max-width:900px;margin:3.5rem auto 0}
+
+/* ── BACK TO TOP ── */
+.back-to-top{position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff;border:none;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;z-index:998;opacity:0;visibility:hidden;transform:translateY(10px);transition:all .3s;box-shadow:0 4px 20px rgba(124,58,237,.4)}
+.back-to-top.visible{opacity:1;visibility:visible;transform:translateY(0)}
+.back-to-top:hover{transform:translateY(-3px);box-shadow:0 6px 30px rgba(124,58,237,.6)}
+
+/* ── FOOTER ── */
+footer{background:var(--black2);border-top:1px solid var(--border2);padding:3.5rem 2.5rem 1.5rem;position:relative}
+footer::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:200px;height:1px;background:linear-gradient(90deg,transparent,var(--violet),transparent)}
+.footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:2.5rem;max-width:1120px;margin:0 auto 2.5rem}
+.footer-logo{font-size:1.1rem;font-weight:900;letter-spacing:.12em;margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem}
+.footer-logo span{color:var(--violet)}
+.footer-desc{font-size:.85rem;color:var(--muted);line-height:1.7;margin-bottom:1.2rem}
+.footer-links h5{font-size:.75rem;letter-spacing:.12em;color:var(--muted);margin-bottom:1rem;font-weight:700}
+.footer-links a{display:block;font-size:.88rem;color:var(--white2);text-decoration:none;padding:.3rem 0;transition:all .2s}
+.footer-links a:hover{color:var(--violet);transform:translateX(4px)}
+.footer-bottom{max-width:1120px;margin:0 auto;border-top:1px solid rgba(255,255,255,.06);padding-top:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
+.footer-copy{font-size:.78rem;color:var(--muted)}
+.footer-version{font-size:.72rem;color:var(--muted);font-family:var(--mono);padding:.2rem .6rem;background:var(--black3);border-radius:4px;border:1px solid var(--border2)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){.nav-links{display:none}.hamburger{display:block}.que-es-grid,.perf-grid,.onnx-grid,.comunidad-cards,.testimonials-grid{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.pillars{grid-template-columns:1fr}.perf-stats{grid-template-columns:1fr 1fr}.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>:first-child{grid-column:1/-1}.step-arrow{display:none}.hero-kpis{gap:1.5rem}.kpi-divider{display:none}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}.hero-btns{flex-direction:column}.btn-primary,.btn-outline{text-align:center;justify-content:center}section{padding:4rem 1.5rem}.hero{padding:6rem 1.5rem 3rem}}
+</style>
+</head>
+<body>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-logo">T.N.S.V.<span>T</span></div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('login')">Ingresar</button>
+      <button class="modal-tab" onclick="switchTab('register')">Crear cuenta</button>
+    </div>
+    <div class="modal-panel active" id="panelLogin">
+      <div class="modal-title">Acceso seguro</div>
+      <div class="modal-sub">Ingresá para acceder a los programas activos.</div>
+      <div class="form-group"><label>USUARIO O EMAIL</label><input type="text" placeholder="tu@email.com"></div>
+      <div class="form-group"><label>CONTRASEÑA</label><input type="password" placeholder="••••••••"></div>
+      <button class="form-submit">Ingresar al sistema →</button>
+      <p style="text-align:center;margin-top:1rem;font-size:.78rem;color:var(--muted)"><a href="#" style="color:var(--violet);text-decoration:none">Recuperar contraseña</a></p>
+    </div>
+    <div class="modal-panel" id="panelRegister">
+      <div class="modal-title">Nuevo registro</div>
+      <div class="modal-sub">Creá tu cuenta de acceso al sistema.</div>
+      <div class="form-group"><label>NOMBRE COMPLETO</label><input type="text" placeholder="Tu nombre"></div>
+      <div class="form-group"><label>EMAIL</label><input type="email" placeholder="tu@email.com"></div>
+      <div class="form-group"><label>CONTRASEÑA</label><input type="password" placeholder="Mínimo 8 caracteres"></div>
+      <button class="form-submit">Crear cuenta →</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <a href="#" class="logo"><span class="logo-dot"></span>T.N.S.V.<span>T</span></a>
+  <ul class="nav-links">
+    <li><a href="#que-es">Sistema</a></li>
+    <li><a href="#envivo">En vivo</a></li>
+    <li><a href="#performance">Performance</a></li>
+    <li><a href="#servicios">Servicios</a></li>
+    <li><a href="#comunidad">Comunidad</a></li>
+    <li><a href="#faq">FAQ</a></li>
+    <li><a href="#" class="nav-cta" onclick="openModal();return false;">Acceder →</a></li>
+  </ul>
+  <button class="hamburger" onclick="toggleMenu()">☰</button>
+</nav>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#que-es" onclick="toggleMenu()">Sistema</a>
+  <a href="#envivo" onclick="toggleMenu()">En vivo</a>
+  <a href="#performance" onclick="toggleMenu()">Performance</a>
+  <a href="#servicios" onclick="toggleMenu()">Servicios</a>
+  <a href="#comunidad" onclick="toggleMenu()">Comunidad</a>
+  <a href="#faq" onclick="toggleMenu()">FAQ</a>
+  <a href="#" onclick="openModal();toggleMenu();return false;" style="color:var(--violet);font-weight:700">Crear cuenta →</a>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-dot"></div>
+  <span class="status-item">SISTEMA: <span class="status-val">OPERANDO</span></span>
+  <span class="status-item">PAR: <span class="status-val">EURUSD M15</span></span>
+  <span class="status-item">VERSIÓN: <span class="status-val">v6.0 ONNX</span></span>
+  <span class="status-item">ESTRATEGIA: <span class="status-val">LST · SMC · BOS · LG · ORDER BLOCKS</span></span>
+  <span class="status-item">FONDEO: <span class="status-val">FTMO $25k</span></span>
+  <span class="status-item">FORWARD: <span class="status-val">ACTIVO</span></span>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="hero-bg">
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-particles" id="particles"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-eyebrow"><span class="hero-eyebrow-dot"></span>SISTEMA ALGORÍTMICO INSTITUCIONAL · EURUSD</div>
+    <h1 class="hero-title">Trading con lógica<br>de <em>dinero institucional</em></h1>
+    <p class="hero-sub">T.N.S.V.T aplica Two-Step Multifractal Theory sobre EURUSD M15. Bot propio basado en LST + SMC + ONNX, forward corriendo en vivo, track record auditado. Sin promesas — solo método y transparencia.</p>
+    <div class="hero-btns">
+      <a href="#servicios" class="btn-primary">Ver programas <span>→</span></a>
+      <a href="#envivo" class="btn-outline">Estado en vivo</a>
+    </div>
+    <div class="hero-kpis">
+      <div class="kpi-item"><span class="kpi-num violet" data-count="4232" data-prefix="$" data-decimals="0">$0</span><span class="kpi-label">MEJOR PROFIT (M15)</span></div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item"><span class="kpi-num" data-count="4.87" data-decimals="2">0</span><span class="kpi-label">PROFIT FACTOR</span></div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item"><span class="kpi-num green" data-count="3.85" data-suffix="%" data-decimals="2">0</span><span class="kpi-label">DD MÁXIMO TOP CONFIGS</span></div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item"><span class="kpi-num" data-count="1894" data-decimals="0">0</span><span class="kpi-label">CONFIGS BALANCEADAS</span></div>
+      <div class="kpi-divider"></div>
+      <div class="kpi-item"><span class="kpi-num" data-count="9821" data-decimals="0">0</span><span class="kpi-label">PASADAS OPTIMIZACIÓN</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- QUÉ ES -->
+<section id="que-es">
+  <div class="container">
+    <div class="que-es-grid">
+      <div class="que-es-text">
+        <div class="section-header reveal">
+          <div class="section-eyebrow">QUÉ ES</div>
+          <h2 class="section-title">Un sistema que explica<br>cada decisión</h2>
+          <p>T.N.S.V.T es un sistema algorítmico construido sobre la Two-Step Multifractal Theory. No lanza señales al azar: lee la estructura del mercado en tres timeframes simultáneos y solo opera cuando el contexto institucional, la zona y el patrón de entrada se alinean.</p>
+          <p style="margin-top:.8rem">El bot incluye filtro de inteligencia artificial (ONNX) que evalúa la probabilidad de éxito de cada señal antes de entrar. Más selectivo, más eficiente.</p>
+          <p style="margin-top:.8rem">No administramos fondos de terceros. Vos operás tu propia cuenta bajo tu propio control.</p>
+        </div>
+        <div class="pillars reveal">
+          <div class="pillar"><div class="pillar-tag">// ESTRUCTURA</div><h4>LST Models</h4><p>Liquidity Side Theory: modelos 1, 2, 3 y CRT para detectar el patrón exacto de entrada.</p></div>
+          <div class="pillar"><div class="pillar-tag">// CONTEXTO</div><h4>BOS + LG</h4><p>Break of Structure y Liquidity Grab en tres timeframes para confirmar el flujo institucional.</p></div>
+          <div class="pillar"><div class="pillar-tag">// ZONAS</div><h4>Order Blocks</h4><p>Zonas de precio donde el dinero grande entró antes. SL inteligente desde el OB más cercano.</p></div>
+          <div class="pillar"><div class="pillar-tag">// FILTRO IA</div><h4>ONNX Filter</h4><p>Modelo de Machine Learning que evalúa cada señal y solo habilita las de mayor probabilidad.</p></div>
+        </div>
+      </div>
+      <div class="reveal-right">
+        <div class="arch-card">
+          <div class="arch-tag">// ARQUITECTURA DEL SISTEMA</div>
+          <div class="arch-layers">
+            <div class="arch-layer"><div class="arch-layer-label">CAPA 1 — CONTEXTO</div><div class="arch-layer-val">HTF H4 → Tendencia principal + BOS</div></div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-layer"><div class="arch-layer-label">CAPA 2 — ESTRUCTURA</div><div class="arch-layer-val">MTF H1 → LG + Order Block</div></div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-layer"><div class="arch-layer-label">CAPA 3 — ENTRADA</div><div class="arch-layer-val">LTF M15 → Patrón LST + CRT</div></div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-layer"><div class="arch-layer-label">FILTRO IA</div><div class="arch-layer-val">ONNX → Score ≥ 0.60 → ✓ Ejecutar</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CÓMO FUNCIONA -->
+<section style="background:linear-gradient(180deg,var(--black2),var(--black3),var(--black2));border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">CÓMO FUNCIONA</div>
+      <h2 class="section-title" style="margin-bottom:.75rem">Qué hace el bot, paso a paso</h2>
+      <p class="section-sub">No ejecuta a ciegas. Evalúa contexto, detecta zona, confirma patrón y consulta a la IA antes de entrar.</p>
+    </div>
+    <div class="steps">
+      <div class="step-card reveal"><div class="step-num">→ 01</div><h4>Lee el contexto</h4><p>Analiza H4 y H1 para determinar el sesgo institucional del día.</p><span class="step-arrow">→</span></div>
+      <div class="step-card reveal" style="transition-delay:.1s"><div class="step-num">→ 02</div><h4>Detecta la zona</h4><p>Identifica el Order Block más fresco, confirma el Liquidity Grab y mide la estructura BOS.</p><span class="step-arrow">→</span></div>
+      <div class="step-card reveal" style="transition-delay:.2s"><div class="step-num">→ 03</div><h4>Confirma el patrón</h4><p>Exige un patrón LST válido (M1, M2, M3 o CRT) en M15 con confluencia mínima de 2.</p><span class="step-arrow">→</span></div>
+      <div class="step-card reveal" style="transition-delay:.3s"><div class="step-num">→ 04</div><h4>IA da el OK</h4><p>El filtro ONNX evalúa 10 variables y solo autoriza si la probabilidad supera el umbral.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ESTADO EN VIVO -->
+<section class="live-section" id="envivo">
+  <div class="container">
+    <div class="live-header reveal">
+      <div><div class="section-eyebrow">ESTADO EN VIVO</div><h2 style="margin-bottom:0">El forward está corriendo ahora</h2></div>
+      <div class="live-badge"><span class="dot"></span>FORWARD ACTIVO</div>
+    </div>
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:1.5rem" class="reveal">Perfil CONSERVADOR · aprobado.set · EURUSD M15 · FTMO-Demo $25.000 USD</div>
+    <div class="live-grid">
+      <div class="live-card reveal"><div class="live-card-label">NET R SEMANA</div><div class="live-card-val green">+2.5R</div><div class="live-card-sub">Semana en curso</div></div>
+      <div class="live-card reveal" style="transition-delay:.05s"><div class="live-card-label">TRADES EJECUTADOS</div><div class="live-card-val violet">3</div><div class="live-card-sub">Esta semana</div></div>
+      <div class="live-card reveal" style="transition-delay:.1s"><div class="live-card-label">SETUPS EVALUADOS</div><div class="live-card-val">35</div><div class="live-card-sub">Señales revisadas</div></div>
+      <div class="live-card reveal" style="transition-delay:.15s"><div class="live-card-label">DD ACTIVO</div><div class="live-card-val">0.4%</div><div class="live-card-sub">Límite: 2% diario</div></div>
+      <div class="live-card reveal" style="transition-delay:.2s"><div class="live-card-label">BALANCE</div><div class="live-card-val">$25.432</div><div class="live-card-sub">Inicio: $25.000</div></div>
+      <div class="live-card reveal" style="transition-delay:.25s"><div class="live-card-label">SCORE IA PROM.</div><div class="live-card-val violet">0.71</div><div class="live-card-sub">ONNX filter activo</div></div>
+    </div>
+    <div class="live-note reveal"><span style="color:var(--violet)">ℹ</span> El EA no opera dinero real de terceros. Está en fase de validación forward (simulación en vivo). Muestra inicial — estadística válida requiere mínimo 50 trades cerrados. Actualizado cada semana.</div>
+  </div>
+</section>
+
+<!-- PERFORMANCE -->
+<section id="performance">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">PERFORMANCE</div>
+      <h2 class="section-title">Track record auditado</h2>
+      <p class="section-sub">Backtest sobre 9.821 pasadas de optimización en EURUSD M15, cuenta demo $25.000 FTMO. Feb–Jun 2026.</p>
+    </div>
+    <div class="perf-grid">
+      <div class="reveal-left">
+        <div class="perf-stats">
+          <div class="perf-card accent"><div class="perf-label">PROFIT (MEJOR CONFIG)</div><div class="perf-val violet">$4.232</div><div class="perf-sub">EURUSD M15 · 22 trades</div></div>
+          <div class="perf-card"><div class="perf-label">PROFIT FACTOR</div><div class="perf-val">4.87</div><div class="perf-sub">Top config balanceada</div></div>
+          <div class="perf-card"><div class="perf-label">EQUITY DD MÁXIMO</div><div class="perf-val green">3.85%</div><div class="perf-sub">Límite fondeo: 8%</div></div>
+          <div class="perf-card"><div class="perf-label">SHARPE RATIO</div><div class="perf-val">16.40</div><div class="perf-sub">Excelente ajuste riesgo</div></div>
+          <div class="perf-card"><div class="perf-label">CONFIGS BALANCEADAS</div><div class="perf-val">1.894</div><div class="perf-sub">de 9.821 pasadas</div></div>
+          <div class="perf-card"><div class="perf-label">MEJOR M3 (PF)</div><div class="perf-val violet">57.4</div><div class="perf-sub">EURUSD M3 · 22 trades</div></div>
+        </div>
+      </div>
+      <div class="equity-chart-box reveal-right">
+        <h4>Curva de equity simulada — Top configs balanceadas</h4>
+        <div class="chart-canvas-wrap"><canvas id="equityChart"></canvas></div>
+        <div style="margin-top:.8rem;font-size:.75rem;color:var(--muted)">Simulación basada en top configs con PF&gt;2, DD&lt;8%, ≥20 trades. Pasado no garantiza futuro.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ONNX -->
+<section class="onnx-section" id="onnx">
+  <div class="container">
+    <div class="onnx-grid">
+      <div class="reveal-left">
+        <div class="section-header">
+          <div class="section-eyebrow">FILTRO IA</div>
+          <h2 class="section-title">ONNX — inteligencia artificial<br>integrada al bot</h2>
+          <p>El sistema incluye un modelo de Machine Learning entrenado con el historial real de trades. Evalúa 10 variables de cada señal y solo habilita la entrada si la probabilidad de éxito supera el umbral configurado.</p>
+        </div>
+        <div class="onnx-pills">
+          <div class="onnx-pill">Score <span>≥ 0.60</span> recomendado</div>
+          <div class="onnx-pill">Score <span>≥ 0.70</span> ultra-selectivo</div>
+          <div class="onnx-pill"><span>GradientBoosting</span> classifier</div>
+          <div class="onnx-pill">Reentrenar c/ <span>2–3 meses</span></div>
+          <div class="onnx-pill">AUC-ROC <span>&gt; 0.65</span> = útil</div>
+        </div>
+      </div>
+      <div class="card-glow reveal-right" style="padding:1.8rem">
+        <div class="arch-tag">// IMPORTANCIA DE VARIABLES</div>
+        <div class="score-bars" id="scoreBars">
+          <div class="score-row"><div class="score-label">hora del día</div><div class="score-bar"><div class="score-fill" data-width="92"></div></div><div class="score-pct">22%</div></div>
+          <div class="score-row"><div class="score-label">RR ratio</div><div class="score-bar"><div class="score-fill" data-width="77"></div></div><div class="score-pct">18%</div></div>
+          <div class="score-row"><div class="score-label">SL pips</div><div class="score-bar"><div class="score-fill" data-width="59"></div></div><div class="score-pct">14%</div></div>
+          <div class="score-row"><div class="score-label">vol. norm.</div><div class="score-bar"><div class="score-fill" data-width="50"></div></div><div class="score-pct">12%</div></div>
+          <div class="score-row"><div class="score-label">día semana</div><div class="score-bar"><div class="score-fill" data-width="42"></div></div><div class="score-pct">10%</div></div>
+          <div class="score-row"><div class="score-label">sesión</div><div class="score-bar"><div class="score-fill" data-width="38"></div></div><div class="score-pct">9%</div></div>
+          <div class="score-row"><div class="score-label">dirección</div><div class="score-bar"><div class="score-fill" data-width="29"></div></div><div class="score-pct">7%</div></div>
+          <div class="score-row"><div class="score-label">otros</div><div class="score-bar"><div class="score-fill" data-width="33"></div></div><div class="score-pct">8%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICIOS -->
+<section id="servicios">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">PROGRAMAS</div>
+      <h2 class="section-title">Elegí cómo acceder al sistema</h2>
+      <p class="section-sub">Cupos limitados para mantener la calidad. Consultá disponibilidad antes de adquirir.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card reveal">
+        <div class="service-icon">📡</div><div class="service-name">Señales EURUSD</div>
+        <div class="service-desc">Señales en tiempo real con entrada, SL y TP. Seguimiento de cada trade y soporte por Telegram.</div>
+        <ul class="service-features"><li>3–10 señales por semana</li><li>Sesión Londres y New York</li><li>Seguimiento y gestión incluida</li><li>Canal privado de comunidad</li><li>Soporte vía Telegram</li></ul>
+        <div class="service-price"><div class="price-amount">$59 <span class="price-period">/ mes</span></div><div class="price-alt">$99 / año · ahorrás $609</div></div>
+        <button class="service-btn outline" onclick="openModal()">Crear cuenta →</button>
+      </div>
+      <div class="service-card featured reveal" style="transition-delay:.1s">
+        <div class="service-featured-badge">⭐ MÁS POPULAR</div>
+        <div class="service-icon">🤖</div><div class="service-name">IA T.N.S.V.T 1.0</div>
+        <div class="service-desc">Sistema 100% automático que opera EURUSD en tu cuenta MT5. Vos no hacés nada, solo lo dejás corriendo.</div>
+        <ul class="service-features"><li>Bot operando solo en tu MT5</li><li>Gestión de riesgo dinámica (FTMO)</li><li>Filtro IA ONNX integrado</li><li>Sin intervención manual</li><li>Soporte técnico incluido</li></ul>
+        <div class="service-price"><div class="price-amount">$300 <span class="price-period">/ 3 meses</span></div><div class="price-alt">$800 / año · $1500 de por vida</div></div>
+        <button class="service-btn" onclick="openModal()">Comprar acceso →</button>
+      </div>
+      <div class="service-card reveal" style="transition-delay:.2s">
+        <div class="service-icon">🎓</div><div class="service-name">Mentoría 1 a 1</div>
+        <div class="service-desc">Sesiones individuales para aprender LST, SMC y gestión de riesgo aplicada a EURUSD. Incluye acceso de por vida a señales.</div>
+        <ul class="service-features"><li>Sesiones 1 a 1 por videollamada</li><li>LST Models 1, 2, 3 + CRT</li><li>Order Blocks y BOS aplicados</li><li>Gestión para prop firms</li><li>Señales de por vida incluidas</li></ul>
+        <div class="service-price"><div class="price-amount">$300 <span class="price-period">pago único</span></div><div class="price-alt">Clases pregrabadas + 1 a 1 en vivo</div></div>
+        <button class="service-btn outline" onclick="openModal()">Reservar cupo →</button>
+      </div>
+    </div>
+    <div class="payments-note reveal"><span>Pagos aceptados:</span><span class="pay-badge">USDT TRC20</span><span class="pay-badge">PayPal</span><span class="pay-badge">Transferencia bancaria</span><span style="color:var(--muted)">· Aprobación en minutos después del pago</span></div>
+  </div>
+</section>
+
+<!-- TESTIMONIOS -->
+<section style="background:linear-gradient(180deg,var(--black2),var(--black3),var(--black2));border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">COMUNIDAD</div>
+      <h2 class="section-title">Sumate a la comunidad</h2>
+      <p class="section-sub">Todo el contenido esencial, gratis para quien quiere aprender el método.</p>
+    </div>
+    <div class="comunidad-cards">
+      <div class="comunidad-card featured reveal">
+        <div class="com-tag">// FREE · DISPONIBLE</div><div class="com-name">Comunidad Telegram</div>
+        <ul class="com-list"><li>Señales educativas sobre EURUSD</li><li>Análisis de market structure en vivo</li><li>Order Blocks y LG explicados en tiempo real</li><li>Noticias de alto impacto y horarios clave</li><li>Estado semanal del forward</li><li>Acceso al canal de la comunidad</li></ul>
+        <a href="https://t.me/" class="btn-primary" style="display:inline-flex">Unirme gratis →</a>
+      </div>
+      <div class="comunidad-card reveal" style="transition-delay:.1s">
+        <div class="com-tag pronto">// VIP · PRÓXIMAMENTE</div><div class="com-name">Acceso VIP</div>
+        <ul class="com-list"><li>Clases y formación en vivo</li><li>Mentoría grupal mensual</li><li>Acceso anticipado a nuevas versiones del bot</li><li>Sesiones de análisis privadas</li><li>Comunidad de traders activos</li><li>Dashboard de performance en tiempo real</li></ul>
+        <button class="btn-outline" style="border:1px solid var(--border);color:var(--muted);padding:.7rem 1.5rem;border-radius:var(--radius);font-size:.9rem;font-weight:600;cursor:not-allowed;background:transparent">Muy pronto</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CÓMO UNIRTE -->
+<section>
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">TU CAPITAL · TU CONTROL</div>
+      <h2 class="section-title" style="margin-bottom:.75rem">Cómo empezar en 4 pasos</h2>
+      <p class="section-sub">Siempre operás en tu propia cuenta, a tu nombre. T.N.S.V.T nunca administra fondos de terceros.</p>
+    </div>
+    <div class="steps">
+      <div class="step-card reveal"><div class="step-num">→ 01</div><h4>Sumate al Telegram</h4><p>Gratis. Conocé la comunidad, el método y el estado del sistema antes de decidir.</p><span class="step-arrow">→</span></div>
+      <div class="step-card reveal" style="transition-delay:.1s"><div class="step-num">→ 02</div><h4>Creá tu cuenta</h4><p>Registro instantáneo. Sin esperar aprobación. Desde el panel elegís el programa que querés activar.</p><span class="step-arrow">→</span></div>
+      <div class="step-card reveal" style="transition-delay:.2s"><div class="step-num">→ 03</div><h4>Pagás y se desbloquea</h4><p>En USDT, PayPal o transferencia. Aprobación en minutos. El acceso queda activo al instante.</p><span class="step-arrow">→</span></div>
+      <div class="step-card reveal" style="transition-delay:.3s"><div class="step-num">→ 04</div><h4>Tu cuenta, tu control</h4><p>Depositás, retirás y pausás cuando quieras. Nosotros proveemos el sistema, vos controlás el capital.</p></div>
+    </div>
+    <div style="margin-top:3rem;text-align:center" class="reveal"><button class="btn-primary" onclick="openModal()">Crear cuenta gratis →</button></div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="background:var(--black2);border-top:1px solid var(--border2)">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">FAQ</div>
+      <h2 class="section-title" style="margin-bottom:2.5rem">Lo que preguntan</h2>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿T.N.S.V.T garantiza ganancias?</div><div class="faq-a">No. El trading conlleva riesgo real de pérdida y nadie puede garantizar resultados futuros. Los números que mostramos son del backtest y del forward en simulación. Las decisiones y el riesgo son siempre de cada persona.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿Necesito experiencia para usar la IA?</div><div class="faq-a">No para el sistema automático. El bot opera solo en tu MT5 — solo necesitás una cuenta con tu broker, capital mínimo y MT5 abierto. Para las señales y mentorías, lo explicamos desde cero con el método propio.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿Qué es el ONNX y para qué sirve?</div><div class="faq-a">Es un filtro de Machine Learning integrado al bot que evalúa la probabilidad de éxito de cada señal antes de entrar. Se entrena con el historial real de trades y mejora con el tiempo. Reduce los trades malos sin afectar los buenos, subiendo el Profit Factor del sistema.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿El bot sirve para pasar una prop firm como FTMO?</div><div class="faq-a">El sistema fue optimizado específicamente sobre una cuenta demo de $25.000 FTMO con las reglas de esa prop: DD máximo 8%, DD diario 2%, objetivo 8%. El riesgo dinámico por fases está diseñado para respetar esas reglas. Sin embargo, el backtest no garantiza el resultado en el challenge real.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿Puedo apagar la PC y dejar el bot operando?</div><div class="faq-a">No si apagás la PC. MT5 necesita estar abierto para que el bot opere. Para que funcione 24/5 sin depender de tu máquina, recomendamos contratar un VPS especializado en Forex (Contabo, BeeksFX o el VPS de MQL5) desde ~$5/mes.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿Cómo se paga y en cuánto se activa el acceso?</div><div class="faq-a">Pagamos en USDT TRC20, PayPal o transferencia bancaria. Una vez que pagás y subís el comprobante desde tu panel, la activación es manual en minutos a pocas horas. El acceso queda desbloqueado en tu cuenta.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">¿Hay devoluciones?</div><div class="faq-a">No. Por la naturaleza del producto (acceso a sistema, código y contenido educativo) las compras son finales. Si tenés dudas antes de comprar, escribinos al Telegram de soporte y te respondemos todo sin compromiso.</div></div>
+    </div>
+    <div class="disclaimer reveal">⚠️ <strong>Aviso de riesgo:</strong> El trading de instrumentos financieros conlleva un alto riesgo y puede ocasionar la pérdida total del capital. El contenido de T.N.S.V.T es educativo e informativo y no constituye asesoramiento financiero ni de inversión. Los resultados provienen de backtesting y simulación sobre datos históricos; los resultados pasados no garantizan resultados futuros. El sistema está en fase de validación y no opera dinero real de terceros. No inviertas dinero que no puedas permitirte perder.</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div><div class="footer-logo"><span class="logo-dot"></span>T.N.S.V.<span>T</span></div><div class="footer-desc">Two-Step Multifractal Theory. Sistema algorítmico institucional sobre EURUSD. Bot propio con ONNX, forward en vivo y track record auditado.</div><div style="display:flex;gap:.8rem"><a href="https://t.me/" style="color:var(--violet);text-decoration:none;font-size:.85rem;font-weight:600">✈ Telegram</a></div></div>
+    <div class="footer-links"><h5>SISTEMA</h5><a href="#que-es">Qué es</a><a href="#envivo">Estado en vivo</a><a href="#performance">Performance</a><a href="#onnx">Filtro IA</a></div>
+    <div class="footer-links"><h5>ACCESO</h5><a href="#servicios">Programas</a><a href="#comunidad">Comunidad</a><a href="#faq">FAQ</a><a href="#" onclick="openModal();return false;">Crear cuenta</a></div>
+  </div>
+  <div class="footer-bottom"><div class="footer-copy">El trading conlleva riesgo de pérdida. Contenido educativo, no asesoramiento de inversión. © 2026 T.N.S.V.T</div><div class="footer-version">v6.0 ONNX // SISTEMA ACTIVO</div></div>
+</footer>
+
+<!-- BACK TO TOP -->
+<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- MODAL STYLES -->
+<style>
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:2000;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+.modal-overlay.active{display:flex}
+.modal{background:var(--black2);border:1px solid var(--violet-line);border-radius:var(--radius-lg);padding:2.2rem;width:100%;max-width:400px;position:relative;animation:scaleIn .3s cubic-bezier(.16,1,.3,1);box-shadow:var(--glow-strong)}
+.modal-logo{font-size:.95rem;font-weight:900;letter-spacing:.15em;color:var(--muted);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+.modal-logo span{color:var(--violet)}
+.modal-title{font-size:1.4rem;font-weight:900;margin-bottom:.3rem}
+.modal-sub{font-size:.85rem;color:var(--muted);margin-bottom:1.5rem}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;transition:color .2s}
+.modal-close:hover{color:var(--white)}
+.modal-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem}
+.modal-tab{flex:1;text-align:center;padding:.6rem;font-size:.85rem;font-weight:700;border-radius:8px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);transition:all .3s}
+.modal-tab.active{background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff;border-color:var(--violet)}
+.form-group{margin-bottom:1.1rem}
+.form-group label{font-size:.75rem;color:var(--muted);display:block;margin-bottom:.4rem;letter-spacing:.06em;font-weight:600}
+.form-group input{width:100%;background:var(--black3);border:1px solid var(--border2);color:var(--white);border-radius:10px;padding:.7rem 1rem;font-size:.92rem;transition:all .3s;outline:none}
+.form-group input:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(124,58,237,.15)}
+.form-submit{width:100%;background:linear-gradient(135deg,var(--violet),#9333ea);color:#fff;border:none;border-radius:10px;padding:.85rem;font-size:1rem;font-weight:700;cursor:pointer;transition:all .3s;margin-top:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem;box-shadow:0 4px 15px rgba(124,58,237,.3)}
+.form-submit:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(124,58,237,.5)}
+.modal-panel{display:none}
+.modal-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+</style>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   T.N.S.V.T — GLOW UP JS
+   ══════════════════════════════════════════════════════════════ */
+
+// ── MODAL ──
+function openModal(){document.getElementById('modalOverlay').classList.add('active')}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('active')}
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal()});
+function switchTab(t){document.querySelectorAll('.modal-tab').forEach((el,i)=>el.classList.toggle('active',['login','register'][i]===t));document.querySelectorAll('.modal-panel').forEach(el=>el.classList.remove('active'));document.getElementById(t==='login'?'panelLogin':'panelRegister').classList.add('active')}
+function toggleMenu(){const m=document.getElementById('mobileMenu');m.style.display=m.style.display==='block'?'none':'block'}
+function toggleFaq(el){el.parentElement.classList.toggle('open')}
+
+// ── NAV SCROLL EFFECT ──
+const nav=document.getElementById('mainNav');
+let lastScroll=0;
+window.addEventListener('scroll',()=>{
+  const y=window.scrollY;
+  nav.classList.toggle('scrolled',y>50);
+  lastScroll=y;
+});
+
+// ── BACK TO TOP ──
+const btt=document.getElementById('backToTop');
+window.addEventListener('scroll',()=>{
+  btt.classList.toggle('visible',window.scrollY>400);
+});
+
+// ── REVEAL ON SCROLL ──
+const revealObserver=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('visible');
+      revealObserver.unobserve(e.target);
+    }
+  });
+},{threshold:0.1,rootMargin:'0px 0px -50px 0px'});
+document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>revealObserver.observe(el));
+
+// ── ANIMATED COUNTERS ──
+function animateCounter(el){
+  const target=parseFloat(el.dataset.count);
+  const decimals=parseInt(el.dataset.decimals)||0;
+  const prefix=el.dataset.prefix||'';
+  const suffix=el.dataset.suffix||'';
+  const duration=2000;
+  const start=performance.now();
+  function update(now){
+    const elapsed=now-start;
+    const progress=Math.min(elapsed/duration,1);
+    const eased=1-Math.pow(1-progress,4);
+    const current=eased*target;
+    el.textContent=prefix+current.toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})+suffix;
+    if(progress<1)requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+const counterObserver=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      animateCounter(e.target);
+      counterObserver.unobserve(e.target);
+    }
+  });
+},{threshold:0.5});
+document.querySelectorAll('.kpi-num[data-count]').forEach(el=>counterObserver.observe(el));
+
+// ── SCORE BARS ANIMATION ──
+const barObserver=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.querySelectorAll('.score-fill[data-width]').forEach(fill=>{
+        setTimeout(()=>{fill.style.width=fill.dataset.width+'%'},200);
+      });
+      barObserver.unobserve(e.target);
+    }
+  });
+},{threshold:0.3});
+document.querySelectorAll('#scoreBars').forEach(el=>barObserver.observe(el));
+
+// ── PARTICLES ──
+(function(){
+  const container=document.getElementById('particles');
+  if(!container)return;
+  for(let i=0;i<20;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.left=Math.random()*100+'%';
+    p.style.top=Math.random()*100+'%';
+    p.style.animationDelay=Math.random()*4+'s';
+    p.style.animationDuration=(3+Math.random()*3)+'s';
+    p.style.width=p.style.height=(2+Math.random()*3)+'px';
+    p.style.opacity=.2+Math.random()*.4;
+    container.appendChild(p);
+  }
+})();
+
+// ── LAZY LOAD CHART.JS ──
+const chartObserver=new IntersectionObserver(function(entries){
+  if(entries[0].isIntersecting){
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+    s.onload=function(){
+      new Chart(document.getElementById('equityChart'),{
+        type:'line',
+        data:{labels:['Feb','Mar','Abr','May','Jun'],datasets:[{label:'Equity ($)',data:[25000,25800,26900,27800,29200],borderColor:'#7c3aed',backgroundColor:'rgba(124,58,237,0.06)',borderWidth:2.5,pointBackgroundColor:'#7c3aed',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:8,tension:.4,fill:true}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#12121e',titleColor:'#f0f0f8',bodyColor:'#b8b8cc',borderColor:'rgba(124,58,237,.3)',borderWidth:1,cornerRadius:8,padding:12,displayColors:false}},scales:{x:{ticks:{color:'#5a5a72',font:{size:11,family:'JetBrains Mono'}},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{color:'#5a5a72',font:{size:11,family:'JetBrains Mono'},callback:v=>'$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.03)'}}}}
+      });
+    };
+    document.head.appendChild(s);
+    chartObserver.disconnect();
+  }
+},{threshold:0.1});
+const chartEl=document.getElementById('equityChart');
+if(chartEl)chartObserver.observe(chartEl.closest('.equity-chart-box'));
+
+// ── SMOOTH ANCHOR SCROLL ──
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',function(e){
+    const target=document.querySelector(this.getAttribute('href'));
+    if(target){e.preventDefault();target.scrollIntoView({behavior:'smooth'})}
+  });
+});
+
+// ── KEYBOARD: ESC closes modal ──
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "tnsvt-apk-web",
+  "version": "2.0.0",
+  "description": "T.N.S.V.T - Reino del Cristo Íntegro - APK Web Capacitor para Android",
+  "private": true,
+  "type": "module",
+  "author": "federicocasal73-gif",
+  "license": "UNLICENSED",
+  "scripts": {
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "cap:run": "npx cap run android",
+    "cap:copy": "npx cap copy android",
+    "cap:update": "npx cap update android",
+    "cap:build:debug": "cd android && ./gradlew assembleDebug",
+    "cap:build:release": "cd android && ./gradlew assembleRelease",
+    "cap:bundle:release": "cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/preferences": "^8.0.0",
+    "@capacitor/push-notifications": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
+    "typescript": "^5.9.3"
+  }
+}
