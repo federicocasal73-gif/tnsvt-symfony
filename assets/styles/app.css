@@ -2880,6 +2880,24 @@ button[onclick*="hamburger"]:hover {
 .social-btn-perms { font-size: 0.75rem; padding: 5px 8px; }
 .social-btn-save { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); color: var(--gold); }
 .social-btn-save:hover { background: rgba(212,175,55,0.2); }
+.social-btn-block { font-size: 0.65rem; padding: 3px 6px; background: rgba(255,59,48,0.08); border-color: rgba(255,59,48,0.2); color: #ff6b6b; }
+.social-btn-block:hover { background: rgba(255,59,48,0.2); }
+
+/* Connection count in tab */
+.social-conn-count {
+  font-size: 0.55rem; background: var(--gold); color: #0a0712;
+  padding: 0px 5px; border-radius: 8px; font-family: 'Orbitron', sans-serif;
+  vertical-align: middle; margin-left: 2px;
+}
+
+/* History items */
+.social-history-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; background: rgba(13,8,24,0.5); border: 1px solid rgba(138,60,255,0.1);
+  border-radius: 8px; margin-bottom: 6px; font-size: 0.75rem;
+}
+.social-history-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.social-history-info .social-avatar { width: 28px; height: 28px; font-size: 0.6rem; }
 
 /* Section transition */
 .social-section { animation: socialSectionIn 0.25s ease; }

@@ -108,6 +108,11 @@ class SocialController extends AbstractController
         $received = $this->accessRequestRepo->findByTargetAndStatus($user, AccessRequest::STATUS_PENDING);
         $sent = $this->accessRequestRepo->findByRequesterAndStatus($user, AccessRequest::STATUS_PENDING);
 
+        $receivedHistory = $this->accessRequestRepo->findByTargetAndStatus($user, AccessRequest::STATUS_ACCEPTED);
+        $receivedRejected = $this->accessRequestRepo->findByTargetAndStatus($user, AccessRequest::STATUS_REJECTED);
+        $sentHistory = $this->accessRequestRepo->findByRequesterAndStatus($user, AccessRequest::STATUS_ACCEPTED);
+        $sentRejected = $this->accessRequestRepo->findByRequesterAndStatus($user, AccessRequest::STATUS_REJECTED);
+
         return $this->json([
             'success' => true,
             'received' => array_map(fn($r) => [
@@ -124,6 +129,15 @@ class SocialController extends AbstractController
                 'status' => $r->getStatus(),
                 'created_at' => $r->getCreatedAt()->format('c'),
             ], $sent),
+            'history' => array_map(fn($r) => [
+                'id' => $r->getId(),
+                'requester_code' => $r->getRequester()->getCode(),
+                'requester_name' => $r->getRequester()->getName(),
+                'target_code' => $r->getTarget()->getCode(),
+                'target_name' => $r->getTarget()->getName(),
+                'status' => $r->getStatus(),
+                'created_at' => $r->getCreatedAt()->format('c'),
+            ], array_merge($receivedHistory, $receivedRejected, $sentHistory, $sentRejected)),
         ]);
     }
 

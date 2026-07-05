@@ -6778,6 +6778,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <div class="social-expanded-actions">
           <button class="social-btn social-btn-view" onclick="event.stopPropagation();viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver Journal Completo</button>
           <button class="social-btn social-btn-perms" onclick="event.stopPropagation();openPermsModal('${esc(u.code)}','${esc(u.name)}')">🔑 Permisos</button>
+          <button class="social-btn social-btn-block" onclick="event.stopPropagation();blockFromList('${esc(u.code)}','${esc(u.name)}')">🚫 Bloquear</button>
         </div>
       </div>
     </div>`;
@@ -6795,6 +6796,7 @@ document.addEventListener('DOMContentLoaded', function(){
       btns += `<button class="social-btn social-btn-accept" onclick="event.stopPropagation();acceptFromList('${esc(u.code)}')">✅ Aceptar</button>`;
     } else if (u.status === 'connected') {
       btns += `<button class="social-btn social-btn-perms" onclick="event.stopPropagation();openPermsModal('${esc(u.code)}','${esc(u.name)}')">🔑</button>`;
+      btns += `<button class="social-btn social-btn-block" onclick="event.stopPropagation();blockFromList('${esc(u.code)}','${esc(u.name)}')">🚫</button>`;
     }
     return btns;
   }
@@ -6886,6 +6888,7 @@ document.addEventListener('DOMContentLoaded', function(){
       _socialUsers = (data.users || []).filter(u => u.code !== window.TNSVT_USER?.code);
       _socialLoaded = true;
       _renderSocialList('');
+      _updateConnectionCount();
     } catch (e) {
       if (list) list.innerHTML = '<p class="mf-text" style="padding:16px;text-align:center;">❌ Error al cargar</p>';
     }
@@ -6894,38 +6897,66 @@ document.addEventListener('DOMContentLoaded', function(){
   window.sendAccessReq = async function(targetCode) {
     try {
       await API.sendAccessRequest(targetCode, window.TNSVT_USER.code);
-      showToast('📨 Solicitud enviada');
-      // Update local status
+      showToast('Solicitud enviada');
       const u = _socialUsers.find(u => u.code === targetCode);
       if (u) u.status = 'pending_sent';
       _renderSocialList($('socialUserSearch')?.value?.trim() || '');
     } catch (e) {
-      showToast('❌ ' + e.message);
+      showToast(e.message);
     }
   };
 
   window.acceptFromList = async function(targetCode) {
     try {
-      // Find the pending request from this user
       const data = await API.getAccessRequests(window.TNSVT_USER.code);
       const req = (data.received || []).find(r => r.requester_code === targetCode);
-      if (!req) { showToast('❌ Solicitud no encontrada'); return; }
+      if (!req) { showToast('Solicitud no encontrada'); return; }
       await API.respondAccessRequest(req.id, 'accepted', window.TNSVT_USER.code);
-      showToast('✅ Conexión aceptada');
-      // Update local status
+      showToast('Conexion aceptada');
       const u = _socialUsers.find(u => u.code === targetCode);
       if (u) u.status = 'connected';
       _renderSocialList($('socialUserSearch')?.value?.trim() || '');
+      _updateConnectionCount();
     } catch (e) {
-      showToast('❌ ' + e.message);
+      showToast(e.message);
     }
   };
+
+  window.blockFromList = async function(code, name) {
+    if (!confirm('Bloquear a ' + name + '? Se eliminara la conexion y no podran verse mutuamente.')) return;
+    try {
+      const conns = await API.getConnections(window.TNSVT_USER.code);
+      const conn = (conns.connections || []).find(c => c.user_code === code);
+      if (!conn) { showToast('Conexion no encontrada'); return; }
+      await API.blockConnection(conn.id, window.TNSVT_USER.code);
+      showToast('Usuario bloqueado');
+      const u = _socialUsers.find(u => u.code === code);
+      if (u) { u.status = 'none'; u.stats = null; }
+      _renderSocialList($('socialUserSearch')?.value?.trim() || '');
+      _updateConnectionCount();
+    } catch (e) {
+      showToast(e.message);
+    }
+  };
+
+  function _updateConnectionCount() {
+    const count = _socialUsers.filter(u => u.status === 'connected').length;
+    const badge = $('socialTabUsers');
+    if (badge) {
+      const existing = badge.querySelector('.social-conn-count');
+      if (existing) existing.remove();
+      if (count > 0) {
+        badge.insertAdjacentHTML('beforeend', ` <span class="social-conn-count">${count}</span>`);
+      }
+    }
+  }
 
   async function loadAccessRequests() {
     try {
       const data = await API.getAccessRequests(window.TNSVT_USER.code);
       const received = $('socialRequestsReceived');
       const sent = $('socialRequestsSent');
+      const historyEl = $('socialRequestsHistory');
 
       if (data.received.length === 0) {
         received.innerHTML = '<p class="mf-text" style="padding:8px;">No hay solicitudes pendientes</p>';
@@ -6961,21 +6992,46 @@ document.addEventListener('DOMContentLoaded', function(){
           </div>
         `).join('');
       }
+
+      if (historyEl && data.history && data.history.length > 0) {
+        const sorted = data.history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        historyEl.innerHTML = sorted.map((r, i) => {
+          const isAccepted = r.status === 'accepted';
+          const badge = isAccepted
+            ? '<span class="social-status-badge badge-connected">✅ Aceptada</span>'
+            : '<span class="social-status-badge" style="background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);color:#ff6b6b;">❌ Rechazada</span>';
+          const otherName = r.requester_code === window.TNSVT_USER.code ? r.target_name : r.requester_name;
+          const otherCode = r.requester_code === window.TNSVT_USER.code ? r.target_code : r.requester_code;
+          const direction = r.requester_code === window.TNSVT_USER.code ? '📤 Enviada' : '📥 Recibida';
+          const date = new Date(r.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+          return `<div class="social-history-item">
+            <div class="social-history-info">
+              ${_socialAvatar({ code: otherCode, name: otherName })}
+              <div>
+                <div class="social-user-name" style="font-size:0.8rem;">${esc(otherName)}</div>
+                <div class="social-user-code">${direction} · ${date}</div>
+              </div>
+            </div>
+            ${badge}
+          </div>`;
+        }).join('');
+      } else if (historyEl) {
+        historyEl.innerHTML = '<p class="mf-text" style="padding:8px;">Sin historial aun</p>';
+      }
     } catch (e) {
-      showToast('❌ Error al cargar solicitudes: ' + e.message);
+      showToast(e.message);
     }
   }
 
   window.respondAccessReq = async function(id, status) {
     try {
       await API.respondAccessRequest(id, status, window.TNSVT_USER.code);
-      showToast(status === 'accepted' ? '✅ Solicitud aceptada' : '❌ Solicitud rechazada');
+      showToast(status === 'accepted' ? 'Solicitud aceptada' : 'Solicitud rechazada');
       loadAccessRequests();
-      // Refresh users list to update statuses
       _socialLoaded = false;
       loadAllUsers();
     } catch (e) {
-      showToast('❌ ' + e.message);
+      showToast(e.message);
     }
   };
 
@@ -7015,7 +7071,7 @@ document.addEventListener('DOMContentLoaded', function(){
     checkboxes.forEach(cb => { perms[cb.dataset.permKey] = cb.checked; });
     try {
       await API.updatePermissions(targetCode, perms, window.TNSVT_USER.code);
-      showToast('✅ Permisos guardados');
+      showToast('Permisos guardados');
       closeSocialProfile();
     } catch (e) {
       showToast('❌ ' + e.message);
@@ -7042,7 +7098,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!v || !window.TNSVT_USER) return;
     try {
       await API.updateJournalSettings(v, window.TNSVT_USER.code);
-      showToast('⚙️ Visibilidad actualizada');
+      showToast('Visibilidad actualizada');
     } catch (e) {
       showToast('❌ ' + e.message);
     }
