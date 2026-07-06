@@ -5245,11 +5245,27 @@ window.sb = window.API;
 
         // Social: deep-link al sub-panel correcto
         if (relatedUrl === 'social') {
+          // ⛧ FIX BUG-37: Recargar connections/badge cuando la notif afecta el count
+          const socialEffectTypes = ['access_accepted', 'access_rejected', 'connection_removed'];
+          if (socialEffectTypes.includes(n.type)) {
+            // Forzar reload de la lista si está cargada
+            if (typeof _socialLoaded !== 'undefined' && _socialLoaded) {
+              _socialLoaded = false;
+              if (typeof loadAllUsers === 'function') loadAllUsers();
+            } else if (typeof _updateConnectionCount === 'function') {
+              _updateConnectionCount();
+            }
+          }
           setTimeout(() => {
+            // ⛧ FIX BUG-28: Diferenciar sub-tabs por tipo de notificación
             if (n.type === 'access_request') {
               showSocialSection('requests');
-            } else if (n.type === 'access_accepted' || n.type === 'access_rejected' || n.type === 'connection_removed' || n.type === 'permissions_changed') {
+            } else if (n.type === 'permissions_changed') {
               showSocialSection('users');
+            } else if (n.type === 'access_accepted' || n.type === 'access_rejected' || n.type === 'connection_removed') {
+              showSocialSection('users');
+              // Refresh solicitudes recibidas/enviadas también
+              if (typeof loadAccessRequests === 'function') loadAccessRequests();
             }
           }, 300);
         }
@@ -7083,11 +7099,15 @@ document.addEventListener('DOMContentLoaded', function(){
 
       if (historyEl && data.history && data.history.length > 0) {
         const sorted = data.history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        // ⛧ FIX BUG-34: mostrar título Historial sólo si hay items
+        const historyTitle = $('socialHistoryTitle');
+        if (historyTitle) historyTitle.style.display = '';
         historyEl.innerHTML = sorted.map((r, i) => {
           const isAccepted = r.status === 'accepted';
+          // ⛧ FIX BUG-31: usar clase .badge-rejected en lugar de inline styles
           const badge = isAccepted
             ? '<span class="social-status-badge badge-connected">✅ Aceptada</span>'
-            : '<span class="social-status-badge" style="background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);color:#ff6b6b;">❌ Rechazada</span>';
+            : '<span class="social-status-badge badge-rejected">❌ Rechazada</span>';
           const otherName = r.requester_code === window.TNSVT_USER.code ? r.target_name : r.requester_name;
           const otherCode = r.requester_code === window.TNSVT_USER.code ? r.target_code : r.requester_code;
           const direction = r.requester_code === window.TNSVT_USER.code ? '📤 Enviada' : '📥 Recibida';
@@ -7200,7 +7220,9 @@ document.addEventListener('DOMContentLoaded', function(){
     const v = $('socialVisibilitySelect')?.value;
     if (!v || !window.TNSVT_USER) return;
     try {
-      await API.updateJournalSettings(v, window.TNSVT_USER.code);
+      const data = await API.updateJournalSettings(v, window.TNSVT_USER.code);
+      // ⛧ FIX BUG-35: check data.success para no mostrar "actualizada" en fallo silencioso
+      if (!data || data.success === false) throw new Error(data?.error || 'Sin éxito');
       showToast('Visibilidad actualizada');
     } catch (e) {
       showToast('❌ ' + e.message);
