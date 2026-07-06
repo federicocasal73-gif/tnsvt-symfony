@@ -559,8 +559,9 @@
       <div class="diagram-container">
         <svg class="vector-lines" id="svgLines"></svg>
         <div id="node-god" class="top-identity">Dios / Identidad</div>
-        <div id="cristoNode" class="hexagon-wrapper">
+        <div id="cristoNode" class="hexagon-wrapper" onclick="clickTriggerCircle()" title="Toca para entrar al Panel de Trading" style="cursor:pointer;">
           <div class="hexagon-border"><div class="hexagon-content"><span class="cross">†</span><span class="label">EL CRISTO<br>ÍNTEGRO</span></div></div>
+          <div class="hexagon-hint" style="position:absolute; bottom:-26px; left:50%; transform:translateX(-50%); white-space:nowrap; font-family:'Orbitron',sans-serif; font-size:0.55rem; letter-spacing:2px; color:var(--gold-bright); text-shadow:0 0 8px rgba(212,175,55,0.6); pointer-events:none;">⬢ TOCA PARA ENTRAR ⬢</div>
         </div>
         <div id="node-psi" class="rect-node pos-psi" onclick="handleNodeClick('psi')">PSICOLOGÍA BIOLÓGICA</div>
         <div id="node-tec" class="rect-node pos-tec" onclick="handleNodeClick('tec')">ANÁLISIS DE LIQUIDEZ</div>
@@ -572,7 +573,7 @@
         <div class="main-logo-text">T.N.S.V.T</div>
         <div class="branding-mantra">Domina tu mente. Regula tu cuerpo. Ejecuta con fe.</div>
       </div>
-      <div id="triggerCircle" class="bottom-trigger-circle" onclick="clickTriggerCircle()"><span>†</span></div>
+      <div id="triggerCircle" class="bottom-trigger-circle" onclick="clickTriggerCircle()" title="Entrar al Panel de Trading"><span>†</span></div>
     </div>
 
     <!-- PANEL DE MÓDULOS (estudio de los 5 nodos) -->
@@ -2301,7 +2302,9 @@
                 <div id="mc-result-score" style="margin-top:14px;font-family:'Cinzel',serif;font-size:2.5rem;color:var(--gold-bright);"></div>
 <button class="post-btn" style="float:none;display:inline-block;margin-top:16px;" onclick="mcResetQuiz()">↺ Reintentar</button>
               </div>
+            </div>
   </div>
+</div>
 
 <!-- ==================== PESTAÑA METODOLOGÍA 2 STEPS ==================== -->
 <div id="tab-2steps-adv" class="tab-content">

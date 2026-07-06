@@ -166,10 +166,17 @@ body:not(.is-apk) .trading-main::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(212,175,55,0.3), transparent);
 }
-body:not(.is-apk) .tab-content.active { animation: tabFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+body:not(.is-apk) .tab-content.active { animation: tabFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 @keyframes tabFadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ⛧ FIX: asegurar que el tab activo SIEMPRE tenga opacity 1 después de la animación.
+   Soluciona bug donde el computed opacity se quedaba en 0 después de tabFadeIn
+   en ciertos contextos (rect 0x0 + flex parent). */
+body:not(.is-apk) .tab-content.active {
+  opacity: 1 !important;
 }
 
 /* ── CARDS (feed, journal, macro, academia) ─────────────────── */
