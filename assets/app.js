@@ -2963,6 +2963,7 @@ window.sb = window.API;
           setStatus('copier-stat-trades', s.trades_today || 0);
           setStatus('copier-stat-balance', '$' + (s.balance || 0).toFixed(2));
           setStatus('copier-stat-winrate', (s.win_rate || 0).toFixed(1) + '%');
+          setStatus('copier-stat-bot', s.telegram_bot ? ('🟢 @' + (s.bot_username || 'bot')) : '⚫ Apagado');
           const channels = s.channels || [];
           const chDiv = document.getElementById('copierChannels');
           if (chDiv && channels.length) {
