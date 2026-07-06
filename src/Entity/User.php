@@ -160,7 +160,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return null;
     }
 
-    public function getAvatarColor(): ?string { return null; }
+    public function getAvatarColor(): ?string
+    {
+        // ⛧ FIX BUG-5: Color determinístico basado en el código del usuario
+        // (siempre retorna null antes → todos los avatares eran violeta)
+        $colors = [
+            '#9353ff', '#34c759', '#ffb300', '#3b9eff', '#ff6b6b',
+            '#c327fb', '#00bfa5', '#ff4081', '#7c4dff', '#69f0ae',
+        ];
+        $code = $this->code ?? 'X';
+        $idx = abs(crc32($code)) % count($colors);
+        return $colors[$idx];
+    }
 
     public function getIsAdmin(): bool
     {

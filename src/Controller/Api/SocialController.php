@@ -502,7 +502,12 @@ class SocialController extends AbstractController
 
             $stats = null;
             if ($status === 'connected') {
-                $stats = $this->tradeRepo->computeStatsForUser($u);
+                // ⛧ FIX BUG-4: Respetar visibilidad del journal del target antes de devolver stats
+                $setting = $this->settingRepo->findByUser($u);
+                $vis = $setting?->getVisibility() ?? JournalSetting::VISIBILITY_PUBLIC;
+                if ($vis !== JournalSetting::VISIBILITY_PRIVATE) {
+                    $stats = $this->tradeRepo->computeStatsForUser($u);
+                }
             }
 
             $result[] = [

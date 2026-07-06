@@ -6806,7 +6806,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const initials = name.trim().split(/\s+/).map(p => p[0] || '').join('').slice(0, 2).toUpperCase() || '?';
     const color = u.avatar_color || '#9353ff';
     if (u.avatar_url) {
-      return `<div class="social-avatar" style="background:transparent;"><img src="${u.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
+      // ⛧ FIX BUG-18: onerror fallback — si la imagen no carga, mostrar iniciales
+      return `<div class="social-avatar" style="background:${color};"><img src="${u.avatar_url}" alt="" onerror="this.remove();this.parentElement.textContent='${esc(initials)}';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
     }
     return `<div class="social-avatar" style="background:${color};">${esc(initials)}</div>`;
   }
@@ -7045,8 +7046,8 @@ document.addEventListener('DOMContentLoaded', function(){
               <div class="social-user-code">@${esc(r.requester_code)}</div>
             </div>
             <div class="social-actions">
-              <button class="social-btn social-btn-accept" onclick="respondAccessReq(${r.id},'accepted')">✅ Aceptar</button>
-              <button class="social-btn social-btn-reject" onclick="respondAccessReq(${r.id},'rejected')">❌</button>
+              <button class="social-btn social-btn-accept" onclick="respondAccessReq(${r.id},'accepted','${esc(r.requester_code)}')">✅ Aceptar</button>
+              <button class="social-btn social-btn-reject" onclick="respondAccessReq(${r.id},'rejected','${esc(r.requester_code)}')">❌</button>
             </div>
           </div>
         `).join('');
@@ -7099,13 +7100,22 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
-  window.respondAccessReq = async function(id, status) {
+  window.respondAccessReq = async function(id, status, requesterCode) {
     try {
       await API.respondAccessRequest(id, status, window.TNSVT_USER.code);
       showToast(status === 'accepted' ? 'Solicitud aceptada' : 'Solicitud rechazada');
+      // ⛧ FIX BUG-7: Update in-place sin reload completo
+      if (requesterCode) {
+        const u = _socialUsers.find(x => x.code === requesterCode);
+        if (u) u.status = status === 'accepted' ? 'connected' : 'none';
+        _renderSocialList($('socialUserSearch')?.value?.trim() || '');
+        _updateConnectionCount();
+      } else {
+        // Fallback: reload completo si no recibimos el code
+        _socialLoaded = false;
+        loadAllUsers();
+      }
       loadAccessRequests();
-      _socialLoaded = false;
-      loadAllUsers();
     } catch (e) {
       showToast(e.message);
     }
@@ -7116,6 +7126,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const content = $('socialProfileContent');
     modal.style.display = 'flex';
     $('socialProfileName').textContent = '🔑 Permisos para ' + targetName;
+    // ⛧ BUG-26: Skeleton mientras carga
+    content.innerHTML = '<p class="mf-text" style="text-align:center;padding:20px 0;">⏳ Cargando permisos...</p>';
 
     API.getPermissions(targetCode, window.TNSVT_USER.code).then(data => {
       const p = data.permissions || {};
@@ -7123,14 +7135,18 @@ document.addEventListener('DOMContentLoaded', function(){
         { key: 'can_view_stats', label: 'Ver estadísticas (SL/TP/Ratio)' },
         { key: 'can_view_trades', label: 'Ver trades (entry price)' },
         { key: 'can_view_notes', label: 'Ver notas de trades' },
+        { key: 'can_view_comments', label: 'Ver comentarios en trades' },
         { key: 'can_download_csv', label: 'Descargar CSV' },
+        { key: 'can_view_realtime', label: 'Ver journal en tiempo real' },
       ];
       content.innerHTML = `
         <p class="mf-text" style="margin-bottom:12px;">Qué puede ver <strong style="color:var(--gold-bright);">${esc(targetName)}</strong> de tu journal:</p>
         ${fields.map(f => `
           <div class="permission-toggle">
-            <label>${esc(f.label)}</label>
-            <input type="checkbox" ${p[f.key] !== false ? 'checked' : ''} data-perm-key="${f.key}" data-perm-target="${esc(targetCode)}">
+            <label style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;">
+              <input type="checkbox" ${p[f.key] !== false ? 'checked' : ''} data-perm-key="${f.key}" data-perm-target="${esc(targetCode)}">
+              <span>${esc(f.label)}</span>
+            </label>
           </div>
         `).join('')}
         <button class="social-btn social-btn-save" onclick="saveAllPerms('${esc(targetCode)}')" style="margin-top:12px;width:100%;">💾 Guardar permisos</button>
@@ -7183,7 +7199,15 @@ document.addEventListener('DOMContentLoaded', function(){
   // Close modal on overlay click
   document.addEventListener('click', function(e) {
     const modal = $('socialProfileModal');
-    if (e.target === modal) modal.style.display = 'none';
+    if (e.target === modal) closeSocialProfile();
+  });
+
+  // ⛧ BUG-27: Cerrar modal con tecla ESC
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const modal = $('socialProfileModal');
+      if (modal && modal.style.display !== 'none') closeSocialProfile();
+    }
   });
 
   // Init on login
