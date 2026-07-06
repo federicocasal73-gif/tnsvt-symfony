@@ -78,14 +78,7 @@ class JournalController extends AbstractController
             }
 
             if (!$connected) {
-                $trades = $this->tradeRepository->findByUser($target);
-                $stats = $this->computeStats($trades);
-                return $this->json([
-                    'success' => true,
-                    'scope' => 'public',
-                    'trades' => array_map(fn(Trade $t) => $this->mapTrade($t, null, 'public'), $trades),
-                    'stats' => $stats,
-                ]);
+                return $this->json(['error' => 'Debes estar conectado para ver este journal'], 403);
             }
 
             $perm = $this->permissionRepo->findByGrantorAndGrantee($target, $currentUser);

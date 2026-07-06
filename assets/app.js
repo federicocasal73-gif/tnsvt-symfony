@@ -6898,7 +6898,10 @@ document.addEventListener('DOMContentLoaded', function(){
   function _socialActions(u) {
     if (u.status === 'blocked') return '<span class="social-status-badge badge-blocked">🚫 Bloqueado</span>';
     let btns = '';
-    btns += `<button class="social-btn social-btn-view" onclick="event.stopPropagation();viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver</button>`;
+    const isAdmin = window.TNSVT_USER && window.TNSVT_USER.isAdmin;
+    if (u.status === 'connected' || isAdmin) {
+      btns += `<button class="social-btn social-btn-view" onclick="event.stopPropagation();viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver</button>`;
+    }
     if (u.status === 'none') {
       btns += `<button class="social-btn social-btn-request" onclick="event.stopPropagation();sendAccessReq('${esc(u.code)}')">➕ Conectar</button>`;
     } else if (u.status === 'pending_sent') {
