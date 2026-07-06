@@ -180,7 +180,7 @@ class JournalController extends AbstractController
         return $this->json(['success' => true, 'id' => $trade->getId()], 201);
     }
 
-    #[Route('/{id}', name: 'api_journal_update', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id<\d+>}', name: 'api_journal_update', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request): JsonResponse
     {
         $currentUser = $this->getCurrentUser($request);
@@ -289,7 +289,7 @@ class JournalController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'api_journal_delete', methods: ['DELETE'])]
+    #[Route('/{id<\d+>}', name: 'api_journal_delete', methods: ['DELETE'])]
     public function delete(int $id, Request $request): JsonResponse
     {
         $currentUser = $this->getCurrentUser($request);
