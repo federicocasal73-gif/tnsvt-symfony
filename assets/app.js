@@ -2889,16 +2889,18 @@ window.sb = window.API;
         const walletBtn = document.getElementById('adminSubtabWallet');
         const torneosBtn = document.getElementById('adminSubtabTorneos');
         const monitorBtn = document.getElementById('adminSubtabMonitor');
+        const copierBtn = document.getElementById('adminSubtabCopier');
         const usersContent = document.getElementById('adminSubtabContentUsers');
         const tasksContent = document.getElementById('adminSubtabContentTasks');
         const musicContent = document.getElementById('adminSubtabContentMusic');
         const walletContent = document.getElementById('adminSubtabContentWallet');
         const torneosContent = document.getElementById('adminSubtabContentTorneos');
         const monitorContent = document.getElementById('adminSubtabContentMonitor');
+        const copierContent = document.getElementById('adminSubtabContentCopier');
         const resetBtn = (btn) => { if (!btn) return; btn.style.color = '#645a78'; btn.style.borderBottomColor = 'transparent'; };
         const activateBtn = (btn) => { if (!btn) return; btn.style.color = 'var(--gold-bright)'; btn.style.borderBottomColor = 'var(--gold)'; };
-        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn];
-        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent];
+        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn, copierBtn];
+        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent, copierContent];
         const resetAll = () => allBtns.forEach(resetBtn);
         if (tab === 'tasks') {
           resetAll(); activateBtn(tasksBtn);
@@ -2927,11 +2929,115 @@ window.sb = window.API;
           if (monitorContent) monitorContent.style.display = 'block';
           loadMonitorLogs();
           if (typeof loadSystemStatus === 'function') loadSystemStatus();
+        } else if (tab === 'copier') {
+          resetAll(); activateBtn(copierBtn);
+          allContent.forEach(c => { if (c) c.style.display = 'none'; });
+          if (copierContent) copierContent.style.display = 'block';
+          copierRefresh();
         } else {
           resetAll(); activateBtn(usersBtn);
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
           if (usersContent) usersContent.style.display = 'block';
         }
+      }
+
+      // ==================== ADMIN COPIER (Signal Copier Dashboard) ====================
+      const COPIER_ADMIN_PASSWORD = localStorage.getItem('tnsvt_admin_pass') || prompt('Admin password:') || '';
+      
+      async function copierApi(method, path, body) {
+        const opts = { method, headers: { 'Content-Type': 'application/json', 'X-Admin-Password': COPIER_ADMIN_PASSWORD } };
+        if (body) opts.body = JSON.stringify(body);
+        const r = await fetch('/api/admin/copier' + path, opts);
+        return r.json();
+      }
+
+      async function copierRefresh() {
+        try {
+          const data = await copierApi('GET', '/dashboard');
+          if (!data.success) return;
+          const s = data.status || {};
+          const setStatus = (id, val) => { const el = document.getElementById(id); if (el) el.querySelector('.mon-stat-value').textContent = val; };
+          setStatus('copier-stat-status', data.online ? '🟢 Online' : '🔴 Offline');
+          setStatus('copier-stat-mt5', s.mt5_connected ? '🟢 Conectado' : '🔴 Desconectado');
+          setStatus('copier-stat-pnl', '$' + (s.daily_pnl || 0).toFixed(2));
+          setStatus('copier-stat-trades', s.trades_today || 0);
+          setStatus('copier-stat-balance', '$' + (s.balance || 0).toFixed(2));
+          setStatus('copier-stat-winrate', (s.win_rate || 0).toFixed(1) + '%');
+          const channels = s.channels || [];
+          const chDiv = document.getElementById('copierChannels');
+          if (chDiv && channels.length) {
+            chDiv.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + channels.map(c => '<span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);border-radius:20px;padding:4px 12px;font-size:0.75rem;color:var(--gold-bright);">📢 ' + c + '</span>').join('') + '</div>';
+          }
+          const trades = data.recent_trades || [];
+          const listDiv = document.getElementById('copierTradesList');
+          if (listDiv) {
+            if (!trades.length) { listDiv.innerHTML = '<p style="color:#645a78;font-size:0.85rem;">Sin trades copiados aún.</p>'; return; }
+            listDiv.innerHTML = trades.map(t => {
+              const isWin = parseFloat(t.pnl) > 0;
+              const pnlColor = isWin ? '#4caf50' : (parseFloat(t.pnl) < 0 ? '#ff7066' : '#aaa');
+              return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border-left:3px solid ' + pnlColor + ';">' +
+                '<span style="font-size:0.8rem;color:#ccc;min-width:70px;">' + (t.date || '').substring(0, 16) + '</span>' +
+                '<span style="font-size:0.8rem;font-weight:600;color:#fff;min-width:70px;">' + t.symbol + '</span>' +
+                '<span style="font-size:0.75rem;padding:2px 8px;border-radius:4px;background:' + (t.action === 'BUY' ? 'rgba(76,175,80,0.2);color:#4caf50' : 'rgba(255,112,102,0.2);color:#ff7066') + ';">' + t.action + '</span>' +
+                '<span style="font-size:0.75rem;color:#aaa;">$' + (t.pnl || 0) + '</span>' +
+                '<span style="font-size:0.7rem;color:#645a78;margin-left:auto;">' + (t.result || '') + '</span>' +
+                '</div>';
+            }).join('');
+          }
+        } catch (e) { console.error('copierRefresh error:', e); }
+      }
+
+      function copierShowConfig() {
+        const panel = document.getElementById('copierConfigPanel');
+        if (!panel) return;
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible) {
+          copierApi('GET', '/config').then(data => {
+            if (!data.config) return;
+            const c = data.config;
+            document.getElementById('copierCfgLot').value = c.lot_size || 0.01;
+            document.getElementById('copierCfgMaxPos').value = c.risk_max_open_positions || 5;
+            document.getElementById('copierCfgDailyLoss').value = c.risk_daily_loss_limit || 2;
+            document.getElementById('copierCfgWeeklyLoss').value = c.risk_weekly_loss_limit || 5;
+            document.getElementById('copierCfgTrailing').value = c.risk_trailing_stop ? 'true' : 'false';
+            document.getElementById('copierCfgNewsFilter').value = c.news_filter_enabled ? 'true' : 'false';
+          });
+        }
+      }
+
+      async function copierSaveConfig() {
+        const fb = document.getElementById('copierFeedback');
+        try {
+          const cfg = {
+            lot_size: parseFloat(document.getElementById('copierCfgLot').value),
+            risk_max_open_positions: parseInt(document.getElementById('copierCfgMaxPos').value),
+            risk_daily_loss_limit: parseFloat(document.getElementById('copierCfgDailyLoss').value),
+            risk_weekly_loss_limit: parseFloat(document.getElementById('copierCfgWeeklyLoss').value),
+            risk_trailing_stop: document.getElementById('copierCfgTrailing').value === 'true',
+            news_filter_enabled: document.getElementById('copierCfgNewsFilter').value === 'true',
+          };
+          const data = await copierApi('PUT', '/config', cfg);
+          if (data.success) {
+            if (fb) fb.textContent = '✅ Configuración guardada';
+            document.getElementById('copierConfigPanel').style.display = 'none';
+          } else {
+            if (fb) fb.textContent = '❌ Error: ' + (data.error || 'desconocido');
+          }
+        } catch (e) {
+          if (fb) fb.textContent = '❌ Error de conexión';
+        }
+      }
+
+      async function copierRefreshLogs() {
+        const div = document.getElementById('copierLogsList');
+        if (!div) return;
+        try {
+          const r = await fetch('/api/copier/trades/recent?limit=20', { headers: { 'X-Admin-Password': COPIER_ADMIN_PASSWORD } });
+          const data = await r.json();
+          if (!data.success || !data.trades) { div.textContent = 'Sin datos'; return; }
+          div.innerHTML = data.trades.map(t => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#645a78;">' + (t.date || '') + '</span> <span style="color:#fff;">' + t.symbol + ' ' + t.action + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (t.pnl || 0) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
+        } catch (e) { div.textContent = 'Error cargando logs'; }
       }
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================

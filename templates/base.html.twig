@@ -2301,7 +2301,95 @@
                 <div id="mc-result-score" style="margin-top:14px;font-family:'Cinzel',serif;font-size:2.5rem;color:var(--gold-bright);"></div>
                 <button class="post-btn" style="float:none;display:inline-block;margin-top:16px;" onclick="mcResetQuiz()">↺ Reintentar</button>
               </div>
-            </div>
+  </div>
+
+  <!-- SUB-PESTAÑA: COPIER -->
+  <div id="adminSubtabContentCopier" style="display:none;">
+    <!-- Status cards -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:18px;">
+      <div class="monitor-stat-card" id="copier-stat-status">
+        <div class="mon-stat-label">Estado</div>
+        <div class="mon-stat-value" style="font-size:1.1rem;">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-mt5">
+        <div class="mon-stat-label">MT5</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-pnl">
+        <div class="mon-stat-label">PnL Diario</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-trades">
+        <div class="mon-stat-label">Trades Hoy</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-balance">
+        <div class="mon-stat-label">Balance</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-winrate">
+        <div class="mon-stat-label">Win Rate</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;">
+      <button class="post-btn" onclick="copierRefresh()" style="padding:8px 14px; font-size:0.8rem;">🔄 Refrescar</button>
+      <button class="post-btn" onclick="copierShowConfig()" style="padding:8px 14px; font-size:0.8rem;">⚙️ Configuración</button>
+      <span id="copierFeedback" style="font-size:0.8rem; color:var(--gold-bright); align-self:center;"></span>
+    </div>
+
+    <!-- Config panel (hidden by default) -->
+    <div id="copierConfigPanel" style="display:none; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:16px; margin-bottom:18px;">
+      <h4 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.9rem; margin:0 0 12px 0;">⚙️ Configuración del Copiador</h4>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <label style="font-size:0.8rem; color:#aaa;">Lot Size
+          <input type="number" id="copierCfgLot" step="0.01" min="0.01" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Max Posiciones
+          <input type="number" id="copierCfgMaxPos" min="1" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Pérdida Diaria %
+          <input type="number" id="copierCfgDailyLoss" step="0.1" min="0" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Pérdida Semanal %
+          <input type="number" id="copierCfgWeeklyLoss" step="0.1" min="0" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Trailing Stop
+          <select id="copierCfgTrailing" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">News Filter
+          <select id="copierCfgNewsFilter" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="post-btn" onclick="copierSaveConfig()" style="padding:8px 16px; font-size:0.8rem;">💾 Guardar</button>
+        <button class="back-btn" onclick="document.getElementById('copierConfigPanel').style.display='none'" style="padding:8px 16px; font-size:0.8rem;">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Channels -->
+    <div id="copierChannels" style="margin-bottom:18px;"></div>
+
+    <!-- Recent trades -->
+    <h4 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.9rem; margin:0 0 10px 0;">📊 Últimos Trades Copiados</h4>
+    <div id="copierTradesList" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+    <hr style="border:none;border-top:1px solid rgba(212,175,55,0.15);margin:20px 0;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h4 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.9rem; margin:0;">📋 Logs del Copiador</h4>
+      <button class="post-btn" onclick="copierRefreshLogs()" style="padding:6px 14px; font-size:0.75rem">🔄 Refrescar</button>
+    </div>
+    <div id="copierLogsList" style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:10px; font-family:monospace; font-size:0.75rem; color:#aaa;"></div>
+  </div>
 </div>
 
 <!-- ==================== PESTAÑA METODOLOGÍA 2 STEPS ==================== -->
@@ -3710,6 +3798,7 @@
     <button class="admin-subtab-btn" id="adminSubtabTasks" onclick="adminShowSubtab('tasks')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">📋 Tareas Operativas</button>
     <button class="admin-subtab-btn" id="adminSubtabMusic" onclick="adminShowSubtab('music')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🎵 Música</button>
     <button class="admin-subtab-btn" id="adminSubtabMonitor" onclick="adminShowSubtab('monitor')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">🛡️ Monitoring</button>
+    <button class="admin-subtab-btn" id="adminSubtabCopier" onclick="adminShowSubtab('copier')" style="padding:8px 16px; background:transparent; border:none; border-bottom:2px solid transparent; color:#645a78; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:1px; cursor:pointer;">📡 Copier</button>
   </div>
 
   <!-- SUB-PESTAÑA: ALUMNOS -->
@@ -3906,8 +3995,91 @@
       <p style="color:#645a78;font-size:0.85rem;">⏳ Cargando…</p>
     </div>
   </div>
-</div>
+
+  <!-- SUB-PESTAÑA: COPIER -->
+  <div id="adminSubtabContentCopier" style="display:none;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:18px;">
+      <div class="monitor-stat-card" id="copier-stat-status">
+        <div class="mon-stat-label">Estado</div>
+        <div class="mon-stat-value" style="font-size:1.1rem;">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-mt5">
+        <div class="mon-stat-label">MT5</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-pnl">
+        <div class="mon-stat-label">PnL Diario</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-trades">
+        <div class="mon-stat-label">Trades Hoy</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-balance">
+        <div class="mon-stat-label">Balance</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+      <div class="monitor-stat-card" id="copier-stat-winrate">
+        <div class="mon-stat-label">Win Rate</div>
+        <div class="mon-stat-value">—</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;">
+      <button class="post-btn" onclick="copierRefresh()" style="padding:8px 14px; font-size:0.8rem;">🔄 Refrescar</button>
+      <button class="post-btn" onclick="copierShowConfig()" style="padding:8px 14px; font-size:0.8rem;">⚙️ Configuración</button>
+      <span id="copierFeedback" style="font-size:0.8rem; color:var(--gold-bright); align-self:center;"></span>
+    </div>
+
+    <div id="copierConfigPanel" style="display:none; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:16px; margin-bottom:18px;">
+      <h4 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.9rem; margin:0 0 12px 0;">⚙️ Configuración del Copiador</h4>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <label style="font-size:0.8rem; color:#aaa;">Lot Size
+          <input type="number" id="copierCfgLot" step="0.01" min="0.01" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Max Posiciones
+          <input type="number" id="copierCfgMaxPos" min="1" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Pérdida Diaria %
+          <input type="number" id="copierCfgDailyLoss" step="0.1" min="0" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Pérdida Semanal %
+          <input type="number" id="copierCfgWeeklyLoss" step="0.1" min="0" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">Trailing Stop
+          <select id="copierCfgTrailing" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </label>
+        <label style="font-size:0.8rem; color:#aaa;">News Filter
+          <select id="copierCfgNewsFilter" style="width:100%; padding:6px 10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.2); border-radius:6px; color:#fff; font-size:0.8rem; margin-top:4px;">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="post-btn" onclick="copierSaveConfig()" style="padding:8px 16px; font-size:0.8rem;">💾 Guardar</button>
+        <button class="back-btn" onclick="document.getElementById('copierConfigPanel').style.display='none'" style="padding:8px 16px; font-size:0.8rem;">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="copierChannels" style="margin-bottom:18px;"></div>
+
+    <h4 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.9rem; margin:0 0 10px 0;">📊 Últimos Trades Copiados</h4>
+    <div id="copierTradesList" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+    <hr style="border:none;border-top:1px solid rgba(212,175,55,0.15);margin:20px 0;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h4 style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.9rem; margin:0;">📋 Logs del Copiador</h4>
+      <button class="post-btn" onclick="copierRefreshLogs()" style="padding:6px 14px; font-size:0.75rem">🔄 Refrescar</button>
+    </div>
+    <div id="copierLogsList" style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:10px; font-family:monospace; font-size:0.75rem; color:#aaa;"></div>
   </div>
+
+</div>
 </div>
 
 <!-- ==================== FIN DEL HTML DEL PANEL ==================== -->

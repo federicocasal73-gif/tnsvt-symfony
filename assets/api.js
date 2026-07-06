@@ -440,6 +440,13 @@ async getNotifCount(userCode) {
 
   // ── Patch helper ──
   patch(path, body) { return this.request('PATCH', path, body); },
+
+  // ── Copier (Signal Copier) ──
+  getCopierDashboard() { return this.get('/api/admin/copier/dashboard'); },
+  getCopierStatus() { return this.get('/api/admin/copier/status'); },
+  getCopierConfig() { return this.get('/api/admin/copier/config'); },
+  setCopierConfig(cfg) { return this.put('/api/admin/copier/config', cfg); },
+  getCopierTrades(limit = 50) { return this.get('/api/admin/copier/trades?limit=' + limit); },
 };
 
 window.API = API;
