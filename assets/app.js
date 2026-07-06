@@ -5444,20 +5444,22 @@ window.sb = window.API;
               showToast('🔔 ' + title + (body ? ': ' + body : ''));
               fireBrowserNotif((payload.data && payload.data.type) || 'generic', body);
             });
-            // 8) Manejar el caso de token refrescado
-            messaging.onTokenRefresh(async () => {
-              try {
-                const newToken = await messaging.getToken(tokenOptions);
-                if (newToken && window.TNSVT_USER && window.TNSVT_USER.code) {
-                  await API.post('/api/devices/register', {
-                    user_code: window.TNSVT_USER.code,
-                    fcm_token: newToken,
-                    platform: 'web',
-                    device_model: navigator.userAgent.substring(0, 200),
-                  });
-                }
-              } catch (e) { console.warn('[FCM] Token refresh error:', e); }
-            });
+            // 8) Manejar el caso de token refrescado (puede no existir en Firebase v10+)
+            if (typeof messaging.onTokenRefresh === 'function') {
+              messaging.onTokenRefresh(async () => {
+                try {
+                  const newToken = await messaging.getToken(tokenOptions);
+                  if (newToken && window.TNSVT_USER && window.TNSVT_USER.code) {
+                    await API.post('/api/devices/register', {
+                      user_code: window.TNSVT_USER.code,
+                      fcm_token: newToken,
+                      platform: 'web',
+                      device_model: navigator.userAgent.substring(0, 200),
+                    });
+                  }
+                } catch (e) { console.warn('[FCM] Token refresh error:', e); }
+              });
+            }
             return true;
           } catch (e) {
             // En Capacitor/APK no hay SW de firebase, asi que el register falla con AbortError.
