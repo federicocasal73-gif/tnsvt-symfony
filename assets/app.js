@@ -472,11 +472,12 @@ window.sb = window.API;
         var backBtn = document.getElementById('tnsvtBackBtn');
         if (backBtn) backBtn.style.display = '';
         if (typeof initAllPanels === 'function') initAllPanels();
-        // Mostrar chat ahora que entró al hub
+        // Mostrar chat y música al entrar al trading
         const cfFab = document.querySelector('.cf-fab');
         const cfPres = document.querySelector('.cf-presence');
         if (cfFab) cfFab.style.display = '';
         if (cfPres) cfPres.style.display = '';
+        if (typeof musicShowBar === 'function') musicShowBar();
       }
 
       function closeTradingPanel() {
@@ -492,6 +493,14 @@ window.sb = window.API;
         document.getElementById('hub-view').style.display = 'flex';
         var backBtn = document.getElementById('tnsvtBackBtn');
         if (backBtn) backBtn.style.display = 'none';
+        // Ocultar barra de música y chat en el hub
+        if (typeof musicHideBar === 'function') musicHideBar();
+        const cfFab = document.querySelector('.cf-fab');
+        const cfPres = document.querySelector('.cf-presence');
+        const cfPanel = document.querySelector('.cf-panel');
+        if (cfFab) cfFab.style.display = 'none';
+        if (cfPres) cfPres.style.display = 'none';
+        if (cfPanel) cfPanel.style.display = 'none';
         updateNodeStates();
       }
       window.backToHub = backToHub;
