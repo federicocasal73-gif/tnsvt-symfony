@@ -4412,11 +4412,8 @@
     _soundNames: { chime:'Chime TNSVT', mario_coin:'🪙 Mario Coin', zelda_secret:'🗝 Zelda Secreto', sonic_ring:'💍 Sonic Ring', apple_tritone:'📱 Apple Tri-Tone', pixel_popcorn:'🍿 Pixel Popcorn', pokemon_levelup:'⬆ Pokémon Level Up', deus_ex_scan:'🔍 Deus Ex Scan', indiana_jones_whip:'🪢 Indiana Jones Whip', msn_message:'💬 MSN Message', swoosh:'💨 Swoosh' },
 
     _audioContext: null,
-    _playSound(soundId) {
+    async _playSound(soundId) {
       try {
-        // ⛧ FIX APK: Cachear AudioContext en lugar de crear uno nuevo cada vez.
-        // El WebView de Capacitor requiere UN solo contexto, suspendido hasta user gesture.
-        // Tras primer uso, llamadas subsecuentes deben llamar `resume()` si suspended.
         if (!this._audioContext) {
           try {
             this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -4426,8 +4423,9 @@
           }
         }
         const ctx = this._audioContext;
+        // ⛧ FIX: await resume() — without this, oscillators start on a silent context
         if (ctx.state === 'suspended') {
-          ctx.resume().catch(() => {});
+          try { await ctx.resume(); } catch(_) { return; }
         }
         const master = ctx.createGain();
         master.gain.value = 0.08;

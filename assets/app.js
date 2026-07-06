@@ -5045,21 +5045,25 @@ window.sb = window.API;
       }
 
       // ---- Sonido de notificación (Web Audio API) ----
-      let _notifAudioCtx = null;
-      function _getAudioCtx() {
-        if (!_notifAudioCtx) {
-          try { _notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(_) { return null; }
-        }
-        if (_notifAudioCtx.state === 'suspended') _notifAudioCtx.resume().catch(() => {});
-        return _notifAudioCtx;
-      }
-      function playNotifSound() {
+      // ⛧ FIX: Usa CF._audioContext (el mismo del chat) — un solo contexto desbloqueado por user gesture.
+      async function playNotifSound() {
         const muted = localStorage.getItem('tnsvt_notif_sound_muted') === 'true';
         if (muted) return;
-        const ctx = _getAudioCtx();
-        if (!ctx) return;
+        // Get or create AudioContext via CF (shared with chat sound engine)
+        let ctx = null;
         try {
-          // Two-tone chime: C5 (523Hz) + E5 (659Hz)
+          if (typeof CF !== 'undefined' && CF._audioContext) {
+            ctx = CF._audioContext;
+          } else {
+            // Fallback: create a shared context if CF not loaded yet
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (typeof CF !== 'undefined') CF._audioContext = ctx;
+          }
+        } catch(_) { return; }
+        if (ctx.state === 'suspended') {
+          try { await ctx.resume(); } catch(_) { return; }
+        }
+        try {
           const osc1 = ctx.createOscillator();
           const gain1 = ctx.createGain();
           osc1.type = 'sine'; osc1.frequency.value = 523;
@@ -5077,6 +5081,20 @@ window.sb = window.API;
           osc2.start(ctx.currentTime + 0.1); osc2.stop(ctx.currentTime + 0.25);
         } catch(_) {}
       }
+
+      // ⛧ CRITICAL FIX: Desbloquear AudioContext en el primer user gesture del navegador.
+      // Sin esto, TODOS los sonidos (chat + notificaciones) quedan silenciados porque
+      // el navegador bloquea AudioContext hasta que haya un click/tap/keydown real.
+      (function _unlockAudioOnGesture() {
+        const unlock = async () => {
+          if (typeof CF !== 'undefined' && CF._audioContext && CF._audioContext.state === 'suspended') {
+            try { await CF._audioContext.resume(); } catch(_) {}
+          }
+        };
+        for (const evt of ['click', 'touchstart', 'keydown']) {
+          document.addEventListener(evt, unlock, { once: true, capture: true });
+        }
+      })();
 
       window.toggleNotifSound = function() {
         const muted = localStorage.getItem('tnsvt_notif_sound_muted') === 'true';
@@ -5100,7 +5118,7 @@ window.sb = window.API;
         if (notifList.length > 100) notifList = notifList.slice(0, 100);
         saveNotifs();
         updateBadge();
-        playNotifSound();
+        // ⛧ FIX: playNotifSound() is already called inside processToastQueue — don't play twice
         showPushToast(type, text);
         if (pushPermGranted) fireBrowserNotif(type, text);
       }
@@ -5422,6 +5440,7 @@ window.sb = window.API;
               console.log('[FCM] Foreground message:', payload);
               const title = (payload.notification && payload.notification.title) || 'T.N.S.V.T';
               const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.text) || '';
+              playNotifSound();
               showToast('🔔 ' + title + (body ? ': ' + body : ''));
               fireBrowserNotif((payload.data && payload.data.type) || 'generic', body);
             });
@@ -5517,32 +5536,58 @@ window.sb = window.API;
         });
       }
 
-      // Notificaciones — polling cada 30s
+      // Notificaciones — polling cada 15s con detección de nuevas notifs
       function initNotifRealtime() {
         if (!window.TNSVT_USER) return;
         const updateBadge = (count) => {
           const badge = document.getElementById('notifBadge');
+          const bell = document.getElementById('notifBellBtn');
           if (!badge) return;
           if (count > 0) {
             badge.textContent = count > 9 ? '9+' : count;
             badge.classList.add('show');
+            if (bell) bell.classList.add('has-notifs');
           } else {
             badge.textContent = '';
             badge.classList.remove('show');
+            if (bell) bell.classList.remove('has-notifs');
           }
         };
         // Inicial: setear en 0
         updateBadge(0);
-        // Polling cada 30s (con guard por si TNSVT_USER se vacia con logout)
+        let _lastNotifCount = 0;
+        const _seenNotifIds = new Set();
+        // Polling cada 15s
         let pollTimer = setInterval(async () => {
           if (!window.TNSVT_USER || !window.TNSVT_USER.code) return;
           try {
             const result = await sb.getNotifCount(window.TNSVT_USER.code);
-            updateBadge((result && typeof result.count === 'number') ? result.count : 0);
+            const count = (result && typeof result.count === 'number') ? result.count : 0;
+            updateBadge(count);
+            // Detect new notifications arrived
+            if (count > _lastNotifCount && _lastNotifCount > 0) {
+              // Fetch the actual notifs to get type/text for toast
+              try {
+                const notifsData = await sb.getNotifications(window.TNSVT_USER.code);
+                const notifs = Array.isArray(notifsData) ? notifsData : (notifsData?.notifications || []);
+                // Show toast + sound for each unseen notif
+                for (const n of notifs) {
+                  const nid = n.id || n.type + '_' + n.createdAt;
+                  if (!_seenNotifIds.has(nid)) {
+                    _seenNotifIds.add(nid);
+                    if (n.isRead === false || n.isRead === 0) {
+                      playNotifSound();
+                      showPushToast(n.type || 'generic', n.text || n.message || 'Nueva notificación');
+                    }
+                  }
+                }
+              } catch(_) { /* badge already updated, sound can wait */ }
+            }
+            _lastNotifCount = count;
           } catch(e) {
             console.warn('notif poll error:', e);
           }
-        }, 30000);
+        }, 15000);
         // Si en algun momento se hace logout, parar el polling
         const stopWatch = setInterval(() => {
           if (!window.TNSVT_USER) {
