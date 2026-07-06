@@ -16,6 +16,8 @@ use App\Repository\JournalPermissionRepository;
 use App\Repository\JournalSettingRepository;
 use App\Repository\UserRepository;
 use App\Repository\TradeRepository;
+use App\Security\RateLimiterTrait;
+use App\Service\RateLimiterService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,6 +28,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api')]
 class SocialController extends AbstractController
 {
+    use RateLimiterTrait;
+
     public function __construct(
         private EntityManagerInterface $em,
         private UserRepository $userRepo,
@@ -35,6 +39,7 @@ class SocialController extends AbstractController
         private JournalSettingRepository $settingRepo,
         private TradeRepository $tradeRepo,
         private BlockRepository $blockRepo,
+        private RateLimiterService $rateLimiter,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -58,6 +63,10 @@ class SocialController extends AbstractController
     #[Route('/access-request', name: 'api_access_request_create', methods: ['POST'])]
     public function createRequest(Request $request): JsonResponse
     {
+        // ⛧ FIX BUG-23: rate-limit
+        $rateLimit = $this->checkRateLimit($request, 'social_create_request', 10, 60);
+        if ($rateLimit) return $rateLimit;
+
         $user = $this->getCurrentUser($request);
         if (!$user) return $this->json(['error' => 'Unauthorized'], 401);
 
@@ -156,6 +165,10 @@ class SocialController extends AbstractController
     #[Route('/access-request/{id}', name: 'api_access_request_update', methods: ['PATCH'])]
     public function updateRequest(int $id, Request $request): JsonResponse
     {
+        // ⛧ FIX BUG-23: rate-limit
+        $rateLimit = $this->checkRateLimit($request, 'social_respond_request', 15, 60);
+        if ($rateLimit) return $rateLimit;
+
         $user = $this->getCurrentUser($request);
         if (!$user) return $this->json(['error' => 'Unauthorized'], 401);
 
@@ -282,6 +295,10 @@ class SocialController extends AbstractController
     #[Route('/connections/{id}/block', name: 'api_connections_block', methods: ['POST'])]
     public function blockConnection(int $id, Request $request): JsonResponse
     {
+        // ⛧ FIX BUG-23: rate-limit
+        $rateLimit = $this->checkRateLimit($request, 'social_block', 5, 60);
+        if ($rateLimit) return $rateLimit;
+
         $user = $this->getCurrentUser($request);
         if (!$user) return $this->json(['error' => 'Unauthorized'], 401);
 
@@ -349,6 +366,10 @@ class SocialController extends AbstractController
     #[Route('/permissions/{targetCode}', name: 'api_permissions_update', methods: ['PATCH'])]
     public function updatePermissions(string $targetCode, Request $request): JsonResponse
     {
+        // ⛧ FIX BUG-23: rate-limit
+        $rateLimit = $this->checkRateLimit($request, 'social_update_perms', 15, 60);
+        if ($rateLimit) return $rateLimit;
+
         $user = $this->getCurrentUser($request);
         if (!$user) return $this->json(['error' => 'Unauthorized'], 401);
 

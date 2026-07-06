@@ -6823,6 +6823,9 @@ document.addEventListener('DOMContentLoaded', function(){
   let _searchTimer = null;
   let _socialUsers = [];
   let _socialLoaded = false;
+  // ⛧ FIX BUG-14: token incremental para evitar race conditions al cargar rápido
+  let _loadUsersToken = 0;
+  let _loadRequestsToken = 0;
 
   function _socialAvatar(u) {
     const name = u.name || u.code || '?';
@@ -6986,7 +6989,10 @@ document.addEventListener('DOMContentLoaded', function(){
       `).join('');
     }
     try {
+      // ⛧ FIX BUG-14: usar flag _loadUsersToken para evitar race conditions
+      const token = ++_loadUsersToken;
       const data = await API.getAllUsers(window.TNSVT_USER.code);
+      if (token !== _loadUsersToken) return; // llegó un load más reciente, descartar resultado
       _socialUsers = (data.users || []).filter(u => u.code !== window.TNSVT_USER?.code);
       _socialLoaded = true;
       _renderSocialList('');
@@ -7057,7 +7063,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
   async function loadAccessRequests() {
     try {
+      // ⛧ FIX BUG-14: token para evitar race conditions
+      const token = ++_loadRequestsToken;
       const data = await API.getAccessRequests(window.TNSVT_USER.code);
+      if (token !== _loadRequestsToken) return;
       const received = $('socialRequestsReceived');
       const sent = $('socialRequestsSent');
       const historyEl = $('socialRequestsHistory');
@@ -7073,8 +7082,8 @@ document.addEventListener('DOMContentLoaded', function(){
               <div class="social-user-code">@${esc(r.requester_code)}</div>
             </div>
             <div class="social-actions">
-              <button class="social-btn social-btn-accept" onclick="respondAccessReq(${r.id},'accepted','${esc(r.requester_code)}')">✅ Aceptar</button>
-              <button class="social-btn social-btn-reject" onclick="respondAccessReq(${r.id},'rejected','${esc(r.requester_code)}')">❌</button>
+              <button class="social-btn social-btn-accept" data-respond-id="${parseInt(r.id, 10) || 0}" data-respond-action="accepted" data-requester-code="${esc(r.requester_code)}">✅ Aceptar</button>
+              <button class="social-btn social-btn-reject" data-respond-id="${parseInt(r.id, 10) || 0}" data-respond-action="rejected" data-requester-code="${esc(r.requester_code)}">❌</button>
             </div>
           </div>
         `).join('');
@@ -7111,7 +7120,8 @@ document.addEventListener('DOMContentLoaded', function(){
           const otherName = r.requester_code === window.TNSVT_USER.code ? r.target_name : r.requester_name;
           const otherCode = r.requester_code === window.TNSVT_USER.code ? r.target_code : r.requester_code;
           const direction = r.requester_code === window.TNSVT_USER.code ? '📤 Enviada' : '📥 Recibida';
-          const date = new Date(r.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+          // ⛧ FIX BUG-13: incluir año y hora para distinguir solicitudes antiguas
+          const date = new Date(r.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
           return `<div class="social-history-item">
             <div class="social-history-info">
               ${_socialAvatar({ code: otherCode, name: otherName })}
@@ -7246,6 +7256,18 @@ document.addEventListener('DOMContentLoaded', function(){
   // Init on login
   document.addEventListener('tnsvt:login', function() {
     _socialLoaded = false;
+  });
+
+  // ⛧ FIX BUG-25: Event delegation para botones respondAccessReq (sin inline onclick)
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-respond-id]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.respondId, 10);
+    const action = btn.dataset.respondAction;
+    const requesterCode = btn.dataset.requesterCode || '';
+    if (!id || !action) return;
+    e.stopPropagation();
+    respondAccessReq(id, action, requesterCode);
   });
 
   window.loadAccessRequests = loadAccessRequests;
