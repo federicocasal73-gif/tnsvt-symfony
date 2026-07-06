@@ -1,29 +1,22 @@
 // TNSVT Service Worker - PWA + Offline fallback
-// v48: chat v1.9.6 + VAPID key regenerada + cache-bust v=5.0 + fixed logout Mixed Content
-const CACHE_NAME = 'tnsvt-v56';
-const RUNTIME_CACHE = 'tnsvt-runtime-v56';
+// v49: HTML + importmap network-first, cache-first solo para hashed assets
+const CACHE_NAME = 'tnsvt-v57';
+const RUNTIME_CACHE = 'tnsvt-runtime-v57';
 
-// No precacheamos nada que pueda 404. En debug mode Symfony sirve
-// assets/ directamente, en prod los compila con hash. El runtime cache
-// los agarra cuando el usuario navega.
-const PRECACHE_URLS = [
-  '/',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+// Config files que CAMBIAN en cada recompilación — NO cachear nunca.
+// Siempre network-first para que el navegador reciba los hashes correctos.
+const NETWORK_FIRST_PATHS = [
+  '/assets/importmap.json',
+  '/assets/entrypoint.app.json',
+  '/assets/manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
-  // Borrar TODAS las caches viejas, no solo las que no coinciden con CACHE_NAME.
-  // Asi eliminamos bundles viejos app-oWqx8PY.js, app-LwQSa33.js, etc.
+  // Borrar TODAS las caches viejas
   const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
   event.waitUntil(
     caches.keys()
@@ -33,7 +26,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Listener de mensaje para que la pagina pueda forzar SKIP_WAITING + reload
+// Listener de mensaje para que la pagina pueda forzar limpieza
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -44,7 +37,6 @@ self.addEventListener('message', (event) => {
         .then(() => self.clients.claim())
     );
   }
-  // Compatibilidad con firebase-messaging-sw.js que delega al SW principal
   if (event.data && event.data.type === 'fcm-background' && self.firebaseMessaging) {
     self.firebaseMessaging.onBackgroundMessage(event.data.payload);
   }
@@ -54,66 +46,67 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
-  if (url.origin !== self.location.origin) {
-    return;
-  }
+  // Skip cross-origin
+  if (url.origin !== self.location.origin) return;
+  // Skip non-GET
+  if (request.method !== 'GET') return;
 
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
+  const path = url.pathname;
+  const isHTML = request.headers.get('accept')?.includes('text/html');
 
-  // API: network-first, fallback to cache (sin cachear errores)
-  if (url.pathname.startsWith('/api/')) {
+  // ── Network-first helpers ──
+  function networkFirst() {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, responseClone));
+      fetch(request).then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request).then((r) => r || new Response(
+        JSON.stringify({ error: 'offline', message: 'Sin conexion' }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      )))
+    );
+  }
+
+  function cacheFirst() {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
           }
           return response;
-        })
-        .catch(() => {
-          return caches.match(request).then((cachedResponse) => {
-            return cachedResponse || new Response(
-              JSON.stringify({ error: 'offline', message: 'Sin conexion' }),
-              { status: 503, headers: { 'Content-Type': 'application/json' } }
-            );
-          });
-        })
+        }).catch(() => {
+          if (isHTML) return caches.match('/');
+        });
+      })
     );
-    return;
   }
 
-  // Static assets: cache-first PERO con bypass de cache cuando hay query
-  // especial ?v=2.0 (cache-bust forzado). Esto evita servir bundles viejos.
-  const isCacheBust = url.searchParams.has('v') || /\?v=/.test(url.search);
-  if (isCacheBust) {
+  // ── API: network-first ──
+  if (path.startsWith('/api/')) { networkFirst(); return; }
+
+  // ── Assets con ?v= (cache-bust explicito): bypass cache ──
+  if (url.searchParams.has('v') || /\?v=/.test(url.search)) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Para assets estaticos normales (sin ?v=), usar cache-first
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(request).then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
-          const responseClone = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, responseClone));
-        }
-        return response;
-      }).catch(() => {
-        if (request.headers.get('accept').includes('text/html')) {
-          return caches.match('/');
-        }
-      });
-    })
-  );
+  // ── Config files que cambian (importmap, entrypoint): network-first ──
+  if (NETWORK_FIRST_PATHS.some((p) => path === p || path.endsWith(p))) {
+    networkFirst();
+    return;
+  }
+
+  // ── HTML pages: network-first (para recibir siempre el importmap correcto) ──
+  if (isHTML) { networkFirst(); return; }
+
+  // ── Everything else (hashed JS, CSS, fonts, icons): cache-first ──
+  cacheFirst();
 });
 
 // Handle FCM background messages (delegate to Firebase Messaging via postMessage desde firebase-messaging-sw.js)

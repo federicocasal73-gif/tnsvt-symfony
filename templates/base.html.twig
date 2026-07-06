@@ -13,6 +13,9 @@
 <link rel="manifest" href="{{ asset('manifest.json') }}">
 <meta name="format-detection" content="telephone=no">
 <meta name="msapplication-tap-highlight" content="no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
@@ -53,45 +56,46 @@
         }
       }, 4000);
 
-// ─── ⛧ Limpieza de chat/notifs: si ?fresh=1 en URL, limpiar solo los keys relacionados ───
-      (function tnsvtClearIfFresh() {
+// ─── ⛧ Fresh nuclear: si ?fresh=1, limpiar TODO (Cache Storage + SW + localStorage) ───
+      (function tnsvtFreshNuclear() {
         try {
           var url = new URL(location.href);
-          if (url.searchParams.get('fresh') === '1') {
-            // Marcar timestamp del reset (6h有效期)
-            localStorage.setItem('tnsvt:reset:fresh_until', String(Date.now() + 6 * 3600 * 1000));
-            // Limpiar SOLO chat + notifs (no tocar otras cosas: trades, posts, learned_nodes, etc)
-            var toClear = [
-              'tnsvt_notifs',
-              'tnsvt_chat_sound',
-              'tnsvt_pending_fcm_token',
-              'tnsvt_chat_seen_msg',
-              'tnsvt_cf_panel_open',
-              'tnsvt_cf_sound_muted',
-              'tnsvt_cf_active_conv',
-            ];
-            toClear.forEach(function(k) { try { localStorage.removeItem(k); } catch(_){} });
-            // Limpiar sessionStorage completo (auth, etc)
-            try { sessionStorage.clear(); } catch(_){}
-            // Sacar el query param y recargar
-            url.searchParams.delete('fresh');
-            history.replaceState(null, '', url.pathname + url.search + url.hash);
-            console.log('[TNSVT] Fresh init: chat/notifs cleared');
+          if (url.searchParams.get('fresh') !== '1') return;
+          // Limpiar localStorage (chat/notif keys)
+          ['tnsvt_notifs','tnsvt_chat_sound','tnsvt_pending_fcm_token','tnsvt_chat_seen_msg',
+           'tnsvt_cf_panel_open','tnsvt_cf_sound_muted','tnsvt_cf_active_conv',
+           'tnsvt:reset:fresh_until'].forEach(function(k) {
+            try { localStorage.removeItem(k); } catch(_){}
+          });
+          try { sessionStorage.clear(); } catch(_){}
+          // Limpiar Cache Storage completo + unregister SW
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+            }).catch(function(){});
           }
+          if (navigator.serviceWorker) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            }).catch(function(){});
+          }
+          // Sacar ?fresh y recargar (la recarga SIN SW forzará a fetch fresh del server)
+          url.searchParams.delete('fresh');
+          history.replaceState(null, '', url.pathname + url.search + url.hash);
+          console.log('[TNSVT] Fresh nuclear: caches cleared, SW unregistered');
+          location.reload(true);
         } catch(_) {}
       })();
-      // ─── Force SW cache invalidation: enviar mensaje al SW para limpiar ───
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      // ─── Mantenimiento regular: CLEAR_CACHES + SW update check ───
+      if (navigator.serviceWorker) {
         try {
-          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHES' });
-          console.log('[TNSVT] Sent CLEAR_CACHES to SW');
-        } catch(e) {}
-      }
-      // ─── Force SW update check: si hay un SW nuevo esperando, activarlo ───
-      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
-        navigator.serviceWorker.getRegistration().then(function(reg){
-          if (reg && reg.update) { try { reg.update(); } catch(e){} }
-        }).catch(function(){});
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHES' });
+          }
+          navigator.serviceWorker.getRegistration().then(function(reg){
+            if (reg && reg.update) { try { reg.update(); } catch(e){} }
+          }).catch(function(){});
+        } catch(_) {}
       }
    </script>
   <style>
