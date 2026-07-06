@@ -6953,7 +6953,7 @@ document.addEventListener('DOMContentLoaded', function(){
     ['socialUsersSection', 'socialRequestsSection', 'socialSettingsSection'].forEach(id => {
       const el = $(id);
       if (!el) return;
-      if (id.includes(section)) {
+      if (id.toLowerCase().includes(section.toLowerCase())) {
         el.style.display = 'block';
         el.classList.remove('social-section');
         void el.offsetWidth; // force reflow
