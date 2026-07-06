@@ -2983,6 +2983,7 @@ button[onclick*="hamburger"]:hover {
 .badge-connected { background: rgba(52,199,89,0.1); border: 1px solid rgba(52,199,89,0.3); color: #34c759; }
 .badge-pending { background: rgba(138,60,255,0.1); border: 1px solid rgba(138,60,255,0.3); color: #c4a0ff; }
 .badge-received { background: rgba(255,179,0,0.1); border: 1px solid rgba(255,179,0,0.3); color: #ffb300; }
+.badge-blocked { background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.3); color: #ff6b6b; }
 
 .permission-toggle {
   display:flex; align-items:center;

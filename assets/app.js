@@ -5153,10 +5153,17 @@ window.sb = window.API;
         const socialBadge = document.getElementById('social-notif-badge');
         if (socialBadge) {
           const socialTypes = ['access_request', 'access_accepted', 'access_rejected', 'connection_removed', 'permissions_changed'];
+          const prevSocialCount = parseInt(socialBadge.textContent) || 0;
           const socialCount = notifList.filter(n => socialTypes.includes(n.type) && !n.read).length;
           if (socialCount > 0) {
             socialBadge.textContent = socialCount > 9 ? '9+' : socialCount;
             socialBadge.style.display = 'inline';
+            // ⛧ FIX BUG-12: animación pulse cuando llega nueva notif social
+            if (socialCount > prevSocialCount) {
+              socialBadge.classList.remove('social-badge-pulse');
+              void socialBadge.offsetWidth;
+              socialBadge.classList.add('social-badge-pulse');
+            }
           } else {
             socialBadge.style.display = 'none';
           }
@@ -6814,10 +6821,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function _socialBadge(status) {
     const map = {
-      owner: { label: '👑 Tuyo', cls: 'badge-owner' },
       connected: { label: '✅ Conectado', cls: 'badge-connected' },
       pending_sent: { label: '⏳ Pendiente', cls: 'badge-pending' },
       pending_received: { label: '📨 Solicitud', cls: 'badge-received' },
+      blocked: { label: '🚫 Bloqueado', cls: 'badge-blocked' },
       none: { label: '', cls: '' },
     };
     const b = map[status] || map.none;
@@ -6827,12 +6834,14 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function _socialMiniStats(stats) {
     if (!stats) return '';
-    const pnlClass = stats.total_pnl >= 0 ? 'stat-pos' : 'stat-neg';
-    const pnlSign = stats.total_pnl >= 0 ? '+' : '';
+    const pnl = stats.total_pnl;
+    const pnlClass = pnl >= 0 ? 'stat-pos' : 'stat-neg';
+    // ⛧ FIX BUG-19: signo +/- explícito, no depende de CSS
+    const pnlSign = pnl >= 0 ? '+' : '-';
     return `<div class="social-user-stats">
       <span class="stat">📊 ${stats.total} trades</span>
       <span class="stat">📈 ${stats.win_rate}%</span>
-      <span class="stat ${pnlClass}">💰 ${pnlSign}$${Math.abs(stats.total_pnl).toLocaleString()}</span>
+      <span class="stat ${pnlClass}">💰 ${pnlSign}$${Math.abs(pnl).toLocaleString()}</span>
     </div>`;
   }
 
@@ -6862,7 +6871,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function _socialActions(u) {
-    if (u.status === 'owner') return '';
+    if (u.status === 'blocked') return '<span class="social-status-badge badge-blocked">🚫 Bloqueado</span>';
     let btns = '';
     btns += `<button class="social-btn social-btn-view" onclick="event.stopPropagation();viewUserJournal('${esc(u.code)}','${esc(u.name)}')">📊 Ver</button>`;
     if (u.status === 'none') {
@@ -6978,6 +6987,8 @@ document.addEventListener('DOMContentLoaded', function(){
       const u = _socialUsers.find(u => u.code === targetCode);
       if (u) u.status = 'pending_sent';
       _renderSocialList($('socialUserSearch')?.value?.trim() || '');
+      // ⛧ FIX BUG-20: refrescar panel solicitudes (Enviadas) sin skeleton
+      if (typeof loadAccessRequests === 'function') loadAccessRequests();
     } catch (e) {
       showToast(e.message);
     }

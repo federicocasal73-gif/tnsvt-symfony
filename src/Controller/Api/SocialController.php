@@ -3,12 +3,14 @@
 namespace App\Controller\Api;
 
 use App\Entity\AccessRequest;
+use App\Entity\Block;
 use App\Entity\Connection;
 use App\Entity\JournalPermission;
 use App\Entity\JournalSetting;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Repository\AccessRequestRepository;
+use App\Repository\BlockRepository;
 use App\Repository\ConnectionRepository;
 use App\Repository\JournalPermissionRepository;
 use App\Repository\JournalSettingRepository;
@@ -32,6 +34,7 @@ class SocialController extends AbstractController
         private JournalPermissionRepository $permissionRepo,
         private JournalSettingRepository $settingRepo,
         private TradeRepository $tradeRepo,
+        private BlockRepository $blockRepo,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -78,12 +81,21 @@ class SocialController extends AbstractController
                 return $this->json(['error' => 'Ya tienes acceso al journal de este usuario', 'status' => 'accepted'], 409);
             }
             if ($existing->getStatus() === AccessRequest::STATUS_REJECTED) {
+                // ⛧ FIX BUG-6: Si el target te bloqueó, no resucitar la solicitud
+                if ($this->blockRepo->isBlocked($target, $user)) {
+                    return $this->json(['error' => 'No puedes enviar solicitudes a este usuario', 'status' => 'blocked'], 403);
+                }
                 $existing->setStatus(AccessRequest::STATUS_PENDING);
                 $existing->setUpdatedAt(new \DateTime());
                 $this->notifyUser($target, 'access_request', $user->getName() . ' quiere ver tu Journal');
                 $this->em->flush();
                 return $this->json(['success' => true, 'id' => $existing->getId(), 'status' => 'pending']);
             }
+        }
+
+        // ⛧ FIX BUG-6: Si el target te bloqueó, rechazar con 403
+        if ($this->blockRepo->isBlocked($target, $user)) {
+            return $this->json(['error' => 'No puedes enviar solicitudes a este usuario', 'status' => 'blocked'], 403);
         }
 
         $ar = new AccessRequest();
@@ -292,6 +304,15 @@ class SocialController extends AbstractController
         $ar2 = $this->accessRequestRepo->findExisting($other, $user);
         if ($ar2 && $ar2->getStatus() === AccessRequest::STATUS_ACCEPTED) $this->em->remove($ar2);
 
+        // ⛧ FIX BUG-6: Crear entrada Block — bloquear es ahora un bloqueo REAL
+        if (!$this->blockRepo->isBlocked($user, $other)) {
+            $block = new Block();
+            $block->setBlocker($user);
+            $block->setBlocked($other);
+            $block->setCreatedAt(new \DateTimeImmutable());
+            $this->em->persist($block);
+        }
+
         $this->em->flush();
         return $this->json(['success' => true]);
     }
@@ -413,6 +434,11 @@ class SocialController extends AbstractController
 
         if ($user === $target) {
             return $this->json(['success' => true, 'status' => 'owner']);
+        }
+
+        // ⛧ FIX BUG-6: Si el target te bloqueó, devolver status blocked
+        if ($this->blockRepo->isBlocked($target, $user)) {
+            return $this->json(['success' => true, 'status' => 'blocked']);
         }
 
         if ($this->connectionRepo->areConnected($user, $target)) {
