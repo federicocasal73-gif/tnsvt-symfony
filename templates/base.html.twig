@@ -4224,6 +4224,17 @@
       try {
         const messages = await window.API.getMessages(convId, window.TNSVT_USER.code, null);
 
+        // ⛧ FIX: si messages es array vacío Y no estaba antes, puede que la conv haya sido borrada
+        if (Array.isArray(messages) && messages.length === 0) {
+          const convStillExists = this.state.conversations.some(c => String(c.id) === String(convId));
+          if (!convStillExists) {
+            // Conv fue borrada — volver al listado
+            this.backToList();
+            this.loadConversations();
+            return;
+          }
+        }
+
         // Marcar como leído en backend (fire-and-forget)
         window.API.markChatRead(convId, window.TNSVT_USER.code).catch(() => {});
 

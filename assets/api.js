@@ -192,7 +192,15 @@ async getNotifCount(userCode) {
   async getMessages(convId, userCode, beforeId = null) {
     const params = new URLSearchParams({ user_code: userCode, limit: '50' });
     if (beforeId) params.set('before_id', String(beforeId));
-    return this.get(`/api/chat/conversations/${convId}/messages?${params}`);
+    try {
+      return await this.get(`/api/chat/conversations/${convId}/messages?${params}`);
+    } catch (e) {
+      // ⛧ FIX: si la conversación fue borrada (404), retornar array vacío en vez de throw
+      if (/404|not found|no encontrad/i.test(String(e.message))) {
+        return [];
+      }
+      throw e;
+    }
   },
 
   async sendMessage(convId, userCode, content, photo = null, attachment = null) {

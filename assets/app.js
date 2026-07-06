@@ -355,9 +355,12 @@ window.sb = window.API;
           // Usar API baseURL para evitar Mixed Content (HTTPS -> HTTP)
           const logoutUrl = (window.API && typeof window.API._resolve === 'function')
             ? window.API._resolve('/api/auth/logout')
-            : '/api/auth/logout';
-          fetch(logoutUrl, { method: 'POST', credentials: 'include' });
-        } catch(e) {}
+            : new URL('/api/auth/logout', location.origin).href;
+          fetch(logoutUrl, { method: 'POST', credentials: 'include' })
+            .catch((e) => { /* noop — logout best-effort */ });
+        } catch(e) {
+          /* noop — logout best-effort */
+        }
       }
 
       // ==================== DIAGRAMA Y NODOS ====================
