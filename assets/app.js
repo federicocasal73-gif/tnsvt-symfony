@@ -4877,7 +4877,7 @@ window.sb = window.API;
         if (window._musicProgressTimer) clearInterval(window._musicProgressTimer);
         window._musicProgressTimer = setInterval(musicUpdateProgress, 1000);
         musicUpdateHeaderUI();
-        musicLoad().then(() => musicAutoplayOnFirstInteraction());
+        musicLoad();
       }
       function musicOnTrackEnded() {
         if (musicUserIsAdvancing) return;

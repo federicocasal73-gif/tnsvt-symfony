@@ -598,7 +598,7 @@
   }
   .notif-badge.show { display: flex; }
   .notif-panel {
-    display: none; position: fixed !important; top: 70px !important; right: 20px !important;
+    display: none; position: fixed !important; top: 82px !important; right: 20px !important;
     width: 320px; max-height: 440px;
     background: rgba(10,5,22,0.97); border: 1px solid rgba(138,60,255,0.3);
     border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.7);
