@@ -52,6 +52,34 @@
           location.replace(u);
         }
       }, 4000);
+
+// ─── ⛧ Limpieza de chat/notifs: si ?fresh=1 en URL, limpiar solo los keys relacionados ───
+      (function tnsvtClearIfFresh() {
+        try {
+          var url = new URL(location.href);
+          if (url.searchParams.get('fresh') === '1') {
+            // Marcar timestamp del reset (6h有效期)
+            localStorage.setItem('tnsvt:reset:fresh_until', String(Date.now() + 6 * 3600 * 1000));
+            // Limpiar SOLO chat + notifs (no tocar otras cosas: trades, posts, learned_nodes, etc)
+            var toClear = [
+              'tnsvt_notifs',
+              'tnsvt_chat_sound',
+              'tnsvt_pending_fcm_token',
+              'tnsvt_chat_seen_msg',
+              'tnsvt_cf_panel_open',
+              'tnsvt_cf_sound_muted',
+              'tnsvt_cf_active_conv',
+            ];
+            toClear.forEach(function(k) { try { localStorage.removeItem(k); } catch(_){} });
+            // Limpiar sessionStorage completo (auth, etc)
+            try { sessionStorage.clear(); } catch(_){}
+            // Sacar el query param y recargar
+            url.searchParams.delete('fresh');
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+            console.log('[TNSVT] Fresh init: chat/notifs cleared');
+          }
+        } catch(_) {}
+      })();
       // ─── Force SW cache invalidation: enviar mensaje al SW para limpiar ───
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         try {
