@@ -57,7 +57,7 @@
       }, 4000);
 
 // ─── ⛧ Fresh nuclear: si ?fresh=1, limpiar TODO (Cache Storage + SW + localStorage) ───
-      (function tnsvtFreshNuclear() {
+      (async function tnsvtFreshNuclear() {
         try {
           var url = new URL(location.href);
           if (url.searchParams.get('fresh') !== '1') return;
@@ -68,16 +68,19 @@
             try { localStorage.removeItem(k); } catch(_){}
           });
           try { sessionStorage.clear(); } catch(_){}
-          // Limpiar Cache Storage completo + unregister SW
+          // ESPERAR limpieza de Cache Storage completo
           if ('caches' in window) {
-            caches.keys().then(function(keys) {
-              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-            }).catch(function(){});
+            try {
+              var cacheKeys = await caches.keys();
+              await Promise.all(cacheKeys.map(function(k) { return caches.delete(k); }));
+            } catch(_) {}
           }
+          // ESPERAR unregister de todos los SW
           if (navigator.serviceWorker) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              regs.forEach(function(r) { r.unregister(); });
-            }).catch(function(){});
+            try {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(Array.from(regs).map(function(r) { return r.unregister(); }));
+            } catch(_) {}
           }
           // Sacar ?fresh y recargar (la recarga SIN SW forzará a fetch fresh del server)
           url.searchParams.delete('fresh');
@@ -86,6 +89,11 @@
           location.reload(true);
         } catch(_) {}
       })();
+      // ─── Si API no está definida, la carga de api.js falló → force reload (solo 1 vez) ───
+      if (typeof API === 'undefined' && !sessionStorage.getItem('tnsvt_api_retry')) {
+        try { sessionStorage.setItem('tnsvt_api_retry', '1'); } catch(_) {}
+        location.reload(true);
+      }
       // ─── Mantenimiento regular: CLEAR_CACHES + SW update check ───
       if (navigator.serviceWorker) {
         try {

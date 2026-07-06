@@ -7015,7 +7015,12 @@ document.addEventListener('DOMContentLoaded', function(){
       _renderSocialList('');
       _updateConnectionCount();
     } catch (e) {
-      if (list) list.innerHTML = '<p class="mf-text" style="padding:16px;text-align:center;">❌ Error al cargar</p>';
+      if (list) {
+        var _apiOk = typeof window.API !== 'undefined';
+        list.innerHTML = _apiOk
+          ? '<p class="mf-text" style="padding:16px;text-align:center;">❌ Error al cargar usuarios</p>'
+          : '<p class="mf-text" style="padding:16px;text-align:center;">⚠️ Error de conexión — recargá la página o probá con <a href="?fresh=1" style="color:var(--gold);">?fresh=1</a></p>';
+      }
     }
   }
 
