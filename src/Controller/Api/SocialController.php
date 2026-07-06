@@ -89,7 +89,8 @@ class SocialController extends AbstractController
             if ($existing->getStatus() === AccessRequest::STATUS_ACCEPTED) {
                 return $this->json(['error' => 'Ya tienes acceso al journal de este usuario', 'status' => 'accepted'], 409);
             }
-            if ($existing->getStatus() === AccessRequest::STATUS_REJECTED) {
+            // ⛧ FIX BUG-39: permitir resucitar solicitudes previamente canceladas o rechazadas
+            if ($existing->getStatus() === AccessRequest::STATUS_REJECTED || $existing->getStatus() === AccessRequest::STATUS_CANCELLED) {
                 // ⛧ FIX BUG-6: Si el target te bloqueó, no resucitar la solicitud
                 if ($this->blockRepo->isBlocked($target, $user)) {
                     return $this->json(['error' => 'No puedes enviar solicitudes a este usuario', 'status' => 'blocked'], 403);
@@ -203,13 +204,20 @@ class SocialController extends AbstractController
                     $this->em->persist($conn);
                 }
             }
-            // Create default permissions
+            // Create default permissions — ⛧ FIX BUG-38: empezar con todo en false (opt-in)
             foreach ([$user, $ar->getRequester()] as $grantor) {
                 $grantee = $grantor === $user ? $ar->getRequester() : $user;
                 if (!$this->permissionRepo->findByGrantorAndGrantee($grantor, $grantee)) {
                     $perm = new JournalPermission();
                     $perm->setGrantor($grantor);
                     $perm->setGrantee($grantee);
+                    // ⛧ BUG-38: defaults privados — el grantor debe habilitar lo que quiera compartir
+                    $perm->setCanViewStats(false);
+                    $perm->setCanViewTrades(false);
+                    $perm->setCanViewNotes(false);
+                    $perm->setCanViewComments(false);
+                    $perm->setCanDownloadCsv(false);
+                    $perm->setCanViewRealtime(false);
                     $this->em->persist($perm);
                 }
             }
@@ -232,7 +240,9 @@ class SocialController extends AbstractController
         if (!$ar || $ar->getRequester() !== $user) {
             return $this->json(['error' => 'Not found'], 404);
         }
-        $this->em->remove($ar);
+        // ⛧ FIX BUG-39: soft-cancel (auditoría) en vez de remove físico
+        $ar->setStatus(AccessRequest::STATUS_CANCELLED);
+        $ar->setUpdatedAt(new \DateTime());
         $this->em->flush();
         return $this->json(['success' => true]);
     }
@@ -320,6 +330,9 @@ class SocialController extends AbstractController
         if ($ar && $ar->getStatus() === AccessRequest::STATUS_ACCEPTED) $this->em->remove($ar);
         $ar2 = $this->accessRequestRepo->findExisting($other, $user);
         if ($ar2 && $ar2->getStatus() === AccessRequest::STATUS_ACCEPTED) $this->em->remove($ar2);
+
+        // ⛧ FIX BUG-22: misma notificación que DELETE — simetría al remover
+        $this->notifyUser($other, 'connection_removed', $user->getName() . ' eliminó la conexión');
 
         // ⛧ FIX BUG-6: Crear entrada Block — bloquear es ahora un bloqueo REAL
         if (!$this->blockRepo->isBlocked($user, $other)) {

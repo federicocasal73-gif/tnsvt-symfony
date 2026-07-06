@@ -5472,9 +5472,12 @@ window.sb = window.API;
               console.log('[FCM] Foreground message:', payload);
               const title = (payload.notification && payload.notification.title) || 'T.N.S.V.T';
               const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.text) || '';
+              const notifType = (payload.data && payload.data.type) || 'generic';
               playNotifSound();
               showToast('🔔 ' + title + (body ? ': ' + body : ''));
-              fireBrowserNotif((payload.data && payload.data.type) || 'generic', body);
+              // ⛧ FIX BUG-29: usar addNotif para sincronizar socialBadge y notifList
+              addNotif(notifType, body);
+              if (pushPermGranted) fireBrowserNotif(notifType, body);
             });
             // 8) Manejar el caso de token refrescado (puede no existir en Firebase v10+)
             if (typeof messaging.onTokenRefresh === 'function') {
@@ -6965,7 +6968,18 @@ document.addEventListener('DOMContentLoaded', function(){
     if (section === 'users' && !_socialLoaded) loadAllUsers();
     if (section === 'requests') loadAccessRequests();
     if (section === 'settings') loadJournalSettings();
+    // ⛧ FIX BUG-33: persistir sub-tab en URL para navegación back/forward
+    try { history.replaceState(null, '', '#' + section); } catch (_) {}
   };
+
+  // ⛧ FIX BUG-33: escuchar hashchange para back/forward
+  window.addEventListener('hashchange', function() {
+    const hash = (location.hash || '').replace('#', '');
+    const valid = ['users', 'requests', 'settings'];
+    if (valid.includes(hash) && typeof showSocialSection === 'function') {
+      showSocialSection(hash);
+    }
+  });
 
   window.debounceSocialSearch = function() {
     clearTimeout(_searchTimer);
@@ -7027,6 +7041,8 @@ document.addEventListener('DOMContentLoaded', function(){
       if (u) u.status = 'connected';
       _renderSocialList($('socialUserSearch')?.value?.trim() || '');
       _updateConnectionCount();
+      // ⛧ FIX BUG-30: refrescar panel solicitudes tras aceptar
+      if (typeof loadAccessRequests === 'function') loadAccessRequests();
     } catch (e) {
       showToast(e.message);
     }
@@ -7044,6 +7060,8 @@ document.addEventListener('DOMContentLoaded', function(){
       if (u) { u.status = 'none'; u.stats = null; }
       _renderSocialList($('socialUserSearch')?.value?.trim() || '');
       _updateConnectionCount();
+      // ⛧ FIX BUG-30: refrescar panel solicitudes tras bloquear
+      if (typeof loadAccessRequests === 'function') loadAccessRequests();
     } catch (e) {
       showToast(e.message);
     }
