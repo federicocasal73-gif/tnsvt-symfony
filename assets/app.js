@@ -3034,11 +3034,16 @@ window.sb = window.API;
         const div = document.getElementById('copierLogsList');
         if (!div) return;
         try {
-          const r = await fetch('/api/copier/trades/recent?limit=20', { headers: { 'X-Admin-Password': COPIER_ADMIN_PASSWORD } });
+          const r = await fetch('/api/admin/copier/trades?limit=20', { headers: { 'X-Admin-Password': COPIER_ADMIN_PASSWORD } });
+          if (!r.ok) {
+            div.innerHTML = '<p style="color:#888;font-style:italic;">Conectá con contraseña admin para ver los logs.<br>Usá el botón 🔐 arriba.</p>';
+            return;
+          }
           const data = await r.json();
-          if (!data.success || !data.trades) { div.textContent = 'Sin datos'; return; }
-          div.innerHTML = data.trades.map(t => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#645a78;">' + (t.date || '') + '</span> <span style="color:#fff;">' + t.symbol + ' ' + t.action + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (t.pnl || 0) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
-        } catch (e) { div.textContent = 'Error cargando logs'; }
+          if (!data.success || !data.trades) { div.textContent = 'Sin trades aún.'; return; }
+          if (data.trades.length === 0) { div.innerHTML = '<p style="color:#888;">Sin trades copiados aún. Esperando primera señal del signal_copier...</p>'; return; }
+          div.innerHTML = data.trades.map(t => '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-family:monospace;font-size:0.78rem;"><span style="color:#645a78;">' + (t.date || '').substring(0, 16) + '</span> <span style="color:#fff;">' + (t.symbol || '') + ' ' + (t.action || '') + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (parseFloat(t.pnl) || 0).toFixed(2) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
+        } catch (e) { div.innerHTML = '<p style="color:#ff7066;">Error: ' + e.message + '</p>'; }
       }
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
