@@ -2,6 +2,7 @@
 
 ## Documentación
 - `docs/arquitectura.md` / `docs/arquitectura.pdf` — Arquitectura técnica completa y guía de hosting (Jun 2026, 17 secciones, ~42 páginas).
+- `docs/tnsvt-sistema-copy-full.pdf` — **Documentación premium del sistema unificado PHP+Python+Android (Jul 2026, 20 secciones, ~49 páginas, ~140 KB)**. Generada con `reportlab` desde `generate_full_system_pdf.py`. Cubre backend Symfony (29 entidades, 38 controllers), TNSVT Market Instinct (8 modos de juego + Duelos 1v1), Signal Copier Python (13 archivos), Telegram Bot (11 comandos), Bridge FastAPI, Streamlit Dashboard, y la integración end-to-end de las 4 fases (API Bridge → Admin Dashboard → Bot TNSVT → Auto-Update PnL). Branding premium con logo embebido, headers/pies de página dorados, diagramas ASCII y tablas estilizadas.
 
 ## Commands
 - **Start server**: `cd "C:\Users\HP 240 inch G9\Documents\TNSVT-WORK\tnsvt-symfony" && php -S 0.0.0.0:8000 -t public`
