@@ -111,8 +111,15 @@ class CopierBridgeService
             ];
         }
 
-        $raw = file_get_contents($this->statusPath);
-        return json_decode($raw, true) ?? [];
+        $fp = fopen($this->statusPath, 'r');
+        $content = '';
+        if ($fp && flock($fp, LOCK_SH)) {
+            $content = stream_get_contents($fp);
+            flock($fp, LOCK_UN);
+        }
+        if ($fp) fclose($fp);
+
+        return json_decode($content, true) ?? [];
     }
 
     public function setCopierStatus(array $status): void
@@ -122,7 +129,18 @@ class CopierBridgeService
         if (!is_dir($dir)) {
             mkdir($dir, 0777, true);
         }
-        file_put_contents($this->statusPath, json_encode($status, JSON_PRETTY_PRINT));
+
+        $existing = $this->getCopierStatus();
+        $merged = array_merge($existing, $status);
+
+        $fp = fopen($this->statusPath, 'c');
+        if ($fp && flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            fwrite($fp, json_encode($merged, JSON_PRETTY_PRINT));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+        if ($fp) fclose($fp);
     }
 
     public function getCopierConfig(): array

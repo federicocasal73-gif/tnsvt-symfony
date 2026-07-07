@@ -18,11 +18,15 @@ trait AdminAuthTrait
 {
     /**
      * Obtiene la password admin desde variable de entorno.
-     * Nunca hardcodear en código fuente.
+     * Debe estar definida en .env.local en produccion.
      */
     private function getAdminPassword(): string
     {
-        return $_ENV['ADMIN_PASSWORD'] ?? $_SERVER['ADMIN_PASSWORD'] ?? 'change-me-in-env-local';
+        $pass = $_ENV['ADMIN_PASSWORD'] ?? $_SERVER['ADMIN_PASSWORD'] ?? '';
+        if (empty($pass)) {
+            throw new \RuntimeException('ADMIN_PASSWORD no configurada. Definir en .env.local');
+        }
+        return $pass;
     }
 
     /**
@@ -32,7 +36,7 @@ trait AdminAuthTrait
     protected function requireAdmin(Request $request): void
     {
         $provided = $request->headers->get('X-Admin-Password', '');
-        if (!hash_equals($this->getAdminPassword(), $provided)) {
+        if (empty($provided) || !hash_equals($this->getAdminPassword(), $provided)) {
             throw new AccessDeniedHttpException('Acceso denegado');
         }
     }

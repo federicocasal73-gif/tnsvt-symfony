@@ -35,7 +35,7 @@ class CopierController extends AbstractController
         if (!$code) {
             $code = trim($request->query->get('user_code', ''));
         }
-        if (!$code) return null;
+        if (!$code || strlen($code) < 6) return null;
 
         return $this->userRepository->findByCode($code);
     }
