@@ -87,3 +87,6 @@ yarn-error.log
 public/downloads/*.bundle
 
 public/uploads/chat/
+
+# QA screenshots (auto-generated)
+qa_screenshots/
