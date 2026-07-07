@@ -2,26 +2,30 @@
 
 namespace App\Controller\Admin;
 
-use App\Security\AdminAuthTrait;
+use App\Controller\Api\Admin\RequireAdminTrait;
+use App\Repository\UserRepository;
 use App\Service\CopierBridgeService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 #[Route('/api/admin/copier')]
 class AdminCopierController extends AbstractController
 {
-    use AdminAuthTrait;
+    use RequireAdminTrait;
 
     public function __construct(
         private CopierBridgeService $copierService,
+        private UserRepository $userRepository,
+        private TokenStorageInterface $tokenStorage,
     ) {}
 
     #[Route('/status', name: 'admin_copier_status', methods: ['GET'])]
     public function status(Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) return $denied;
 
         $status = $this->copierService->getCopierStatus();
 
@@ -42,7 +46,7 @@ class AdminCopierController extends AbstractController
     #[Route('/trades', name: 'admin_copier_trades', methods: ['GET'])]
     public function trades(Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) return $denied;
 
         $limit = (int) $request->query->get('limit', 50);
         $trades = $this->copierService->getRecentTrades($limit);
@@ -53,7 +57,7 @@ class AdminCopierController extends AbstractController
     #[Route('/config', name: 'admin_copier_config_get', methods: ['GET'])]
     public function getConfig(Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) return $denied;
 
         $config = $this->copierService->getCopierConfig();
 
@@ -63,7 +67,7 @@ class AdminCopierController extends AbstractController
     #[Route('/config', name: 'admin_copier_config_put', methods: ['PUT'])]
     public function setConfig(Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) return $denied;
 
         $data = json_decode($request->getContent(), true);
         if (!$data) {
@@ -80,7 +84,7 @@ class AdminCopierController extends AbstractController
     #[Route('/dashboard', name: 'admin_copier_dashboard', methods: ['GET'])]
     public function dashboard(Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        if ($denied = $this->requireAdmin($this->userRepository, $this->tokenStorage)) return $denied;
 
         $status = $this->copierService->getCopierStatus();
         $config = $this->copierService->getCopierConfig();

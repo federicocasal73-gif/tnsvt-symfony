@@ -267,7 +267,6 @@ window.sb = window.API;
           activeUserSession = { codename: data.user.name || "Alma Electa", token: code, isAdmin };
           sessionStorage.setItem('tnsv_auth', 'true');
           localStorage.setItem('tnsv_user', JSON.stringify(activeUserSession));
-          if (isAdmin && password) localStorage.setItem('tnsvt_admin_pass', password);
           window.TNSVT_USER = { code: code, name: data.user.name || 'Trader', isAdmin };
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
@@ -2609,7 +2608,6 @@ window.sb = window.API;
         try {
           await sb.post('/api/admin/verify-academia-pass', { password: pass });
           adminAuthenticated = true;
-          localStorage.setItem('tnsvt_admin_pass', pass);
           document.getElementById('admin-login-view').style.display = 'none';
           document.getElementById('admin-main-view').style.display = 'block';
           document.getElementById('adminPassInput').value = '';
@@ -2885,6 +2883,7 @@ window.sb = window.API;
 
       // ==================== ADMIN TASK MANAGEMENT ====================
       function adminShowSubtab(tab) {
+        stopCopierAutoRefresh();
         const usersBtn = document.getElementById('adminSubtabUsers');
         const tasksBtn = document.getElementById('adminSubtabTasks');
         const musicBtn = document.getElementById('adminSubtabMusic');
@@ -2936,6 +2935,7 @@ window.sb = window.API;
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
           if (copierContent) copierContent.style.display = 'block';
           copierRefresh();
+          startCopierAutoRefresh();
         } else {
           resetAll(); activateBtn(usersBtn);
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
@@ -2944,32 +2944,54 @@ window.sb = window.API;
       }
 
       // ==================== ADMIN COPIER (Signal Copier Dashboard) ====================
-      const COPIER_ADMIN_PASSWORD = localStorage.getItem('tnsvt_admin_pass') || prompt('Admin password:') || '';
-      
+      var _copierRefreshInterval = null;
+
       async function copierApi(method, path, body) {
-        const opts = { method, headers: { 'Content-Type': 'application/json', 'X-Admin-Password': COPIER_ADMIN_PASSWORD } };
+        const userCode = (window.TNSVT_USER && window.TNSVT_USER.code) || '';
+        const base = (window.API && window.API.baseURL) || '';
+        const url = base + '/api/admin/copier' + path;
+        const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-User-Code': userCode } };
         if (body) opts.body = JSON.stringify(body);
-        const r = await fetch('/api/admin/copier' + path, opts);
-        return r.json();
+        try {
+          const r = await fetch(url, opts);
+          if (r.status === 403) return { success: false, error: 'Se requiere rol de administrador' };
+          if (r.status === 401) return { success: false, error: 'Autenticación requerida' };
+          if (!r.ok) return { success: false, error: 'Error HTTP ' + r.status + ' ' + r.statusText };
+          return r.json();
+        } catch (e) {
+          return { success: false, error: 'Error de red: ' + e.message };
+        }
       }
 
       async function copierRefresh() {
+        const _setStatus = (id, val) => { const el = document.getElementById(id); if (el) el.querySelector('.mon-stat-value').textContent = val; };
         try {
           const data = await copierApi('GET', '/dashboard');
-          if (!data.success) return;
+          if (!data.success) {
+            _setStatus('copier-stat-status', '🔴 ' + (data.error || 'Sin respuesta'));
+            _setStatus('copier-stat-mt5', '—');
+            _setStatus('copier-stat-pnl', '—');
+            _setStatus('copier-stat-trades', '—');
+            _setStatus('copier-stat-balance', '—');
+            _setStatus('copier-stat-winrate', '—');
+            _setStatus('copier-stat-bot', '—');
+            console.warn('copierRefresh failed:', data.error);
+            return;
+          }
           const s = data.status || {};
-          const setStatus = (id, val) => { const el = document.getElementById(id); if (el) el.querySelector('.mon-stat-value').textContent = val; };
-          setStatus('copier-stat-status', data.online ? '🟢 Online' : '🔴 Offline');
-          setStatus('copier-stat-mt5', s.mt5_connected ? '🟢 Conectado' : '🔴 Desconectado');
-          setStatus('copier-stat-pnl', '$' + (s.daily_pnl || 0).toFixed(2));
-          setStatus('copier-stat-trades', s.trades_today || 0);
-          setStatus('copier-stat-balance', '$' + (s.balance || 0).toFixed(2));
-          setStatus('copier-stat-winrate', (s.win_rate || 0).toFixed(1) + '%');
-          setStatus('copier-stat-bot', s.telegram_bot ? ('🟢 @' + (s.bot_username || 'bot')) : '⚫ Apagado');
+          _setStatus('copier-stat-status', data.online ? '🟢 Online' : '🔴 Offline');
+          _setStatus('copier-stat-mt5', s.mt5_connected ? '🟢 Conectado' : '🔴 Desconectado');
+          _setStatus('copier-stat-pnl', '$' + (s.daily_pnl || 0).toFixed(2));
+          _setStatus('copier-stat-trades', s.trades_today || 0);
+          _setStatus('copier-stat-balance', '$' + (s.balance || 0).toFixed(2));
+          _setStatus('copier-stat-winrate', (s.win_rate || 0).toFixed(1) + '%');
+          _setStatus('copier-stat-bot', s.telegram_bot ? ('🟢 @' + (s.bot_username || 'bot')) : '⚫ Apagado');
           const channels = s.channels || [];
           const chDiv = document.getElementById('copierChannels');
           if (chDiv && channels.length) {
             chDiv.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + channels.map(c => '<span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);border-radius:20px;padding:4px 12px;font-size:0.75rem;color:var(--gold-bright);">📢 ' + c + '</span>').join('') + '</div>';
+          } else if (chDiv) {
+            chDiv.innerHTML = '<p style="color:#645a78;font-size:0.8rem;">Sin canales configurados</p>';
           }
           const trades = data.recent_trades || [];
           const listDiv = document.getElementById('copierTradesList');
@@ -2987,7 +3009,10 @@ window.sb = window.API;
                 '</div>';
             }).join('');
           }
-        } catch (e) { console.error('copierRefresh error:', e); }
+        } catch (e) {
+          console.error('copierRefresh error:', e);
+          _setStatus('copier-stat-status', '🔴 Error de red');
+        }
       }
 
       function copierShowConfig() {
@@ -3011,24 +3036,21 @@ window.sb = window.API;
 
       async function copierSaveConfig() {
         const fb = document.getElementById('copierFeedback');
-        try {
-          const cfg = {
-            lot_size: parseFloat(document.getElementById('copierCfgLot').value),
-            risk_max_open_positions: parseInt(document.getElementById('copierCfgMaxPos').value),
-            risk_daily_loss_limit: parseFloat(document.getElementById('copierCfgDailyLoss').value),
-            risk_weekly_loss_limit: parseFloat(document.getElementById('copierCfgWeeklyLoss').value),
-            risk_trailing_stop: document.getElementById('copierCfgTrailing').value === 'true',
-            news_filter_enabled: document.getElementById('copierCfgNewsFilter').value === 'true',
-          };
-          const data = await copierApi('PUT', '/config', cfg);
-          if (data.success) {
-            if (fb) fb.textContent = '✅ Configuración guardada';
-            document.getElementById('copierConfigPanel').style.display = 'none';
-          } else {
-            if (fb) fb.textContent = '❌ Error: ' + (data.error || 'desconocido');
-          }
-        } catch (e) {
-          if (fb) fb.textContent = '❌ Error de conexión';
+        const cfg = {
+          lot_size: parseFloat(document.getElementById('copierCfgLot').value),
+          risk_max_open_positions: parseInt(document.getElementById('copierCfgMaxPos').value),
+          risk_daily_loss_limit: parseFloat(document.getElementById('copierCfgDailyLoss').value),
+          risk_weekly_loss_limit: parseFloat(document.getElementById('copierCfgWeeklyLoss').value),
+          risk_trailing_stop: document.getElementById('copierCfgTrailing').value === 'true',
+          news_filter_enabled: document.getElementById('copierCfgNewsFilter').value === 'true',
+        };
+        const data = await copierApi('PUT', '/config', cfg);
+        if (data.success) {
+          if (fb) { fb.textContent = '✅ Configuración guardada'; fb.style.color = '#4caf50'; }
+          document.getElementById('copierConfigPanel').style.display = 'none';
+          copierRefresh();
+        } else {
+          if (fb) { fb.textContent = '❌ ' + (data.error || 'Error al guardar'); fb.style.color = '#ff7066'; }
         }
       }
 
@@ -3036,16 +3058,26 @@ window.sb = window.API;
         const div = document.getElementById('copierLogsList');
         if (!div) return;
         try {
-          const r = await fetch('/api/admin/copier/trades?limit=20', { headers: { 'X-Admin-Password': COPIER_ADMIN_PASSWORD } });
-          if (!r.ok) {
-            div.innerHTML = '<p style="color:#888;font-style:italic;">Conectá con contraseña admin para ver los logs.<br>Usá el botón 🔐 arriba.</p>';
+          const data = await copierApi('GET', '/trades?limit=20');
+          if (!data.success) {
+            div.innerHTML = '<p style="color:#ff7066;">' + (data.error || 'Error al cargar trades') + '</p>';
             return;
           }
-          const data = await r.json();
-          if (!data.success || !data.trades) { div.textContent = 'Sin trades aún.'; return; }
-          if (data.trades.length === 0) { div.innerHTML = '<p style="color:#888;">Sin trades copiados aún. Esperando primera señal del signal_copier...</p>'; return; }
+          if (!data.trades || data.trades.length === 0) { div.innerHTML = '<p style="color:#888;">Sin trades copiados aún. Esperando primera señal del signal_copier...</p>'; return; }
           div.innerHTML = data.trades.map(t => '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-family:monospace;font-size:0.78rem;"><span style="color:#645a78;">' + (t.date || '').substring(0, 16) + '</span> <span style="color:#fff;">' + (t.symbol || '') + ' ' + (t.action || '') + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (parseFloat(t.pnl) || 0).toFixed(2) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
         } catch (e) { div.innerHTML = '<p style="color:#ff7066;">Error: ' + e.message + '</p>'; }
+      }
+
+      function startCopierAutoRefresh() {
+        stopCopierAutoRefresh();
+        _copierRefreshInterval = setInterval(copierRefresh, 30000);
+      }
+
+      function stopCopierAutoRefresh() {
+        if (_copierRefreshInterval) {
+          clearInterval(_copierRefreshInterval);
+          _copierRefreshInterval = null;
+        }
       }
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
