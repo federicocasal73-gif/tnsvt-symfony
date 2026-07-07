@@ -381,3 +381,47 @@
 - Seguridad: 3/10 → 8/10
 - Calidad General: 5/10 → 7.5/10
 - Apto para RC: Sí, con monitoreo continuo
+
+## Session 2026-07-07 — Hotfixes + APK v4.14 + Limpieza
+### Commits
+- `04f266f` — fix: tabs outside trading-main - removed premature `</div>` closure
+- `e9201d5` — fix: copier functions not global + admin password persistence to localStorage
+
+### What was fixed
+1. **Copier functions not global** (`copierRefresh`, `copierShowConfig`, `copierRefreshLogs`, `copierSaveConfig`):
+   - Functions existed in `assets/app.js` (lines 2954-3047) but were scoped inside a block, not exposed to `window`
+   - HTML `onclick` handlers called them globally → ReferenceError
+   - Fix: added `window.copierRefresh = copierRefresh`, etc. after the window exports block (line ~4411)
+
+2. **Admin password not persisted** for copier API calls:
+   - `copierApi()` used `localStorage.getItem('tnsvt_admin_pass')` but login never saved it
+   - Fix: `verifyGateKey()` now saves `localStorage.setItem('tnsvt_admin_pass', password)` when `isAdmin && password`
+   - Also added in `checkAdminPass()` (academia admin panel)
+
+3. **Layout fix: tabs outside trading-main** (from previous session, committed now):
+   - Removed premature `</div>` at lines 2307 and 4000 in `base.html.twig`
+   - Was causing tab-2steps-adv through tab-admin to render outside the `.trading-main` container
+   - Verified with Playwright: all 13 tabs now have `insideMain: true`
+
+4. **Duplicate .gitignore entry** for `qa_screenshots/` cleaned up
+
+### APK v4.14 Build
+- `versionCode 301` / `versionName "4.14"` in `android/app/build.gradle`
+- `npx cap sync android` + `gradlew.bat clean assembleDebug` (35s)
+- Output: `public/downloads/tnsvt-app.apk` + `public/apk/tnsvt-v4.14.apk` (6.47 MB, shell-only debug)
+
+### Limpieza APKs
+- Borrados 18 APKs viejos de `public/apk/` (v1.6.2, v3.6-v3.9, v4.0-v4.12)
+- Quedan: `tnsvt-v4.13.apk` (25.87 MB) + `tnsvt-v4.14.apk` (6.47 MB) + `tnsvt-market-instinct.apk` (4.81 MB)
+- `public/downloads/tnsvt-app.apk` actualizado a v4.14
+
+### Current processes
+- PHP: `php -S 0.0.0.0:8000 -t public`
+- Signal Copier: `python signal_copier/main.py`
+- Telegram Bot: `python -m bot.main`
+- Streamlit: `streamlit run streamlit_dashboard/app.py --server.port 8501`
+
+### Key notes
+- **Service worker cache**: users need `Ctrl+Shift+R` after deploys to see new JS
+- **Tailscale 502 errors**: chat endpoints return 502 via Tailscale Funnel but work fine locally — timeout issue in Tailscale proxy, not a code bug
+- **Build command**: `$env:JAVA_HOME = "C:\dev\jdk\jdk-21\jdk-21.0.7+6"; & ".\gradlew.bat" clean assembleDebug` (from android/ dir)
