@@ -154,6 +154,7 @@ class JournalController extends AbstractController
         $trade->setRatio($data['ratio'] ?? null);
         $trade->setNotes($data['notes'] ?? null);
         $trade->setPhotos($data['photos'] ?? null);
+        $trade->setTags($data['tags'] ?? null);
 
         if (isset($data['account_id'])) {
             $accId = (int) $data['account_id'];
@@ -204,6 +205,7 @@ class JournalController extends AbstractController
         if (isset($data['ratio'])) $trade->setRatio($data['ratio']);
         if (isset($data['notes'])) $trade->setNotes($data['notes']);
         if (isset($data['photos'])) $trade->setPhotos($data['photos']);
+        if (isset($data['tags'])) $trade->setTags($data['tags']);
 
         if (isset($data['account_id'])) {
             $accId = (int) $data['account_id'];
@@ -355,6 +357,7 @@ class JournalController extends AbstractController
             $entry['ratio'] = $t->getRatio();
             $entry['notes'] = $t->getNotes();
             $entry['photos'] = $t->getPhotos() ?? [];
+            $entry['tags'] = $t->getTags() ?? [];
         } elseif ($scope === 'connected' && $perm) {
             if ($perm->canViewTrades()) {
                 $entry['entry'] = $t->getEntry();
@@ -366,6 +369,9 @@ class JournalController extends AbstractController
             }
             if ($perm->canViewNotes()) {
                 $entry['notes'] = $t->getNotes();
+            }
+            if ($perm->canViewTrades()) {
+                $entry['tags'] = $t->getTags() ?? [];
             }
         }
 
@@ -391,5 +397,72 @@ class JournalController extends AbstractController
             'win_rate' => $total > 0 ? round($wins / $total * 100, 1) : 0,
             'total_pnl' => round($totalPnl, 2),
         ];
+    }
+
+    #[Route('/drawdown', name: 'api_journal_drawdown', methods: ['GET'])]
+    public function drawdown(Request $request): JsonResponse
+    {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
+        $trades = $this->loadTradesForOwner($currentUser, $request);
+        usort($trades, fn(Trade $a, Trade $b) => $a->getDate() <=> $b->getDate());
+
+        $accountSize = (float) ($request->query->get('account_size', 10000));
+        $balance = $accountSize;
+        $peak = $accountSize;
+        $drawdowns = [];
+        $maxDrawdown = 0;
+        $maxDrawdownPct = 0;
+
+        foreach ($trades as $t) {
+            $balance += (float) $t->getPnl();
+            if ($balance > $peak) $peak = $balance;
+            $dd = $peak - $balance;
+            $ddPct = $peak > 0 ? ($dd / $peak) * 100 : 0;
+            if ($dd > $maxDrawdown) { $maxDrawdown = $dd; $maxDrawdownPct = $ddPct; }
+            $drawdowns[] = [
+                'date' => $t->getDate()?->format('c'),
+                'balance' => round($balance, 2),
+                'peak' => round($peak, 2),
+                'drawdown' => round($dd, 2),
+                'drawdown_pct' => round($ddPct, 2),
+                'asset' => $t->getAsset(),
+                'pnl' => (float) $t->getPnl(),
+            ];
+        }
+
+        return $this->json([
+            'success' => true,
+            'drawdowns' => $drawdowns,
+            'max_drawdown' => round($maxDrawdown, 2),
+            'max_drawdown_pct' => round($maxDrawdownPct, 2),
+            'account_size' => $accountSize,
+        ]);
+    }
+
+    #[Route('/tags', name: 'api_journal_tags', methods: ['GET'])]
+    public function tags(Request $request): JsonResponse
+    {
+        $currentUser = $this->getCurrentUser($request);
+        if (!$currentUser) return $this->json(['error' => 'Unauthorized'], 401);
+
+        $trades = $this->loadTradesForOwner($currentUser, $request);
+        $tagStats = [];
+        foreach ($trades as $t) {
+            foreach ($t->getTags() ?? [] as $tag) {
+                if (!isset($tagStats[$tag])) $tagStats[$tag] = ['count' => 0, 'wins' => 0, 'pnl' => 0.0];
+                $tagStats[$tag]['count']++;
+                $pnl = (float) $t->getPnl();
+                $tagStats[$tag]['pnl'] += $pnl;
+                if ($pnl >= 0) $tagStats[$tag]['wins']++;
+            }
+        }
+        foreach ($tagStats as &$stat) {
+            $stat['win_rate'] = $stat['count'] > 0 ? round($stat['wins'] / $stat['count'] * 100, 1) : 0;
+            $stat['pnl'] = round($stat['pnl'], 2);
+        }
+        uasort($tagStats, fn($a, $b) => $b['count'] <=> $a['count']);
+        return $this->json(['success' => true, 'tags' => $tagStats]);
     }
 }

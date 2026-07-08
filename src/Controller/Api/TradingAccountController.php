@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\TradingAccount;
 use App\Entity\User;
+use App\Repository\TradeRepository;
 use App\Repository\TradingAccountRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,6 +20,7 @@ class TradingAccountController extends AbstractController
         private EntityManagerInterface $em,
         private TradingAccountRepository $accountRepo,
         private UserRepository $userRepository,
+        private TradeRepository $tradeRepo,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -46,7 +48,7 @@ class TradingAccountController extends AbstractController
         $accounts = $this->accountRepo->findActiveByUser($user);
         $count = count($accounts);
 
-        $payload = array_map(function (TradingAccount $a) {
+        $payload = array_map(function (TradingAccount $a) use ($user) {
             return [
                 'id' => $a->getId(),
                 'name' => $a->getName(),
@@ -56,6 +58,7 @@ class TradingAccountController extends AbstractController
                 'is_active' => $a->isActive(),
                 'sort_order' => $a->getSortOrder(),
                 'created_at' => $a->getCreatedAt()?->format(\DateTimeInterface::ATOM),
+                'trade_count' => $this->tradeRepo->countByUserAndAccount($user, $a),
             ];
         }, $accounts);
 

@@ -56,6 +56,9 @@ class Trade
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $photos = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $tags = null;
+
     public function __construct()
     {
         $this->date = new \DateTimeImmutable();
@@ -101,4 +104,7 @@ class Trade
 
     public function getPhotos(): ?array { return $this->photos; }
     public function setPhotos(?array $photos): static { $this->photos = $photos; return $this; }
+
+    public function getTags(): ?array { return $this->tags; }
+    public function setTags(?array $tags): static { $this->tags = $tags; return $this; }
 }

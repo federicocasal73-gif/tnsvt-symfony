@@ -1207,6 +1207,7 @@ window.sb = window.API;
           pnl: parseFloat(document.getElementById('tj-f-pnl')?.value) || 0,
           ratio: document.getElementById('tj-f-ratio')?.value || '',
           notes: document.getElementById('tj-f-notes')?.value || '',
+          tags: JSON.parse(document.getElementById('tj-f-tags')?.value || '[]'),
           photos: tjPhotoData.filter(p => p !== null)
         };
         trade.user_code = window.TNSVT_USER ? window.TNSVT_USER.code : null;
@@ -1275,6 +1276,7 @@ window.sb = window.API;
         document.getElementById('tj-f-pnl').value = t.pnl || '';
         document.getElementById('tj-f-ratio').value = t.ratio || '';
         document.getElementById('tj-f-notes').value = t.notes || '';
+        tjLoadTradeTags(t);
         tjResetPhotos();
         if (t.photos) {
           t.photos.forEach((p, i) => {
@@ -1358,6 +1360,15 @@ window.sb = window.API;
           const d=byDay[wd];const pct=Math.abs(d.pnl)/maxDayAbs*100;const color=d.pnl>=0?'#34c759':'var(--red-impact)';
           return '<div class="tj-bar-row"><span class="tj-bar-label">'+days[wd]+'</span><div class="tj-bar-track"><div class="tj-bar-fill" style="width:'+pct+'%;background:'+color+';">'+d.n+'t</div></div><span class="tj-bar-pnl" style="color:'+color+';">$'+(d.pnl>=0?'+':'')+d.pnl.toFixed(0)+'</span></div>';
         }).join('');
+        const byTag={};
+        tjTrades.forEach(t=>{(t.tags||[]).forEach(tag=>{if(!byTag[tag])byTag[tag]={pnl:0,n:0,w:0};byTag[tag].pnl+=t.pnl;byTag[tag].n++;if(t.result==='WIN')byTag[tag].w++;});});
+        const tagArr=Object.entries(byTag).sort((a,b)=>b[1].n-a[1].n);
+        const maxTagAbs=Math.max(...tagArr.map(a=>Math.abs(a[1].pnl)),1);
+        const tagEl=document.getElementById('tj-by-tag');
+        if(tagEl){
+          if(tagArr.length===0){tagEl.innerHTML='<div style="color:#645a78;font-size:0.75rem;text-align:center;padding:10px;">Sin tags asignados aún</div>';}
+          else{tagEl.innerHTML=tagArr.map(([tag,d])=>{const pct=Math.abs(d.pnl)/maxTagAbs*100;const color=d.pnl>=0?'#34c759':'var(--red-impact)';const wr=d.n>0?((d.w/d.n)*100).toFixed(0):0;return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="min-width:80px;font-size:0.7rem;color:#a499b8;">'+escapeHtml(tag)+'</span><div style="flex:1;height:18px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:0.6rem;color:#fff;font-family:Orbitron,sans-serif;">'+d.n+'t · '+wr+'%WR</div></div><span style="min-width:60px;text-align:right;font-size:0.7rem;color:'+color+';font-family:Orbitron,sans-serif;">$'+(d.pnl>=0?'+':'')+d.pnl.toFixed(0)+'</span></div>';}).join('');}
+        }
       }
 
       function tjSetPeriod(period, btn) {
@@ -1462,8 +1473,8 @@ window.sb = window.API;
           const color = isPos ? 'url(#barGradPos)' : 'url(#barGradNeg)';
           const wr = (d.w / d.n * 100).toFixed(0);
           const label = _periodLabel(tjChartPeriod, m);
-          barsHtml += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 1)}" fill="${color}" rx="3" filter="url(#barShadow)">`
-            + `<title>${_periodTitle(tjChartPeriod, m)}: $${d.pnl >= 0 ? '+' : ''}${d.pnl.toFixed(2)} · ${d.w}W / ${d.n - d.w}L · ${wr}%</title></rect>`;
+          const _barTT = _periodTitle(tjChartPeriod, m)+': $'+(d.pnl>=0?'+':'')+d.pnl.toFixed(2)+' · '+d.w+'W / '+d.n+' · '+wr+'%';
+          barsHtml += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 1)}" fill="${color}" rx="3" filter="url(#barShadow)" style="cursor:pointer;" onmouseenter="tjBarTooltip(evt,'${_barTT.replace(/'/g,"\\'")}')" onmouseleave="tjBarTooltipHide()" onclick="tjFilterByPeriod('${m}')"></rect>`;
           barsHtml += `<text x="${x + barW / 2}" y="${cB + 12}" fill="#645a78" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle">${label}</text>`;
           const wrX = x + barW / 2;
           const wrY = cT + (100 - wr) / 100 * (cB - cT - 10);
@@ -1662,10 +1673,12 @@ window.sb = window.API;
             pts.slice(1).forEach(p=>{aD+=' L'+mX(p.x)+','+mY(p.y);});
             aD+=' L'+mX(lp.x)+','+cB+' L'+mX(fp.x)+','+cB+' Z';
             areaEl.setAttribute('d',aD);
-            dotsEl.innerHTML=pts.slice(1).map(p=>{
+            dotsEl.innerHTML=pts.slice(1).map((p,i)=>{
               const cx=mX(p.x),cy=mY(p.y);
               const color=p.result==='WIN'?'#34c759':p.result==='LOSS'?'#ff3b30':'#ff9500';
-              return '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="'+color+'" opacity="0.8"><title>'+p.date+': $'+p.y.toFixed(2)+'</title></circle>';
+              const t=ft[i];const tt=t?(t.asset+' · '+p.date+' · '+(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+' · '+t.result):p.date+': $'+p.y.toFixed(2);
+              const dd=t?(t.date||'').slice(0,10):'';
+              return '<circle cx="'+cx+'" cy="'+cy+'" r="4" fill="'+color+'" opacity="0.8" style="cursor:pointer;" onmouseenter="tjEqTooltip(evt,\''+tt.replace(/'/g,"\\'")+'\')" onmouseleave="tjEqTooltipHide()" onclick="openTjDay(\''+dd+'\')"/>';
             }).join('');
             const bl=document.getElementById('eq-baseline');
             if(bl){const by=mY(accountSize);bl.setAttribute('y1',by);bl.setAttribute('y2',by);}
@@ -1683,9 +1696,11 @@ window.sb = window.API;
         const search = (document.getElementById('tj-search')?.value||'').toLowerCase().trim();
         const fResult = document.getElementById('tj-filter-result')?.value || 'all';
         const fDir = document.getElementById('tj-filter-dir')?.value || 'all';
+        const fTag = document.getElementById('tj-filter-tag')?.value || 'all';
         let filtered = tjTrades.filter(t => {
           if(fResult!=='all' && t.result!==fResult) return false;
           if(fDir!=='all' && t.dir!==fDir) return false;
+          if(fTag!=='all') { const tradeTags=t.tags||[]; if(!tradeTags.includes(fTag)) return false; }
           if(search && !((t.asset||'').toLowerCase().includes(search)||(t.notes||'').toLowerCase().includes(search))) return false;
           return true;
         });
@@ -1717,6 +1732,7 @@ window.sb = window.API;
                   +'<div class="tj-trade-detail">'
                     +(safeEntry?'E: '+safeEntry:'')+(safeSl?' · SL: '+safeSl:'')+(safeTp?' · TP: '+safeTp:'')+(safeRatio?' · R:'+safeRatio:'')
                     +(safeNotes?'<br><span style="color:#645a78;font-style:italic;">'+safeNotes+'</span>':'')
+                    +(t.tags&&t.tags.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+t.tags.map(tag=>'<span style="padding:2px 8px;border-radius:12px;font-size:0.58rem;font-family:\'Orbitron\',sans-serif;letter-spacing:0.5px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);color:var(--gold);">'+escapeHtml(tag)+'</span>').join('')+'</div>':'')
                   +'</div>'
                 +'</div>'
                 +'<div class="tj-trade-pnl" style="color:'+pnlColor+';">'+(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+'</div>'
@@ -1735,6 +1751,8 @@ window.sb = window.API;
         tjRenderStats();
         tjRenderCal();
         tjRenderMonthly();
+        tjRenderDrawdown();
+        tjRenderTagChips();
       }
 
       function tjCalNav(dir) {
@@ -1792,6 +1810,191 @@ window.sb = window.API;
           html += `<div class="${cls}"${clickAttr}>${bodyHtml}</div>`;
         }
         grid.innerHTML = html;
+      }
+
+      function tjEqTooltip(evt, text) {
+        const tip = document.getElementById('tj-eq-tooltip');
+        if (!tip) return;
+        tip.textContent = text;
+        tip.style.display = 'block';
+        const svg = evt.target.closest('svg');
+        if (!svg) return;
+        const rect = svg.getBoundingClientRect();
+        tip.style.left = (evt.clientX - rect.left + 12) + 'px';
+        tip.style.top = (evt.clientY - rect.top - 30) + 'px';
+      }
+      function tjEqTooltipHide() {
+        const tip = document.getElementById('tj-eq-tooltip');
+        if (tip) tip.style.display = 'none';
+      }
+      function tjBarTooltip(evt, text) {
+        tjEqTooltip(evt, text);
+      }
+      function tjBarTooltipHide() { tjEqTooltipHide(); }
+      function tjFilterByPeriod(periodKey) {
+        window._tjPeriodFilterKey = periodKey;
+        const logTab = document.querySelector('[data-tj-tab="tj-history"]');
+        if (logTab) tjTab('tj-history', logTab);
+        else tjRefresh();
+      }
+      window.tjEqTooltip = tjEqTooltip;
+      window.tjEqTooltipHide = tjEqTooltipHide;
+      window.tjBarTooltip = tjBarTooltip;
+      window.tjBarTooltipHide = tjBarTooltipHide;
+      window.tjFilterByPeriod = tjFilterByPeriod;
+
+      let tjDDPeriodFilter = 'all';
+      function tjDDPeriod(period, btn) {
+        tjDDPeriodFilter = period;
+        document.querySelectorAll('#tj-dd-periods .tj-period-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        tjRenderDrawdown();
+      }
+      window.tjDDPeriod = tjDDPeriod;
+
+      function tjRenderDrawdown() {
+        const lineEl = document.getElementById('dd-line');
+        const areaEl = document.getElementById('dd-area');
+        const dotsEl = document.getElementById('dd-dots');
+        const emptyEl = document.getElementById('dd-empty');
+        const maxMarker = document.getElementById('dd-max-marker');
+        const maxLabel = document.getElementById('dd-max-label');
+        if (!lineEl) return;
+
+        if (tjTrades.length === 0) {
+          if (emptyEl) emptyEl.style.display = 'block';
+          lineEl.setAttribute('points', '');
+          areaEl.setAttribute('d', '');
+          dotsEl.innerHTML = '';
+          if (maxMarker) maxMarker.setAttribute('opacity', '0');
+          if (maxLabel) maxLabel.setAttribute('opacity', '0');
+          const maxDDEl = document.getElementById('tj-dd-max');
+          if (maxDDEl) maxDDEl.textContent = 'MAX: —';
+          return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        const accountSize = parseFloat(document.getElementById('tj-account-size')?.value) || 10000;
+        let ft = [...tjTrades].reverse();
+
+        if (tjDDPeriodFilter !== 'all') {
+          const days = parseInt(tjDDPeriodFilter);
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - days);
+          ft = ft.filter(t => new Date(t.date) >= cutoff);
+        }
+
+        let balance = accountSize;
+        let peak = accountSize;
+        const pts = [{ x: 0, dd: 0, ddPct: 0, date: 'Inicio', asset: '', pnl: 0 }];
+        let maxDD = 0, maxDDPct = 0, maxDDIdx = 0;
+
+        ft.forEach((t, i) => {
+          balance += t.pnl;
+          if (balance > peak) peak = balance;
+          const dd = peak - balance;
+          const ddPct = peak > 0 ? (dd / peak) * 100 : 0;
+          if (dd > maxDD) { maxDD = dd; maxDDPct = ddPct; maxDDIdx = i + 1; }
+          pts.push({ x: i + 1, dd, ddPct, date: new Date(t.date).toLocaleDateString('es', { day: 'numeric', month: 'short' }), asset: t.asset, pnl: t.pnl });
+        });
+
+        const maxDDEl = document.getElementById('tj-dd-max');
+        if (maxDDEl) maxDDEl.textContent = `MAX: -$${maxDD.toFixed(2)} (${maxDDPct.toFixed(1)}%)`;
+
+        const cL = 50, cR = 590, cT = 15, cB = 140;
+        const maxDDVal = Math.max(maxDD, 1);
+        const xM = pts.length - 1;
+        const mX = v => cL + (v / Math.max(xM, 1)) * (cR - cL);
+        const mY = v => cT + (v / maxDDVal) * (cB - cT);
+
+        lineEl.setAttribute('points', pts.map(p => mX(p.x) + ',' + mY(p.dd)).join(' '));
+
+        let aD = 'M' + mX(pts[0].x) + ',' + mY(0);
+        pts.forEach(p => { aD += ' L' + mX(p.x) + ',' + mY(p.dd); });
+        aD += ' L' + mX(pts[pts.length - 1].x) + ',' + mY(0) + ' Z';
+        areaEl.setAttribute('d', aD);
+
+        dotsEl.innerHTML = pts.slice(1).map((p) => {
+          const cx = mX(p.x), cy = mY(p.dd);
+          return `<circle cx="${cx}" cy="${cy}" r="2.5" fill="#ff3b30" opacity="0.7" style="cursor:pointer;" onmouseenter="tjEqTooltip(evt,'${(p.asset||'').replace(/'/g,"\\'")} · ${p.date} · DD: -$${p.dd.toFixed(2)} (${p.ddPct.toFixed(1)}%)')" onmouseleave="tjEqTooltipHide()"/>`;
+        }).join('');
+
+        if (maxDDIdx > 0 && maxDD > 0) {
+          const mx = mX(maxDDIdx), my = mY(maxDD);
+          maxMarker.setAttribute('cx', mx);
+          maxMarker.setAttribute('cy', my);
+          maxMarker.setAttribute('opacity', '1');
+          maxLabel.setAttribute('x', mx + 8);
+          maxLabel.setAttribute('y', my + 3);
+          maxLabel.textContent = `-$${maxDD.toFixed(0)} (${maxDDPct.toFixed(1)}%)`;
+          maxLabel.setAttribute('opacity', '1');
+        } else {
+          if (maxMarker) maxMarker.setAttribute('opacity', '0');
+          if (maxLabel) maxLabel.setAttribute('opacity', '0');
+        }
+
+        const yt = document.getElementById('dd-y-top');
+        const ym = document.getElementById('dd-y-mid');
+        const yb = document.getElementById('dd-y-bot');
+        if (yt) yt.textContent = '$0';
+        if (ym) ym.textContent = '-$' + (maxDDVal / 2).toFixed(0);
+        if (yb) yb.textContent = '-$' + maxDDVal.toFixed(0);
+
+        const xs = document.getElementById('dd-x-start');
+        const xe = document.getElementById('dd-x-end');
+        if (xs && pts.length > 1) xs.textContent = pts[1].date;
+        if (xe) xe.textContent = pts[pts.length - 1].date;
+      }
+
+      const _tjPredefinedTags = ['Scalping', 'Swing', 'Day Trade', 'News', 'Revenge', 'A+ Setup', 'B Setup', 'Emotional', 'Breakout', 'Pullback'];
+      let _tjSelectedTags = [];
+
+      function tjRenderTagChips() {
+        const container = document.getElementById('tj-tag-chips');
+        if (!container) return;
+        const savedCustom = JSON.parse(localStorage.getItem('tj_custom_tags') || '[]');
+        const allTags = [...new Set([..._tjPredefinedTags, ...savedCustom])];
+        container.innerHTML = allTags.map(tag => {
+          const selected = _tjSelectedTags.includes(tag);
+          const isPredef = _tjPredefinedTags.includes(tag);
+          const bg = selected ? 'rgba(212,175,55,0.2)' : 'rgba(0,0,0,0.2)';
+          const border = selected ? 'rgba(212,175,55,0.5)' : 'rgba(212,175,55,0.12)';
+          const color = selected ? 'var(--gold-bright)' : '#645a78';
+          return '<button type="button" onclick="tjToggleTag(\'' + tag.replace(/'/g, "\\'") + '\')" style="padding:4px 10px;border-radius:20px;font-size:0.65rem;font-family:\'Orbitron\',sans-serif;letter-spacing:0.5px;cursor:pointer;border:1px solid ' + border + ';background:' + bg + ';color:' + color + ';transition:all 0.15s;">' + (isPredef ? '' : '✦ ') + escapeHtml(tag) + (selected ? ' ✓' : '') + '</button>';
+        }).join('');
+      }
+      function tjToggleTag(tag) {
+        const idx = _tjSelectedTags.indexOf(tag);
+        if (idx >= 0) _tjSelectedTags.splice(idx, 1);
+        else _tjSelectedTags.push(tag);
+        tjRenderTagChips();
+        tjSyncTagsInput();
+      }
+      window.tjToggleTag = tjToggleTag;
+
+      function tjAddCustomTag() {
+        const input = document.getElementById('tj-f-custom-tag');
+        const tag = (input?.value || '').trim();
+        if (!tag || tag.length > 30) return;
+        if (_tjSelectedTags.includes(tag)) return;
+        const saved = JSON.parse(localStorage.getItem('tj_custom_tags') || '[]');
+        if (!saved.includes(tag)) { saved.push(tag); localStorage.setItem('tj_custom_tags', JSON.stringify(saved)); }
+        _tjSelectedTags.push(tag);
+        if (input) input.value = '';
+        tjRenderTagChips();
+        tjSyncTagsInput();
+      }
+      window.tjAddCustomTag = tjAddCustomTag;
+
+      function tjSyncTagsInput() {
+        const input = document.getElementById('tj-f-tags');
+        if (input) input.value = JSON.stringify(_tjSelectedTags);
+      }
+
+      function tjLoadTradeTags(trade) {
+        _tjSelectedTags = trade?.tags || [];
+        tjRenderTagChips();
+        tjSyncTagsInput();
       }
 
       function openTjDay(dateStr) {
@@ -4096,125 +4299,146 @@ window.sb = window.API;
           console.warn('[accounts] load:', e);
         }
       }
+      const _tjAmColors = ['#d4af37', '#8a3cff', '#34c759', '#ff3b30', '#ff8a00', '#00d4ff', '#ff69b4'];
+      const _tjAmIcons = ['💰', '📈', '📉', '🎯', '⚡', '💎', '🔥', '🚀', '🎲', '🏦'];
+      let _tjAmEditingId = null;
+      let _tjAmColor = '#d4af37';
+      let _tjAmIcon = '💰';
+
       function renderAccountSelector() {
         const wrap = document.getElementById('tj-account-selector');
         if (!wrap) return;
         const isReadOnly = !!window._journalViewingCode;
-        if (isReadOnly) {
-          wrap.innerHTML = '';
-          wrap.style.display = 'none';
-          return;
-        }
+        if (isReadOnly) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
         wrap.style.display = 'flex';
-
-        const options = _tjAccounts.map(a => {
-          const sel = a.id === _tjActiveAccountId ? ' selected' : '';
-          return `<option value="${a.id}"${sel}>${a.color ? '<span style="color:'+a.color+'">●</span> ' : ''}${escapeHtml(a.name)} ($${a.account_size.toLocaleString('en')})</option>`;
-        }).join('');
-
-        const max = _tjAccountsMax;
+        const active = _tjAccounts.find(a => a.id === _tjActiveAccountId);
         const count = _tjAccounts.length;
-        const canCreate = count < max;
-
-        wrap.innerHTML = `
-          <label style="font-size:0.7rem;color:var(--gold);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:flex;align-items:center;gap:8px;">
-            💰 CUENTA:
-            <select id="tj-active-account" style="background:rgba(0,0,0,0.4);border:1px solid rgba(212,175,55,0.4);color:#fff;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-family:inherit;">
-              ${options}
-            </select>
-            <span style="font-size:0.62rem;color:#a499b8;">${count}/${max}</span>
-            <button type="button" onclick="tjShowCreateAccount()" style="background:${canCreate ? 'rgba(52,199,89,0.15)' : 'rgba(120,120,120,0.15)'};border:1px solid ${canCreate ? 'rgba(52,199,89,0.4)' : 'rgba(120,120,120,0.3)'};color:${canCreate ? '#34c759' : '#888'};padding:3px 8px;border-radius:4px;cursor:${canCreate ? 'pointer' : 'not-allowed'};font-size:0.65rem;" ${canCreate ? '' : 'disabled title="Plan actual: '+max+'/'+max+' cuentas"'}>+ Nueva</button>
-            <button type="button" onclick="tjShowManageAccount()" style="background:rgba(138,60,255,0.15);border:1px solid rgba(138,60,255,0.4);color:#a499b8;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:0.65rem;" title="Editar / eliminar">⚙️</button>
-          </label>
-        `;
+        const max = _tjAccountsMax;
+        wrap.innerHTML = '<button type="button" onclick="tjOpenAccountModal()" style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);border:1px solid ' + (active ? active.color + '60' : 'rgba(212,175,55,0.3)') + ';border-radius:8px;padding:6px 14px;cursor:pointer;transition:all 0.2s;color:#fff;font-family:inherit;"><span style="color:' + (active ? active.color : 'var(--gold)') + ';font-size:1.1rem;">' + (active ? active.icon : '💰') + '</span><span style="font-family:\'Orbitron\',sans-serif;font-size:0.7rem;letter-spacing:1px;color:' + (active ? active.color : 'var(--gold-bright)') + ';">' + (active ? escapeHtml(active.name) : 'Sin cuenta') + '</span><span style="font-size:0.6rem;color:#645a78;">$' + (active ? active.account_size.toLocaleString('en') : '0') + '</span><span style="font-size:0.55rem;color:#645a78;border-left:1px solid rgba(212,175,55,0.15);padding-left:6px;">' + count + '/' + max + '</span><span style="font-size:0.6rem;color:#645a78;">▾</span></button>';
       }
+
+      function tjOpenAccountModal() {
+        const modal = document.getElementById('tj-account-modal');
+        if (modal) modal.classList.add('vis');
+        tjAmShowList();
+      }
+      window.tjOpenAccountModal = tjOpenAccountModal;
+
+      function tjCloseAccountModal() {
+        const modal = document.getElementById('tj-account-modal');
+        if (modal) modal.classList.remove('vis');
+      }
+      window.tjCloseAccountModal = tjCloseAccountModal;
+
+      function tjAmShowList() {
+        document.getElementById('tj-am-list').style.display = 'block';
+        document.getElementById('tj-am-form').style.display = 'none';
+        const countEl = document.getElementById('tj-am-count');
+        if (countEl) countEl.textContent = _tjAccounts.length + '/' + _tjAccountsMax + ' cuentas';
+        const createBtn = document.getElementById('tj-am-create-btn');
+        if (createBtn) {
+          const canCreate = _tjAccounts.length < _tjAccountsMax;
+          createBtn.disabled = !canCreate;
+          createBtn.style.opacity = canCreate ? '1' : '0.4';
+          createBtn.textContent = canCreate ? '+ Nueva Cuenta' : 'Límite alcanzado (' + _tjAccountsMax + '/' + _tjAccountsMax + ')';
+        }
+        const list = document.getElementById('tj-am-accounts');
+        if (!list) return;
+        list.innerHTML = _tjAccounts.map(a => {
+          const isActive = a.id === _tjActiveAccountId;
+          return '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(' + (isActive ? '212,175,55,0.08' : '0,0,0,0.2') + ');border:1px solid ' + (isActive ? a.color + '60' : 'rgba(212,175,55,0.1)') + ';border-radius:10px;cursor:pointer;transition:all 0.2s;" onclick="tjAmSelect(' + a.id + ')" onmouseenter="this.style.borderColor=\'' + a.color + '80\'" onmouseleave="this.style.borderColor=\'' + (isActive ? a.color + '60' : 'rgba(212,175,55,0.1)') + '\'"><span style="font-size:1.4rem;">' + (a.icon || '💰') + '</span><div style="flex:1;"><div style="font-family:\'Orbitron\',sans-serif;font-size:0.75rem;font-weight:700;letter-spacing:1px;color:' + (a.color || 'var(--gold-bright)') + ';">' + escapeHtml(a.name) + '</div><div style="font-size:0.65rem;color:#645a78;margin-top:2px;">$' + a.account_size.toLocaleString('en') + ' · ' + (a.trade_count || 0) + ' trades</div></div>' + (isActive ? '<span style="font-size:0.6rem;color:var(--gold-bright);font-family:Orbitron,sans-serif;letter-spacing:1px;">ACTIVA</span>' : '') + '<button onclick="event.stopPropagation();tjAmShowForm(' + a.id + ')" style="background:rgba(138,60,255,0.15);border:1px solid rgba(138,60,255,0.3);color:#a499b8;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.6rem;">✏️</button><button onclick="event.stopPropagation();tjAmDelete(' + a.id + ',\'' + escapeHtml(a.name).replace(/'/g, "\\'") + '\')" style="background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.2);color:#ff3b30;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.6rem;">🗑</button></div>';
+        }).join('');
+      }
+      window.tjAmShowList = tjAmShowList;
+
+      function tjAmSelect(id) {
+        selectAccount(id);
+        tjCloseAccountModal();
+      }
+      window.tjAmSelect = tjAmSelect;
+
       function selectAccount(id) {
         _tjActiveAccountId = id;
         try { localStorage.setItem('tnsvt:tj:active_account', String(id)); } catch (e) {}
         renderAccountSelector();
         loadJournalFromApi();
       }
-      async function tjShowCreateAccount() {
-        if (_tjAccounts.length >= _tjAccountsMax) {
-          showToast('Ya tenés ' + _tjAccountsMax + '/' + _tjAccountsMax + ' cuentas. Elimina una primero.');
-          return;
-        }
-        const name = prompt('Nombre de la cuenta (ej. Swing Trading, Futuros, Crypto):');
-        if (!name) return;
-        if (_tjAccounts.find(a => a.name === name)) {
-          showToast('Ya tenés una cuenta con ese nombre');
-          return;
-        }
-        const size = prompt('Balance inicial en USD (ej. 5000, 10000):', '5000');
-        if (!size) return;
-        const accountSize = parseFloat(size);
-        if (isNaN(accountSize) || accountSize <= 0) {
-          showToast('Balance inválido');
-          return;
-        }
-        const colors = ['#d4af37', '#8a3cff', '#34c759', '#ff3b30', '#ff8a00'];
-        const color = colors[(_tjAccounts.length) % colors.length];
-        const icons = ['💰', '📈', '📉', '🎯', '⚡', '💎', '🔥'];
-        const icon = icons[(_tjAccounts.length) % icons.length];
 
+      function tjAmShowForm(editId) {
+        _tjAmEditingId = editId || null;
+        document.getElementById('tj-am-list').style.display = 'none';
+        document.getElementById('tj-am-form').style.display = 'block';
+        const title = document.getElementById('tj-am-form-title');
+        const colorsEl = document.getElementById('tj-am-colors');
+        const iconsEl = document.getElementById('tj-am-icons');
+        if (editId) {
+          const acc = _tjAccounts.find(a => a.id === editId);
+          if (!acc) return;
+          if (title) title.textContent = '✏️ Editar Cuenta';
+          document.getElementById('tj-am-name').value = acc.name;
+          document.getElementById('tj-am-size').value = acc.account_size;
+          _tjAmColor = acc.color || '#d4af37';
+          _tjAmIcon = acc.icon || '💰';
+        } else {
+          if (title) title.textContent = '➕ Nueva Cuenta';
+          document.getElementById('tj-am-name').value = '';
+          document.getElementById('tj-am-size').value = '5000';
+          _tjAmColor = _tjAmColors[_tjAccounts.length % _tjAmColors.length];
+          _tjAmIcon = _tjAmIcons[_tjAccounts.length % _tjAmIcons.length];
+        }
+        if (colorsEl) colorsEl.innerHTML = _tjAmColors.map(c => '<div onclick="tjAmPickColor(\'' + c + '\')" style="width:28px;height:28px;border-radius:50%;background:' + c + ';cursor:pointer;border:2px solid ' + (c === _tjAmColor ? '#fff' : 'transparent') + ';transition:border-color 0.15s;" title="' + c + '"></div>').join('');
+        if (iconsEl) iconsEl.innerHTML = _tjAmIcons.map(i => '<div onclick="tjAmPickIcon(\'' + i + '\')" style="width:32px;height:32px;border-radius:6px;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;border:2px solid ' + (i === _tjAmIcon ? 'var(--gold-bright)' : 'transparent') + ';transition:border-color 0.15s;">' + i + '</div>').join('');
+      }
+      window.tjAmShowForm = tjAmShowForm;
+
+      function tjAmPickColor(c) {
+        _tjAmColor = c;
+        document.querySelectorAll('#tj-am-colors div').forEach(el => { el.style.borderColor = el.title === c ? '#fff' : 'transparent'; });
+      }
+      window.tjAmPickColor = tjAmPickColor;
+
+      function tjAmPickIcon(i) {
+        _tjAmIcon = i;
+        document.querySelectorAll('#tj-am-icons div').forEach(el => { el.style.borderColor = el.textContent.trim() === i ? 'var(--gold-bright)' : 'transparent'; });
+      }
+      window.tjAmPickIcon = tjAmPickIcon;
+
+      async function tjAmSave() {
+        const name = document.getElementById('tj-am-name')?.value.trim();
+        if (!name) { showToast('Ingresá un nombre'); return; }
+        const size = parseFloat(document.getElementById('tj-am-size')?.value) || 5000;
+        if (size <= 0) { showToast('Balance inválido'); return; }
+        const data = { name, account_size: size, color: _tjAmColor, icon: _tjAmIcon };
         try {
-          const data = await sb.createAccount({ name, account_size: accountSize, color, icon }, window.TNSVT_USER.code);
-          if (data && data.success) {
-            showToast('✅ Cuenta creada: ' + name);
-            await loadAccounts();
-            selectAccount(data.account.id);
-          } else {
-            showToast('Error: ' + (data.error || 'no se pudo crear'));
-          }
-        } catch (e) {
-          showToast('❌ Error creando cuenta');
-        }
-      }
-      async function tjShowManageAccount() {
-        if (_tjAccounts.length === 0) return;
-        const list = _tjAccounts.map((a, i) => `${i+1}. ${a.icon || '💰'} ${a.name} ($${a.account_size.toLocaleString('en')})`).join('\\n');
-        const action = prompt(
-          'Cuentas:\\n' + list + '\\n\\n' +
-          'Escribí:\\n' +
-          '  • "editar <numero>" para editar\\n' +
-          '  • "eliminar <numero>" para soft-delete\\n' +
-          '  • "cancelar" para salir'
-        );
-        if (!action || action === 'cancelar') return;
-        const [op, numStr] = action.split(' ');
-        const idx = parseInt(numStr) - 1;
-        if (isNaN(idx) || idx < 0 || idx >= _tjAccounts.length) {
-          showToast('Número inválido');
-          return;
-        }
-        const acc = _tjAccounts[idx];
-        if (op === 'editar') {
-          const newName = prompt('Nuevo nombre:', acc.name);
-          if (!newName) return;
-          const newSize = prompt('Nuevo balance inicial USD:', String(acc.account_size));
-          if (!newSize) return;
-          const sz = parseFloat(newSize);
-          if (isNaN(sz) || sz <= 0) { showToast('Balance inválido'); return; }
-          try {
-            await sb.updateAccount(acc.id, { name: newName, account_size: sz }, window.TNSVT_USER.code);
+          if (_tjAmEditingId) {
+            await sb.updateAccount(_tjAmEditingId, data, window.TNSVT_USER.code);
             showToast('✅ Cuenta actualizada');
-            await loadAccounts();
-          } catch (e) { showToast('❌ Error actualizando'); }
-        } else if (op === 'eliminar') {
-          if (!confirm(`¿Eliminar "${acc.name}"? Los trades se preservan y se pueden recuperar.`)) return;
-          try {
-            await sb.deleteAccount(acc.id, window.TNSVT_USER.code);
-            showToast('🗑️ Cuenta eliminada (trades preservados)');
-            if (_tjActiveAccountId === acc.id && _tjAccounts.length > 1) {
-              _tjActiveAccountId = _tjAccounts[0].id === acc.id ? _tjAccounts[1].id : _tjAccounts[0].id;
+          } else {
+            const result = await sb.createAccount(data, window.TNSVT_USER.code);
+            if (result && result.success && result.account) {
+              showToast('✅ Cuenta creada: ' + name);
+              _tjActiveAccountId = result.account.id;
             }
-            await loadAccounts();
-            loadJournalFromApi();
-          } catch (e) { showToast('❌ Error eliminando'); }
-        }
+          }
+          await loadAccounts();
+          tjAmShowList();
+        } catch (e) { showToast('❌ Error: ' + (e.message || 'no se pudo guardar')); }
       }
-      window.tjShowCreateAccount = tjShowCreateAccount;
-      window.tjShowManageAccount = tjShowManageAccount;
+      window.tjAmSave = tjAmSave;
+
+      async function tjAmDelete(id, name) {
+        if (!confirm('¿Eliminar "' + name + '"? Los trades se preservan.')) return;
+        try {
+          await sb.deleteAccount(id, window.TNSVT_USER.code);
+          showToast('🗑️ Cuenta eliminada');
+          if (_tjActiveAccountId === id && _tjAccounts.length > 1) {
+            _tjActiveAccountId = _tjAccounts.find(a => a.id !== id)?.id || null;
+          }
+          await loadAccounts();
+          tjAmShowList();
+        } catch (e) { showToast('❌ Error eliminando'); }
+      }
+      window.tjAmDelete = tjAmDelete;
 
       async function loadJournalFromApi(targetCode) {
         if (!window.TNSVT_USER) return;

@@ -437,6 +437,17 @@ async getNotifCount(userCode) {
     if (accountId) params.set('account_id', accountId);
     return this.get(`/api/journal/stats?${params}`);
   },
+  async getDrawdown(userCode, accountId, accountSize) {
+    const params = new URLSearchParams({ user_code: userCode });
+    if (accountId) params.set('account_id', accountId);
+    if (accountSize) params.set('account_size', accountSize);
+    return this.get(`/api/journal/drawdown?${params}`);
+  },
+  async getJournalTags(userCode, accountId) {
+    const params = new URLSearchParams({ user_code: userCode });
+    if (accountId) params.set('account_id', accountId);
+    return this.get(`/api/journal/tags?${params}`);
+  },
 
   // ── Patch helper ──
   patch(path, body) { return this.request('PATCH', path, body); },

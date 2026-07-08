@@ -3025,6 +3025,50 @@
                   <span id="eq-x-start" style="font-family:'Orbitron',sans-serif;font-size:0.5rem;color:#645a78;"></span>
                   <span id="eq-x-end" style="font-family:'Orbitron',sans-serif;font-size:0.5rem;color:#645a78;"></span>
                 </div>
+                <div id="tj-eq-tooltip" class="tj-eq-tooltip" style="display:none;"></div>
+              </div>
+
+              <!-- DRAWDOWN CHART -->
+              <div class="tj-equity" style="margin-top:16px;">
+                <div class="tj-equity-header">
+                  <div class="tj-equity-title">Drawdown</div>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <span id="tj-dd-max" style="font-family:'Orbitron',sans-serif;font-size:0.6rem;color:var(--red-impact);letter-spacing:1px;">MAX: —</span>
+                    <div class="tj-period-btns" id="tj-dd-periods">
+                      <button class="tj-period-btn active" onclick="tjDDPeriod('all',this)">Todo</button>
+                      <button class="tj-period-btn" onclick="tjDDPeriod('30',this)">30d</button>
+                      <button class="tj-period-btn" onclick="tjDDPeriod('7',this)">7d</button>
+                    </div>
+                  </div>
+                </div>
+                <div style="position:relative;">
+                  <svg id="tj-dd-svg" viewBox="0 0 600 150" style="width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#ff3b30" stop-opacity="0"/>
+                        <stop offset="100%" stop-color="#ff3b30" stop-opacity="0.4"/>
+                      </linearGradient>
+                    </defs>
+                    <line x1="50" y1="15" x2="590" y2="15" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <line x1="50" y1="50" x2="590" y2="50" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <line x1="50" y1="85" x2="590" y2="85" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <line x1="50" y1="120" x2="590" y2="120" stroke="rgba(212,175,55,0.08)" stroke-width="0.5"/>
+                    <line id="dd-zero" x1="50" y1="15" x2="590" y2="15" stroke="rgba(212,175,55,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+                    <text id="dd-y-top" x="46" y="19" fill="#645a78" font-size="8" font-family="Orbitron,sans-serif" text-anchor="end">$0</text>
+                    <text id="dd-y-mid" x="46" y="54" fill="#645a78" font-size="8" font-family="Orbitron,sans-serif" text-anchor="end"></text>
+                    <text id="dd-y-bot" x="46" y="124" fill="#645a78" font-size="8" font-family="Orbitron,sans-serif" text-anchor="end"></text>
+                    <path id="dd-area" d="" fill="url(#ddGrad)" opacity="0.8"/>
+                    <polyline id="dd-line" fill="none" stroke="#ff3b30" stroke-width="1.5" stroke-linecap="round" points=""/>
+                    <circle id="dd-max-marker" cx="0" cy="0" r="5" fill="none" stroke="#ff3b30" stroke-width="2" opacity="0"/>
+                    <text id="dd-max-label" x="0" y="0" fill="#ff3b30" font-size="8" font-family="Orbitron,sans-serif" font-weight="700" opacity="0"></text>
+                    <g id="dd-dots"></g>
+                    <text id="dd-empty" x="320" y="80" fill="#645a78" font-size="11" font-family="Space Grotesk,sans-serif" text-anchor="middle">Registrá trades para ver tu drawdown</text>
+                  </svg>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;padding:0 50px;">
+                  <span id="dd-x-start" style="font-family:'Orbitron',sans-serif;font-size:0.5rem;color:#645a78;"></span>
+                  <span id="dd-x-end" style="font-family:'Orbitron',sans-serif;font-size:0.5rem;color:#645a78;"></span>
+                </div>
               </div>
 
               <!-- PERIOD P&L HISTOGRAM -->
@@ -3220,6 +3264,17 @@
                     <textarea id="tj-f-notes" class="notes-area-v36" placeholder="¿Cumpliste el plan? ¿Qué aprendiste? ¿Qué hubieras hecho diferente?"></textarea>
                   </div>
 
+                  <!-- TAGS -->
+                  <div class="tj-section-v36">
+                    <div class="tj-sec-label-v36">🏷️ Tags / Labels</div>
+                    <div id="tj-tag-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                      <input type="text" id="tj-f-custom-tag" placeholder="+ tag personalizado" maxlength="30" style="flex:1;padding:6px 10px;background:rgba(10,5,20,0.8);border:1px solid rgba(138,60,255,0.3);border-radius:6px;color:#fff;outline:none;font-size:0.72rem;font-family:inherit;">
+                      <button type="button" onclick="tjAddCustomTag()" style="background:rgba(138,60,255,0.15);border:1px solid rgba(138,60,255,0.3);color:#a499b8;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.65rem;">+</button>
+                    </div>
+                    <input type="hidden" id="tj-f-tags" value="[]">
+                  </div>
+
                   <!-- CAPTURAS -->
                   <div class="tj-section-v36">
                     <div class="tj-sec-label-v36">📷 CAPTURAS (MÁX 3)</div>
@@ -3267,6 +3322,9 @@
                   <option value="BUY">Solo BUY</option>
                   <option value="SELL">Solo SELL</option>
                 </select>
+                <select id="tj-filter-tag" class="tj-filter-sel" onchange="tjRefresh()" aria-label="Filtrar por tag">
+                  <option value="all">Todos los tags</option>
+                </select>
               </div>
               <div id="tj-trade-list" style="display:flex;flex-direction:column;gap:0;"></div>
               <div id="tj-no-trades" style="text-align:center;color:#645a78;padding:40px;font-size:0.85rem;">Aún no hay trades registrados. Usá la pestaña "Registrar" para empezar.</div>
@@ -3299,6 +3357,12 @@
                 <div class="tj-stats-block">
                   <div class="tj-stats-block-title">📅 Rendimiento por Día de la Semana</div>
                   <div id="tj-by-weekday"></div>
+                </div>
+
+                <!-- BY TAG -->
+                <div class="tj-stats-block" style="margin-top:16px;">
+                  <div class="tj-stats-block-title">🏷️ Análisis por Tag</div>
+                  <div id="tj-by-tag"></div>
                 </div>
               </div>
             </div>
@@ -3352,6 +3416,46 @@
             <!-- FULLSCREEN IMAGE VIEWER -->
             <div class="tj-img-full" id="tjImgFull" onclick="this.classList.remove('vis')">
               <img id="tjImgFullSrc" src="" alt="Vista ampliada de la captura del trade">
+            </div>
+
+            <!-- ACCOUNT MANAGER MODAL -->
+            <div id="tj-account-modal" class="tj-day-modal" onclick="if(event.target===this)tjCloseAccountModal()">
+              <div class="tj-day-inner" style="max-width:480px;">
+                <button class="tj-day-close" onclick="tjCloseAccountModal()">✕</button>
+                <div id="tj-am-content">
+                  <div id="tj-am-list">
+                    <div class="tj-day-date">💰 Mis Cuentas</div>
+                    <div class="tj-day-summary" id="tj-am-count">0/3 cuentas</div>
+                    <div id="tj-am-accounts" style="display:flex;flex-direction:column;gap:10px;margin:16px 0;"></div>
+                    <button class="tj-submit-btn-v36" id="tj-am-create-btn" onclick="tjAmShowForm()" style="margin-top:8px;">+ Nueva Cuenta</button>
+                  </div>
+                  <div id="tj-am-form" style="display:none;">
+                    <div class="tj-day-date" id="tj-am-form-title">Nueva Cuenta</div>
+                    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+                      <div>
+                        <label style="font-size:0.7rem;color:var(--gold);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:block;margin-bottom:4px;">NOMBRE</label>
+                        <input type="text" id="tj-am-name" placeholder="Swing Trading, Crypto..." maxlength="50" style="width:100%;padding:10px;background:rgba(10,5,20,0.8);border:1px solid rgba(138,60,255,0.3);border-radius:6px;color:#fff;outline:none;font-family:inherit;">
+                      </div>
+                      <div>
+                        <label style="font-size:0.7rem;color:var(--gold);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:block;margin-bottom:4px;">BALANCE INICIAL (USD)</label>
+                        <input type="number" id="tj-am-size" placeholder="5000" min="100" step="100" value="5000" style="width:100%;padding:10px;background:rgba(10,5,20,0.8);border:1px solid rgba(138,60,255,0.3);border-radius:6px;color:#fff;outline:none;font-family:inherit;">
+                      </div>
+                      <div>
+                        <label style="font-size:0.7rem;color:var(--gold);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:block;margin-bottom:4px;">COLOR</label>
+                        <div id="tj-am-colors" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                      </div>
+                      <div>
+                        <label style="font-size:0.7rem;color:var(--gold);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:block;margin-bottom:4px;">ICONO</label>
+                        <div id="tj-am-icons" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:16px;">
+                      <button class="tj-submit-btn-v36" onclick="tjAmSave()" style="flex:1;">Guardar</button>
+                      <button class="tj-tool-btn" onclick="tjAmShowList()" style="flex:0;">Cancelar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
