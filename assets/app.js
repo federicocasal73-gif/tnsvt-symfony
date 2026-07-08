@@ -3002,8 +3002,8 @@ window.sb = window.API;
               const pnlColor = isWin ? '#4caf50' : (parseFloat(t.pnl) < 0 ? '#ff7066' : '#aaa');
               return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border-left:3px solid ' + pnlColor + ';">' +
                 '<span style="font-size:0.8rem;color:#ccc;min-width:70px;">' + (t.date || '').substring(0, 16) + '</span>' +
-                '<span style="font-size:0.8rem;font-weight:600;color:#fff;min-width:70px;">' + t.symbol + '</span>' +
-                '<span style="font-size:0.75rem;padding:2px 8px;border-radius:4px;background:' + (t.action === 'BUY' ? 'rgba(76,175,80,0.2);color:#4caf50' : 'rgba(255,112,102,0.2);color:#ff7066') + ';">' + t.action + '</span>' +
+                '<span style="font-size:0.8rem;font-weight:600;color:#fff;min-width:70px;">' + t.asset + '</span>' +
+                '<span style="font-size:0.75rem;padding:2px 8px;border-radius:4px;background:' + (t.direction === 'BUY' ? 'rgba(76,175,80,0.2);color:#4caf50' : 'rgba(255,112,102,0.2);color:#ff7066') + ';">' + t.direction + '</span>' +
                 '<span style="font-size:0.75rem;color:#aaa;">$' + (t.pnl || 0) + '</span>' +
                 '<span style="font-size:0.7rem;color:#645a78;margin-left:auto;">' + (t.result || '') + '</span>' +
                 '</div>';
@@ -3064,7 +3064,7 @@ window.sb = window.API;
             return;
           }
           if (!data.trades || data.trades.length === 0) { div.innerHTML = '<p style="color:#888;">Sin trades copiados aún. Esperando primera señal del signal_copier...</p>'; return; }
-          div.innerHTML = data.trades.map(t => '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-family:monospace;font-size:0.78rem;"><span style="color:#645a78;">' + (t.date || '').substring(0, 16) + '</span> <span style="color:#fff;">' + (t.symbol || '') + ' ' + (t.action || '') + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (parseFloat(t.pnl) || 0).toFixed(2) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
+          div.innerHTML = data.trades.map(t => '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-family:monospace;font-size:0.78rem;"><span style="color:#645a78;">' + (t.date || '').substring(0, 16) + '</span> <span style="color:#fff;">' + (t.asset || '') + ' ' + (t.direction || '') + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (parseFloat(t.pnl) || 0).toFixed(2) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
         } catch (e) { div.innerHTML = '<p style="color:#ff7066;">Error: ' + e.message + '</p>'; }
       }
 

@@ -36,8 +36,8 @@ class CopierBridgeService
         $trade->setAsset(strtoupper($data['symbol'] ?? ''));
         $trade->setDirection($data['action'] ?? 'BUY');
         $trade->setEntry($data['price'] !== null ? (string) $data['price'] : null);
-        $trade->setSl($data['sl'] !== null ? (string) $data['sl'] : null);
-        $trade->setTp($data['tp'] !== null ? (string) $data['tp'] : null);
+        $trade->setSl(isset($data['sl']) && $data['sl'] !== null ? (string) $data['sl'] : null);
+        $trade->setTp(isset($data['tp']) && $data['tp'] !== null ? (string) $data['tp'] : null);
         $trade->setResult($data['result'] ?? 'OPEN');
         $trade->setPnl((float) ($data['pnl'] ?? 0));
         $trade->setRatio($data['ratio'] ?? null);
