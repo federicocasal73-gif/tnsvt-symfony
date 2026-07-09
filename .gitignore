@@ -90,3 +90,6 @@ public/uploads/chat/
 
 # QA screenshots (auto-generated)
 qa_screenshots/
+
+# PHP development server logs
+/php*.log
