@@ -3115,25 +3115,22 @@ window.sb = window.API;
 
       // ==================== ADMIN TASK MANAGEMENT ====================
       function adminShowSubtab(tab) {
-        stopCopierAutoRefresh();
         const usersBtn = document.getElementById('adminSubtabUsers');
         const tasksBtn = document.getElementById('adminSubtabTasks');
         const musicBtn = document.getElementById('adminSubtabMusic');
         const walletBtn = document.getElementById('adminSubtabWallet');
         const torneosBtn = document.getElementById('adminSubtabTorneos');
         const monitorBtn = document.getElementById('adminSubtabMonitor');
-        const copierBtn = document.getElementById('adminSubtabCopier');
         const usersContent = document.getElementById('adminSubtabContentUsers');
         const tasksContent = document.getElementById('adminSubtabContentTasks');
         const musicContent = document.getElementById('adminSubtabContentMusic');
         const walletContent = document.getElementById('adminSubtabContentWallet');
         const torneosContent = document.getElementById('adminSubtabContentTorneos');
         const monitorContent = document.getElementById('adminSubtabContentMonitor');
-        const copierContent = document.getElementById('adminSubtabContentCopier');
         const resetBtn = (btn) => { if (!btn) return; btn.style.color = '#645a78'; btn.style.borderBottomColor = 'transparent'; };
         const activateBtn = (btn) => { if (!btn) return; btn.style.color = 'var(--gold-bright)'; btn.style.borderBottomColor = 'var(--gold)'; };
-        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn, copierBtn];
-        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent, copierContent];
+        const allBtns = [usersBtn, tasksBtn, musicBtn, walletBtn, torneosBtn, monitorBtn];
+        const allContent = [usersContent, tasksContent, musicContent, walletContent, torneosContent, monitorContent];
         const resetAll = () => allBtns.forEach(resetBtn);
         if (tab === 'tasks') {
           resetAll(); activateBtn(tasksBtn);
@@ -3162,368 +3159,12 @@ window.sb = window.API;
           if (monitorContent) monitorContent.style.display = 'block';
           loadMonitorLogs();
           if (typeof loadSystemStatus === 'function') loadSystemStatus();
-        } else if (tab === 'copier') {
-          resetAll(); activateBtn(copierBtn);
-          allContent.forEach(c => { if (c) c.style.display = 'none'; });
-          if (copierContent) copierContent.style.display = 'block';
-          copierRefresh();
-          startCopierAutoRefresh();
         } else {
           resetAll(); activateBtn(usersBtn);
           allContent.forEach(c => { if (c) c.style.display = 'none'; });
           if (usersContent) usersContent.style.display = 'block';
         }
       }
-
-      // ==================== ADMIN COPIER (Signal Copier Dashboard) ====================
-      var _copierRefreshInterval = null;
-
-      async function copierApi(method, path, body) {
-        const userCode = (window.TNSVT_USER && window.TNSVT_USER.code) || '';
-        const base = (window.API && window.API.baseURL) || '';
-        const url = base + '/api/admin/copier' + path;
-        const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-User-Code': userCode } };
-        if (body) opts.body = JSON.stringify(body);
-        try {
-          const r = await fetch(url, opts);
-          if (r.status === 403) return { success: false, error: 'Se requiere rol de administrador' };
-          if (r.status === 401) return { success: false, error: 'Autenticación requerida' };
-          if (!r.ok) return { success: false, error: 'Error HTTP ' + r.status + ' ' + r.statusText };
-          return r.json();
-        } catch (e) {
-          return { success: false, error: 'Error de red: ' + e.message };
-        }
-      }
-
-      async function copierRefresh() {
-        const _setStatus = (id, val) => { const el = document.getElementById(id); if (el) el.querySelector('.mon-stat-value').textContent = val; };
-        try {
-          const data = await copierApi('GET', '/dashboard');
-          if (!data.success) {
-            _setStatus('copier-stat-status', '🔴 ' + (data.error || 'Sin respuesta'));
-            _setStatus('copier-stat-mt5', '—');
-            _setStatus('copier-stat-pnl', '—');
-            _setStatus('copier-stat-trades', '—');
-            _setStatus('copier-stat-balance', '—');
-            _setStatus('copier-stat-winrate', '—');
-            _setStatus('copier-stat-bot', '—');
-            console.warn('copierRefresh failed:', data.error);
-            return;
-          }
-          const s = data.status || {};
-          _setStatus('copier-stat-status', data.online ? '🟢 Online' : '🔴 Offline');
-          _setStatus('copier-stat-mt5', s.mt5_connected ? '🟢 Conectado' : '🔴 Desconectado');
-          _setStatus('copier-stat-pnl', '$' + (s.daily_pnl || 0).toFixed(2));
-          _setStatus('copier-stat-trades', s.trades_today || 0);
-          _setStatus('copier-stat-balance', '$' + (s.balance || 0).toFixed(2));
-          _setStatus('copier-stat-winrate', (s.win_rate || 0).toFixed(1) + '%');
-          _setStatus('copier-stat-bot', s.telegram_bot ? ('🟢 @' + (s.bot_username || 'bot')) : '⚫ Apagado');
-          const channels = s.channels || [];
-          const chDiv = document.getElementById('copierChannels');
-          if (chDiv && channels.length) {
-            chDiv.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + channels.map(c => '<span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);border-radius:20px;padding:4px 12px;font-size:0.75rem;color:var(--gold-bright);">📢 ' + c + '</span>').join('') + '</div>';
-          } else if (chDiv) {
-            chDiv.innerHTML = '<p style="color:#645a78;font-size:0.8rem;">Sin canales configurados</p>';
-          }
-          const trades = data.recent_trades || [];
-          const listDiv = document.getElementById('copierTradesList');
-          if (listDiv) {
-            if (!trades.length) { listDiv.innerHTML = '<p style="color:#645a78;font-size:0.85rem;">Sin trades copiados aún.</p>'; return; }
-            listDiv.innerHTML = trades.map(t => {
-              const isWin = parseFloat(t.pnl) > 0;
-              const pnlColor = isWin ? '#4caf50' : (parseFloat(t.pnl) < 0 ? '#ff7066' : '#aaa');
-              return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border-left:3px solid ' + pnlColor + ';">' +
-                '<span style="font-size:0.8rem;color:#ccc;min-width:70px;">' + (t.date || '').substring(0, 16) + '</span>' +
-                '<span style="font-size:0.8rem;font-weight:600;color:#fff;min-width:70px;">' + t.asset + '</span>' +
-                '<span style="font-size:0.75rem;padding:2px 8px;border-radius:4px;background:' + (t.direction === 'BUY' ? 'rgba(76,175,80,0.2);color:#4caf50' : 'rgba(255,112,102,0.2);color:#ff7066') + ';">' + t.direction + '</span>' +
-                '<span style="font-size:0.75rem;color:#aaa;">$' + (t.pnl || 0) + '</span>' +
-                '<span style="font-size:0.7rem;color:#645a78;margin-left:auto;">' + (t.result || '') + '</span>' +
-                '</div>';
-            }).join('');
-          }
-        } catch (e) {
-          console.error('copierRefresh error:', e);
-          _setStatus('copier-stat-status', '🔴 Error de red');
-        }
-      }
-
-      function copierShowConfig() {
-        const panel = document.getElementById('copierConfigPanel');
-        if (!panel) return;
-        const isVisible = panel.style.display !== 'none';
-        panel.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible) {
-          copierApi('GET', '/config').then(data => {
-            if (!data.config) return;
-            const c = data.config;
-            document.getElementById('copierCfgLot').value = c.lot_size || 0.01;
-            document.getElementById('copierCfgMaxPos').value = c.risk_max_open_positions || 5;
-            document.getElementById('copierCfgDailyLoss').value = c.risk_daily_loss_limit || 2;
-            document.getElementById('copierCfgWeeklyLoss').value = c.risk_weekly_loss_limit || 5;
-            document.getElementById('copierCfgTrailing').value = c.risk_trailing_stop ? 'true' : 'false';
-            document.getElementById('copierCfgNewsFilter').value = c.news_filter_enabled ? 'true' : 'false';
-          });
-        }
-      }
-
-      async function copierSaveConfig() {
-        const fb = document.getElementById('copierFeedback');
-        const cfg = {
-          lot_size: parseFloat(document.getElementById('copierCfgLot').value),
-          risk_max_open_positions: parseInt(document.getElementById('copierCfgMaxPos').value),
-          risk_daily_loss_limit: parseFloat(document.getElementById('copierCfgDailyLoss').value),
-          risk_weekly_loss_limit: parseFloat(document.getElementById('copierCfgWeeklyLoss').value),
-          risk_trailing_stop: document.getElementById('copierCfgTrailing').value === 'true',
-          news_filter_enabled: document.getElementById('copierCfgNewsFilter').value === 'true',
-        };
-        const data = await copierApi('PUT', '/config', cfg);
-        if (data.success) {
-          if (fb) { fb.textContent = '✅ Configuración guardada'; fb.style.color = '#4caf50'; }
-          document.getElementById('copierConfigPanel').style.display = 'none';
-          copierRefresh();
-        } else {
-          if (fb) { fb.textContent = '❌ ' + (data.error || 'Error al guardar'); fb.style.color = '#ff7066'; }
-        }
-      }
-
-      async function copierRefreshLogs() {
-        const div = document.getElementById('copierLogsList');
-        if (!div) return;
-        try {
-          const data = await copierApi('GET', '/trades?limit=20');
-          if (!data.success) {
-            div.innerHTML = '<p style="color:#ff7066;">' + (data.error || 'Error al cargar trades') + '</p>';
-            return;
-          }
-          if (!data.trades || data.trades.length === 0) { div.innerHTML = '<p style="color:#888;">Sin trades copiados aún. Esperando primera señal del signal_copier...</p>'; return; }
-          div.innerHTML = data.trades.map(t => '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-family:monospace;font-size:0.78rem;"><span style="color:#645a78;">' + (t.date || '').substring(0, 16) + '</span> <span style="color:#fff;">' + (t.asset || '') + ' ' + (t.direction || '') + '</span> <span style="color:' + (parseFloat(t.pnl) >= 0 ? '#4caf50' : '#ff7066') + ';">$' + (parseFloat(t.pnl) || 0).toFixed(2) + '</span> <span style="color:#645a78;">' + (t.result || '') + '</span></div>').join('');
-        } catch (e) { div.innerHTML = '<p style="color:#ff7066;">Error: ' + e.message + '</p>'; }
-      }
-
-      function startCopierAutoRefresh() {
-        stopCopierAutoRefresh();
-        _copierRefreshInterval = setInterval(copierRefresh, 30000);
-      }
-
-      function stopCopierAutoRefresh() {
-        if (_copierRefreshInterval) {
-          clearInterval(_copierRefreshInterval);
-          _copierRefreshInterval = null;
-        }
-      }
-
-      // ==================== MIGRATED FROM STREAMLIT ====================
-
-      window.copierLoadStats = async function() {
-        try {
-          const r = await copierApi('GET', '/api/admin/copier/stats');
-          if (!r.ok) return;
-          const stats = r.data.stats || {};
-          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-          set('copierStatTotal', stats.total || 0);
-          set('copierStatExecuted', stats.executed || 0);
-          set('copierStatBlocked', stats.blocked || 0);
-          set('copierStatWins', stats.wins || 0);
-          set('copierStatLosses', stats.losses || 0);
-          set('copierStatWinRate', (stats.win_rate || 0) + '%');
-          const pnlEl = document.getElementById('copierStatPnlTotal');
-          if (pnlEl) {
-            const v = stats.total_pnl || 0;
-            pnlEl.textContent = (v >= 0 ? '$' : '-$') + Math.abs(v).toFixed(2);
-            pnlEl.style.color = v >= 0 ? '#10b981' : '#ef4444';
-          }
-        } catch(e) { console.warn('copierLoadStats', e); }
-      };
-
-      window.copierLoadTrades = async function(limit) {
-        limit = limit || 50;
-        try {
-          const r = await copierApi('GET', '/api/admin/copier/trades-history?limit=' + limit);
-          if (!r.ok) return;
-          const trades = r.data.trades || [];
-          const list = document.getElementById('copierTradesHistoryList');
-          if (!list) return;
-          if (trades.length === 0) {
-            list.innerHTML = '<div style="padding:20px;text-align:center;color:#5a6577;">No hay operaciones registradas aun.</div>';
-            return;
-          }
-          const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-          const badge = (result) => {
-            const r = String(result || '').toUpperCase();
-            if (r.includes('BLOQUEADO') || r.includes('SENAL') || r.includes('DETECTADA')) return ['BLOQUEADO', 'blocked'];
-            if (r === 'OK' || r.includes('EXITO') || r.includes('DONE')) return ['OK', 'ok'];
-            if (r.includes('ERROR')) return ['ERROR', 'error'];
-            if (r.includes('OPEN') || r.includes('PENDIENTE')) return ['OPEN', 'pending'];
-            return [result || '-', 'pending'];
-          };
-          list.innerHTML = trades.map(t => {
-            const [bText, bClass] = badge(t.result);
-            const actionClass = (t.action || '').toUpperCase() === 'BUY' ? 'buy' : 'sell';
-            const pnl = parseFloat(t.pnl) || 0;
-            const pnlColor = pnl > 0 ? '#10b981' : pnl < 0 ? '#ef4444' : '#5a6577';
-            const dateStr = String(t.date || '').substring(0, 19);
-            return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;background:#111827;margin-bottom:6px;border-left:3px solid ' + (actionClass === 'buy' ? '#10b981' : '#ef4444') + ';">' +
-              '<div style="font-family:monospace;font-weight:600;color:#f0f4f8;min-width:75px;">' + escapeHtml(t.symbol) + '</div>' +
-              '<span style="font-family:monospace;font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(' + (actionClass === 'buy' ? '16,185,129' : '239,68,68') + ',0.15);color:' + (actionClass === 'buy' ? '#10b981' : '#ef4444') + ';font-weight:600;">' + escapeHtml(t.action) + '</span>' +
-              '<span style="font-family:monospace;font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;font-weight:600;">' + bText + '</span>' +
-              '<div style="flex:1;font-family:monospace;font-size:0.75rem;color:#8892a4;">@ ' + escapeHtml(t.price) + '</div>' +
-              '<div style="font-family:monospace;font-size:0.75rem;color:#5a6577;">' + escapeHtml(dateStr) + '</div>' +
-              '<div style="font-family:monospace;font-weight:600;color:' + pnlColor + ';min-width:80px;text-align:right;">' + (pnl === 0 ? '-' : '$' + pnl.toFixed(2)) + '</div>' +
-              '</div>';
-          }).join('');
-        } catch(e) { console.warn('copierLoadTrades', e); }
-      };
-
-      window.copierLoadRisk = async function() {
-        try {
-          const r = await copierApi('GET', '/api/admin/copier/risk-status');
-          if (!r.ok) return;
-          const s = r.data.risk || {};
-          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-          set('riskDailyPnl', '$' + (s.daily_pnl || 0).toFixed(2));
-          set('riskWeeklyPnl', '$' + (s.weekly_pnl || 0).toFixed(2));
-          set('riskTradesToday', s.trades_today || 0);
-          set('riskTotalTrades', s.total_trades || 0);
-          set('riskWinRate', (s.win_rate || 0) + '%');
-          const dailyEl = document.getElementById('riskDailyPnl');
-          if (dailyEl) dailyEl.style.color = (s.daily_pnl || 0) >= 0 ? '#10b981' : '#ef4444';
-          const weeklyEl = document.getElementById('riskWeeklyPnl');
-          if (weeklyEl) weeklyEl.style.color = (s.weekly_pnl || 0) >= 0 ? '#10b981' : '#ef4444';
-        } catch(e) { console.warn('copierLoadRisk', e); }
-      };
-
-      window.copierResetDaily = async function() {
-        if (!confirm('Resetear PnL diario y trades de hoy?')) return;
-        try {
-          const r = await copierApi('POST', '/api/admin/copier/risk-reset-daily');
-          if (r.ok) {
-            showToast('✅ PnL diario reseteado');
-            await copierLoadRisk();
-          } else {
-            showToast('❌ Error al resetear');
-          }
-        } catch(e) { console.warn(e); }
-      };
-
-      window.copierResetAll = async function() {
-        if (!confirm('⚠️ Resetear TODO el estado del Risk Manager? Esto incluye PnL diario, semanal, trades y estadisticas.')) return;
-        try {
-          const r = await copierApi('POST', '/api/admin/copier/risk-reset-all');
-          if (r.ok) {
-            showToast('✅ Todo reseteado');
-            await copierLoadRisk();
-          } else {
-            showToast('❌ Error al resetear');
-          }
-        } catch(e) { console.warn(e); }
-      };
-
-      window.copierLoadMt5 = async function() {
-        try {
-          const r = await copierApi('GET', '/api/admin/copier/mt5-status');
-          if (!r.ok) return;
-          const m = r.data.mt5 || {};
-          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-          set('mt5Balance', '$' + (m.balance || 0).toFixed(2));
-          set('mt5Equity', '$' + (m.equity || 0).toFixed(2));
-          set('mt5Margin', '$' + (m.margin || 0).toFixed(2));
-          set('mt5FreeMargin', '$' + (m.free_margin || 0).toFixed(2));
-          set('mt5Profit', '$' + (m.profit || 0).toFixed(2));
-          set('mt5OpenPositions', m.open_positions || 0);
-          set('mt5Login', m.login || '-');
-          set('mt5Server', m.server || '-');
-          set('mt5Leverage', m.leverage || '-');
-          const profitEl = document.getElementById('mt5Profit');
-          if (profitEl) profitEl.style.color = (m.profit || 0) >= 0 ? '#10b981' : '#ef4444';
-        } catch(e) { console.warn('copierLoadMt5', e); }
-      };
-
-      window.copierSaveFullConfig = async function() {
-        try {
-          const data = {};
-          const lotMode = document.getElementById('cfgLotMode');
-          if (lotMode) data.lot_mode = lotMode.value;
-          const lotSize = document.getElementById('cfgLotSize');
-          if (lotSize) data.lot_size = parseFloat(lotSize.value);
-          const lotPct = document.getElementById('cfgLotPercent');
-          if (lotPct) data.lot_risk_percent = parseFloat(lotPct.value);
-          const suffix = document.getElementById('cfgSymbolSuffix');
-          if (suffix) data.symbol_suffix = suffix.value;
-          const dev = document.getElementById('cfgDeviation');
-          if (dev) data.deviation = parseInt(dev.value);
-          const dailyLimit = document.getElementById('cfgDailyLimit');
-          if (dailyLimit) data.risk_daily_loss_limit = parseFloat(dailyLimit.value);
-          const weeklyLimit = document.getElementById('cfgWeeklyLimit');
-          if (weeklyLimit) data.risk_weekly_loss_limit = parseFloat(weeklyLimit.value);
-          const maxPos = document.getElementById('cfgMaxPositions');
-          if (maxPos) data.risk_max_open_positions = parseInt(maxPos.value);
-          const trailStop = document.getElementById('cfgTrailingStop');
-          if (trailStop) data.risk_trailing_stop = trailStop.checked;
-          const trailStep = document.getElementById('cfgTrailingStep');
-          if (trailStep) data.risk_trailing_step = parseInt(trailStep.value);
-          const trailStart = document.getElementById('cfgTrailingStart');
-          if (trailStart) data.risk_trailing_start = parseInt(trailStart.value);
-          const newsEnabled = document.getElementById('cfgNewsEnabled');
-          if (newsEnabled) data.news_filter_enabled = newsEnabled.checked;
-          const newsBefore = document.getElementById('cfgNewsBefore');
-          if (newsBefore) data.news_filter_minutes_before = parseInt(newsBefore.value);
-          const newsAfter = document.getElementById('cfgNewsAfter');
-          if (newsAfter) data.news_filter_minutes_after = parseInt(newsAfter.value);
-          const r = await copierApi('POST', '/api/admin/copier/save-config', data);
-          if (r.ok) {
-            showToast('✅ Configuracion guardada. Copiador recargando...');
-          } else {
-            showToast('❌ Error al guardar');
-          }
-        } catch(e) { console.warn(e); showToast('❌ Error al guardar'); }
-      };
-
-      window.copierLoadConfigForm = async function() {
-        try {
-          const r = await copierApi('GET', '/api/admin/copier/config');
-          if (!r.ok) return;
-          const c = r.data.config || {};
-          const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-          set('cfgLotMode', c.lot_mode || 'fixed');
-          set('cfgLotSize', c.lot_size || 0.01);
-          set('cfgLotPercent', c.lot_risk_percent || 1.0);
-          set('cfgSymbolSuffix', c.symbol_suffix || '');
-          set('cfgDeviation', c.deviation || 20);
-          set('cfgDailyLimit', c.risk_daily_loss_limit || 2.0);
-          set('cfgWeeklyLimit', c.risk_weekly_loss_limit || 5.0);
-          set('cfgMaxPositions', c.risk_max_open_positions || 5);
-          set('cfgTrailingStep', c.risk_trailing_step || 10);
-          set('cfgTrailingStart', c.risk_trailing_start || 50);
-          set('cfgNewsBefore', c.news_filter_minutes_before || 15);
-          set('cfgNewsAfter', c.news_filter_minutes_after || 15);
-          const ts = document.getElementById('cfgTrailingStop');
-          if (ts) ts.checked = c.risk_trailing_stop !== false;
-          const ne = document.getElementById('cfgNewsEnabled');
-          if (ne) ne.checked = c.news_filter_enabled !== false;
-        } catch(e) { console.warn('copierLoadConfigForm', e); }
-      };
-
-      window.copierShowSection = function(section) {
-        const sections = ['trades', 'risk', 'config', 'mt5'];
-        sections.forEach(s => {
-          const el = document.getElementById('copierSection' + s.charAt(0).toUpperCase() + s.slice(1));
-          if (el) el.style.display = s === section ? 'block' : 'none';
-        });
-        document.querySelectorAll('.copier-section-tab').forEach(t => {
-          t.classList.toggle('active', t.dataset.section === section);
-        });
-        if (section === 'trades') copierLoadTrades(50);
-        if (section === 'risk') copierLoadRisk();
-        if (section === 'config') copierLoadConfigForm();
-        if (section === 'mt5') copierLoadMt5();
-      };
-
-      const _origCopierRefresh = copierRefresh;
-      window.copierRefresh = async function() {
-        await _origCopierRefresh();
-        await copierLoadStats();
-        await copierLoadRisk();
-      };
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
       var adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
@@ -4909,10 +4550,6 @@ window.sb = window.API;
       window.adminDeleteUser = adminDeleteUser;
       window.adminCreateBatch = adminCreateBatch;
       window.adminShowSubtab = adminShowSubtab;
-      window.copierRefresh = copierRefresh;
-      window.copierShowConfig = copierShowConfig;
-      window.copierSaveConfig = copierSaveConfig;
-      window.copierRefreshLogs = copierRefreshLogs;
       window.adminRefreshTasks = adminRefreshTasks;
       window.adminShowTaskCreateForm = adminShowTaskCreateForm;
       window.adminShowTaskEditForm = adminShowTaskEditForm;
