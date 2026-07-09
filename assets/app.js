@@ -1424,7 +1424,7 @@ window.sb = window.API;
         }
         if (empty) empty.style.display = 'none';
 
-        // P&L Summary stats — prop firm style
+        // P&L Summary stats
         const sumEl = document.getElementById('tj-pl-summary');
         if (sumEl) {
           const totalPnl = tjTrades.reduce((s, t) => s + t.pnl, 0);
@@ -1434,16 +1434,13 @@ window.sb = window.API;
           const best = sorted[0];
           const worst = sorted[sorted.length - 1];
           const avgPnl = tjTrades.length ? (totalPnl / tjTrades.length) : 0;
-          const statStyle = 'font-family:"Inter","Space Grotesk",sans-serif;font-size:0.65rem;letter-spacing:0.5px;';
-          const valStyle = 'font-family:"Space Grotesk","Inter",sans-serif;font-size:1.1rem;font-weight:700;';
-          const labelStyle = statStyle + 'color:#64748b;text-transform:uppercase;font-weight:500;';
-          sumEl.innerHTML = '<div style="display:flex;gap:24px;flex-wrap:wrap;">'
-            + '<div style="display:flex;align-items:center;gap:6px;"><span style="' + labelStyle + '">Total</span><span style="' + valStyle + 'color:' + (totalPnl >= 0 ? '#22c55e' : '#ef4444') + ';">$' + (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(0) + '</span></div>'
-            + '<div style="display:flex;align-items:center;gap:6px;"><span style="' + labelStyle + '">Win Rate</span><span style="' + valStyle + 'color:#22d3ee;">' + wr + '%</span></div>'
-            + '<div style="display:flex;align-items:center;gap:6px;"><span style="' + labelStyle + '">Promedio</span><span style="' + valStyle + 'color:' + (avgPnl >= 0 ? '#22c55e' : '#ef4444') + ';">$' + (avgPnl >= 0 ? '+' : '') + avgPnl.toFixed(0) + '</span></div>'
-            + '<div style="display:flex;align-items:center;gap:6px;"><span style="' + labelStyle + '">Mejor</span><span style="' + valStyle + 'color:#22c55e;">$+' + (best ? best.pnl.toFixed(0) : '0') + '</span></div>'
-            + '<div style="display:flex;align-items:center;gap:6px;"><span style="' + labelStyle + '">Peor</span><span style="' + valStyle + 'color:#ef4444;">$' + (worst ? worst.pnl.toFixed(0) : '0') + '</span></div>'
-            + '</div>';
+          sumEl.innerHTML = '<div style="display:flex;gap:20px;flex-wrap:wrap;">' +
+            '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.6rem;font-family:Orbitron,sans-serif;letter-spacing:1px;color:#645a78;">TOTAL</span><span style="font-family:Cinzel,serif;font-size:1rem;font-weight:700;color:' + (totalPnl >= 0 ? '#34c759' : 'var(--red-impact)') + ';">$' + (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(0) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.6rem;font-family:Orbitron,sans-serif;letter-spacing:1px;color:#645a78;">WR</span><span style="font-family:Cinzel,serif;font-size:1rem;font-weight:700;color:var(--gold-bright);">' + wr + '%</span></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.6rem;font-family:Orbitron,sans-serif;letter-spacing:1px;color:#645a78;">PROM</span><span style="font-family:Cinzel,serif;font-size:1rem;font-weight:700;color:' + (avgPnl >= 0 ? '#34c759' : 'var(--red-impact)') + ';">$' + (avgPnl >= 0 ? '+' : '') + avgPnl.toFixed(0) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.6rem;font-family:Orbitron,sans-serif;letter-spacing:1px;color:#645a78;">MEJOR</span><span style="font-family:Cinzel,serif;font-size:1rem;font-weight:700;color:#34c759;">$+' + (best ? best.pnl.toFixed(0) : '0') + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.6rem;font-family:Orbitron,sans-serif;letter-spacing:1px;color:#645a78;">PEOR</span><span style="font-family:Cinzel,serif;font-size:1rem;font-weight:700;color:var(--red-impact);">$' + (worst ? worst.pnl.toFixed(0) : '0') + '</span></div>' +
+            '</div>';
         }
 
         // Group by period
@@ -1489,19 +1486,29 @@ window.sb = window.API;
         periods.slice(0, 60).forEach((m, i) => {
           const d = byPeriod[m];
           const x = cL + i * gap + halfSpace;
-          const barH = Math.abs(d.pnl) / maxAbs * (cB - cT) * 0.9;
+          const barH = Math.abs(d.pnl) / maxAbs * (cB - cT) * 0.85;
           const isPos = d.pnl >= 0;
           const y = isPos ? zeroY - barH : zeroY;
           const color = isPos ? 'url(#barGradPos)' : 'url(#barGradNeg)';
-          const wr = (d.w / d.n * 100).toFixed(0);
+          const glowColor = isPos ? 'rgba(52,199,89,0.4)' : 'rgba(255,59,48,0.4)';
+          const wr = d.n > 0 ? (d.w / d.n * 100).toFixed(0) : '0';
           const label = _periodLabel(tjChartPeriod, m);
-          const _barTT = _periodTitle(tjChartPeriod, m)+': $'+(d.pnl>=0?'+':'')+d.pnl.toFixed(2)+' · '+d.w+'W / '+d.n+' · '+wr+'%';
-          barsHtml += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 1)}" fill="${color}" rx="3" filter="url(#barShadow)" style="cursor:pointer;" onmouseenter="tjBarTooltip(evt,'${_barTT.replace(/'/g,"\\'")}')" onmouseleave="tjBarTooltipHide()" onclick="tjFilterByPeriod('${m}')"></rect>`;
-          barsHtml += `<text x="${x + barW / 2}" y="${cB + 12}" fill="#645a78" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle">${label}</text>`;
+          const pnlStr = '$' + (d.pnl >= 0 ? '+' : '') + d.pnl.toFixed(0);
+          const _barTT = _periodTitle(tjChartPeriod, m) + ': ' + pnlStr + ' · ' + d.w + 'W/' + (d.n - d.w) + 'L · ' + wr + '%WR';
+          // Bar with glow
+          barsHtml += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 2)}" fill="${color}" rx="4" filter="url(#barShadow)" style="cursor:pointer;" onmouseenter="tjBarTooltip(evt,'${_barTT.replace(/'/g, "\\'")}')" onmouseleave="tjBarTooltipHide()" onclick="tjFilterByPeriod('${m}')"></rect>`;
+          // Value label above/below bar
+          if (barH > 12) {
+            const valY = isPos ? y - 5 : y + barH + 10;
+            barsHtml += `<text x="${x + barW / 2}" y="${valY}" fill="${isPos ? '#34c759' : '#ff3b30'}" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle" font-weight="600" opacity="0.9">${pnlStr}</text>`;
+          }
+          // X-axis label
+          barsHtml += `<text x="${x + barW / 2}" y="${cB + 14}" fill="#645a78" font-size="7" font-family="Orbitron,sans-serif" text-anchor="middle" letter-spacing="0.5">${label}</text>`;
+          // Win rate dot
           const wrX = x + barW / 2;
-          const wrY = cT + (100 - wr) / 100 * (cB - cT - 10);
+          const wrY = cT + 5 + (100 - wr) / 100 * (cB - cT - 15);
           wrPts.push(wrX + ',' + wrY);
-          barsHtml += `<circle cx="${wrX}" cy="${wrY}" r="2.5" fill="#3b82f6" opacity="0.85"><title>${wr}% win rate</title></circle>`;
+          barsHtml += `<circle cx="${wrX}" cy="${wrY}" r="3" fill="#8a3cff" opacity="0.85" stroke="rgba(138,60,255,0.3)" stroke-width="2"><title>${wr}% win rate · ${d.w}W/${d.n - d.w}L</title></circle>`;
         });
 
         barsG.innerHTML = barsHtml;
@@ -3304,6 +3311,219 @@ window.sb = window.API;
           _copierRefreshInterval = null;
         }
       }
+
+      // ==================== MIGRATED FROM STREAMLIT ====================
+
+      window.copierLoadStats = async function() {
+        try {
+          const r = await copierApi('GET', '/api/admin/copier/stats');
+          if (!r.ok) return;
+          const stats = r.data.stats || {};
+          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+          set('copierStatTotal', stats.total || 0);
+          set('copierStatExecuted', stats.executed || 0);
+          set('copierStatBlocked', stats.blocked || 0);
+          set('copierStatWins', stats.wins || 0);
+          set('copierStatLosses', stats.losses || 0);
+          set('copierStatWinRate', (stats.win_rate || 0) + '%');
+          const pnlEl = document.getElementById('copierStatPnlTotal');
+          if (pnlEl) {
+            const v = stats.total_pnl || 0;
+            pnlEl.textContent = (v >= 0 ? '$' : '-$') + Math.abs(v).toFixed(2);
+            pnlEl.style.color = v >= 0 ? '#10b981' : '#ef4444';
+          }
+        } catch(e) { console.warn('copierLoadStats', e); }
+      };
+
+      window.copierLoadTrades = async function(limit) {
+        limit = limit || 50;
+        try {
+          const r = await copierApi('GET', '/api/admin/copier/trades-history?limit=' + limit);
+          if (!r.ok) return;
+          const trades = r.data.trades || [];
+          const list = document.getElementById('copierTradesHistoryList');
+          if (!list) return;
+          if (trades.length === 0) {
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:#5a6577;">No hay operaciones registradas aun.</div>';
+            return;
+          }
+          const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+          const badge = (result) => {
+            const r = String(result || '').toUpperCase();
+            if (r.includes('BLOQUEADO') || r.includes('SENAL') || r.includes('DETECTADA')) return ['BLOQUEADO', 'blocked'];
+            if (r === 'OK' || r.includes('EXITO') || r.includes('DONE')) return ['OK', 'ok'];
+            if (r.includes('ERROR')) return ['ERROR', 'error'];
+            if (r.includes('OPEN') || r.includes('PENDIENTE')) return ['OPEN', 'pending'];
+            return [result || '-', 'pending'];
+          };
+          list.innerHTML = trades.map(t => {
+            const [bText, bClass] = badge(t.result);
+            const actionClass = (t.action || '').toUpperCase() === 'BUY' ? 'buy' : 'sell';
+            const pnl = parseFloat(t.pnl) || 0;
+            const pnlColor = pnl > 0 ? '#10b981' : pnl < 0 ? '#ef4444' : '#5a6577';
+            const dateStr = String(t.date || '').substring(0, 19);
+            return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;background:#111827;margin-bottom:6px;border-left:3px solid ' + (actionClass === 'buy' ? '#10b981' : '#ef4444') + ';">' +
+              '<div style="font-family:monospace;font-weight:600;color:#f0f4f8;min-width:75px;">' + escapeHtml(t.symbol) + '</div>' +
+              '<span style="font-family:monospace;font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(' + (actionClass === 'buy' ? '16,185,129' : '239,68,68') + ',0.15);color:' + (actionClass === 'buy' ? '#10b981' : '#ef4444') + ';font-weight:600;">' + escapeHtml(t.action) + '</span>' +
+              '<span style="font-family:monospace;font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;font-weight:600;">' + bText + '</span>' +
+              '<div style="flex:1;font-family:monospace;font-size:0.75rem;color:#8892a4;">@ ' + escapeHtml(t.price) + '</div>' +
+              '<div style="font-family:monospace;font-size:0.75rem;color:#5a6577;">' + escapeHtml(dateStr) + '</div>' +
+              '<div style="font-family:monospace;font-weight:600;color:' + pnlColor + ';min-width:80px;text-align:right;">' + (pnl === 0 ? '-' : '$' + pnl.toFixed(2)) + '</div>' +
+              '</div>';
+          }).join('');
+        } catch(e) { console.warn('copierLoadTrades', e); }
+      };
+
+      window.copierLoadRisk = async function() {
+        try {
+          const r = await copierApi('GET', '/api/admin/copier/risk-status');
+          if (!r.ok) return;
+          const s = r.data.risk || {};
+          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+          set('riskDailyPnl', '$' + (s.daily_pnl || 0).toFixed(2));
+          set('riskWeeklyPnl', '$' + (s.weekly_pnl || 0).toFixed(2));
+          set('riskTradesToday', s.trades_today || 0);
+          set('riskTotalTrades', s.total_trades || 0);
+          set('riskWinRate', (s.win_rate || 0) + '%');
+          const dailyEl = document.getElementById('riskDailyPnl');
+          if (dailyEl) dailyEl.style.color = (s.daily_pnl || 0) >= 0 ? '#10b981' : '#ef4444';
+          const weeklyEl = document.getElementById('riskWeeklyPnl');
+          if (weeklyEl) weeklyEl.style.color = (s.weekly_pnl || 0) >= 0 ? '#10b981' : '#ef4444';
+        } catch(e) { console.warn('copierLoadRisk', e); }
+      };
+
+      window.copierResetDaily = async function() {
+        if (!confirm('Resetear PnL diario y trades de hoy?')) return;
+        try {
+          const r = await copierApi('POST', '/api/admin/copier/risk-reset-daily');
+          if (r.ok) {
+            showToast('✅ PnL diario reseteado');
+            await copierLoadRisk();
+          } else {
+            showToast('❌ Error al resetear');
+          }
+        } catch(e) { console.warn(e); }
+      };
+
+      window.copierResetAll = async function() {
+        if (!confirm('⚠️ Resetear TODO el estado del Risk Manager? Esto incluye PnL diario, semanal, trades y estadisticas.')) return;
+        try {
+          const r = await copierApi('POST', '/api/admin/copier/risk-reset-all');
+          if (r.ok) {
+            showToast('✅ Todo reseteado');
+            await copierLoadRisk();
+          } else {
+            showToast('❌ Error al resetear');
+          }
+        } catch(e) { console.warn(e); }
+      };
+
+      window.copierLoadMt5 = async function() {
+        try {
+          const r = await copierApi('GET', '/api/admin/copier/mt5-status');
+          if (!r.ok) return;
+          const m = r.data.mt5 || {};
+          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+          set('mt5Balance', '$' + (m.balance || 0).toFixed(2));
+          set('mt5Equity', '$' + (m.equity || 0).toFixed(2));
+          set('mt5Margin', '$' + (m.margin || 0).toFixed(2));
+          set('mt5FreeMargin', '$' + (m.free_margin || 0).toFixed(2));
+          set('mt5Profit', '$' + (m.profit || 0).toFixed(2));
+          set('mt5OpenPositions', m.open_positions || 0);
+          set('mt5Login', m.login || '-');
+          set('mt5Server', m.server || '-');
+          set('mt5Leverage', m.leverage || '-');
+          const profitEl = document.getElementById('mt5Profit');
+          if (profitEl) profitEl.style.color = (m.profit || 0) >= 0 ? '#10b981' : '#ef4444';
+        } catch(e) { console.warn('copierLoadMt5', e); }
+      };
+
+      window.copierSaveFullConfig = async function() {
+        try {
+          const data = {};
+          const lotMode = document.getElementById('cfgLotMode');
+          if (lotMode) data.lot_mode = lotMode.value;
+          const lotSize = document.getElementById('cfgLotSize');
+          if (lotSize) data.lot_size = parseFloat(lotSize.value);
+          const lotPct = document.getElementById('cfgLotPercent');
+          if (lotPct) data.lot_risk_percent = parseFloat(lotPct.value);
+          const suffix = document.getElementById('cfgSymbolSuffix');
+          if (suffix) data.symbol_suffix = suffix.value;
+          const dev = document.getElementById('cfgDeviation');
+          if (dev) data.deviation = parseInt(dev.value);
+          const dailyLimit = document.getElementById('cfgDailyLimit');
+          if (dailyLimit) data.risk_daily_loss_limit = parseFloat(dailyLimit.value);
+          const weeklyLimit = document.getElementById('cfgWeeklyLimit');
+          if (weeklyLimit) data.risk_weekly_loss_limit = parseFloat(weeklyLimit.value);
+          const maxPos = document.getElementById('cfgMaxPositions');
+          if (maxPos) data.risk_max_open_positions = parseInt(maxPos.value);
+          const trailStop = document.getElementById('cfgTrailingStop');
+          if (trailStop) data.risk_trailing_stop = trailStop.checked;
+          const trailStep = document.getElementById('cfgTrailingStep');
+          if (trailStep) data.risk_trailing_step = parseInt(trailStep.value);
+          const trailStart = document.getElementById('cfgTrailingStart');
+          if (trailStart) data.risk_trailing_start = parseInt(trailStart.value);
+          const newsEnabled = document.getElementById('cfgNewsEnabled');
+          if (newsEnabled) data.news_filter_enabled = newsEnabled.checked;
+          const newsBefore = document.getElementById('cfgNewsBefore');
+          if (newsBefore) data.news_filter_minutes_before = parseInt(newsBefore.value);
+          const newsAfter = document.getElementById('cfgNewsAfter');
+          if (newsAfter) data.news_filter_minutes_after = parseInt(newsAfter.value);
+          const r = await copierApi('POST', '/api/admin/copier/save-config', data);
+          if (r.ok) {
+            showToast('✅ Configuracion guardada. Copiador recargando...');
+          } else {
+            showToast('❌ Error al guardar');
+          }
+        } catch(e) { console.warn(e); showToast('❌ Error al guardar'); }
+      };
+
+      window.copierLoadConfigForm = async function() {
+        try {
+          const r = await copierApi('GET', '/api/admin/copier/config');
+          if (!r.ok) return;
+          const c = r.data.config || {};
+          const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+          set('cfgLotMode', c.lot_mode || 'fixed');
+          set('cfgLotSize', c.lot_size || 0.01);
+          set('cfgLotPercent', c.lot_risk_percent || 1.0);
+          set('cfgSymbolSuffix', c.symbol_suffix || '');
+          set('cfgDeviation', c.deviation || 20);
+          set('cfgDailyLimit', c.risk_daily_loss_limit || 2.0);
+          set('cfgWeeklyLimit', c.risk_weekly_loss_limit || 5.0);
+          set('cfgMaxPositions', c.risk_max_open_positions || 5);
+          set('cfgTrailingStep', c.risk_trailing_step || 10);
+          set('cfgTrailingStart', c.risk_trailing_start || 50);
+          set('cfgNewsBefore', c.news_filter_minutes_before || 15);
+          set('cfgNewsAfter', c.news_filter_minutes_after || 15);
+          const ts = document.getElementById('cfgTrailingStop');
+          if (ts) ts.checked = c.risk_trailing_stop !== false;
+          const ne = document.getElementById('cfgNewsEnabled');
+          if (ne) ne.checked = c.news_filter_enabled !== false;
+        } catch(e) { console.warn('copierLoadConfigForm', e); }
+      };
+
+      window.copierShowSection = function(section) {
+        const sections = ['trades', 'risk', 'config', 'mt5'];
+        sections.forEach(s => {
+          const el = document.getElementById('copierSection' + s.charAt(0).toUpperCase() + s.slice(1));
+          if (el) el.style.display = s === section ? 'block' : 'none';
+        });
+        document.querySelectorAll('.copier-section-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.section === section);
+        });
+        if (section === 'trades') copierLoadTrades(50);
+        if (section === 'risk') copierLoadRisk();
+        if (section === 'config') copierLoadConfigForm();
+        if (section === 'mt5') copierLoadMt5();
+      };
+
+      const _origCopierRefresh = copierRefresh;
+      window.copierRefresh = async function() {
+        await _origCopierRefresh();
+        await copierLoadStats();
+        await copierLoadRisk();
+      };
 
       // ==================== ADMIN PLAYLIST DE MÚSICA ====================
       var adminPlaylistData = { tracks: [], activeIndex: 0, loop: 'all' };
