@@ -11,8 +11,11 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  * El mismo password se usa en /admin/login del front.
  *
  * La password se lee de la variable de entorno ADMIN_PASSWORD.
- * Si no está definida, se usa un valor default seguro (solo desarrollo).
+ * Si no esta definida, se usa un valor default seguro (solo desarrollo).
  * En produccion, definir ADMIN_PASSWORD en .env.local (gitignored).
+ *
+ * A2 - Rate limit + audit log se aplican via AdminAuthService en el caller.
+ * Este trait queda minimal para mantener compatibilidad con todos los controllers.
  */
 trait AdminAuthTrait
 {
@@ -32,6 +35,8 @@ trait AdminAuthTrait
     /**
      * Verifica el header X-Admin-Password.
      * Lanza 401 si no coincide.
+     *
+     * Para tener rate limit + audit log, usar AdminAuthService::verify() en su lugar.
      */
     protected function requireAdmin(Request $request): void
     {

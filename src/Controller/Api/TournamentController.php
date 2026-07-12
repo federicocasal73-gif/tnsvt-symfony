@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\AdminAuditLog;
 use App\Entity\Tournament;
 use App\Entity\TournamentEntry;
 use App\Entity\User;
@@ -11,11 +12,16 @@ use App\Repository\TournamentRepository;
 use App\Repository\UserRepository;
 use App\Repository\WalletTransactionRepository;
 use App\Security\AdminAuthTrait;
+use App\Service\AdminAuditLogger;
+use App\Service\AdminAuthService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 /**
  * Endpoints de torneos:
@@ -34,6 +40,12 @@ class TournamentController extends AbstractController
         private UserRepository $userRepository,
         private WalletTransactionRepository $txRepository,
         private \App\Service\TournamentMailer $tournamentMailer,
+        private AdminAuthService $adminAuth,
+        private AdminAuditLogger $auditLogger,
+        #[Autowire(service: 'limiter.admin_actions')]
+        private RateLimiterFactory $adminActionsLimiter,
+        #[Autowire(service: 'limiter.tournament_join')]
+        private RateLimiterFactory $joinLimiter,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -126,6 +138,7 @@ class TournamentController extends AbstractController
 
     /**
      * User joins tournament. Deducts entry_fee from wallet.
+     * Rate limit: 5 joins per user per hour (anti-spam).
      * Body (optional): { "starting_equity": 50000 } (defaults to 50000)
      */
     #[Route('/{id}/join', name: 'api_tournaments_join', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -133,6 +146,12 @@ class TournamentController extends AbstractController
     {
         $user = $this->getCurrentUser($request);
         if (!$user) return new JsonResponse(['error' => 'No autenticado'], 401);
+
+        // Rate limit: 5 joins por user por hora
+        $rl = $this->joinLimiter->create('join:' . $user->getId());
+        if (!$rl->consume(1)->isAccepted()) {
+            throw new TooManyRequestsHttpException(3600, 'Demasiados intentos de unirse a torneos. Esperá 1 hora.');
+        }
 
         $t = $this->tournamentRepository->find($id);
         if (!$t) return new JsonResponse(['error' => 'tournament_not_found'], 404);
@@ -305,7 +324,11 @@ class TournamentController extends AbstractController
     #[Route('/admin/create', name: 'api_tournaments_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        $this->adminAuth->verify($request, AdminAuditLog::ACTION_TOURNAMENT_CREATE);
+        $rl = $this->adminActionsLimiter->create('admin');
+        if (!$rl->consume(1)->isAccepted()) {
+            throw new TooManyRequestsHttpException(60, 'Demasiadas acciones admin. Esperá 1 minuto.');
+        }
 
         $body = json_decode($request->getContent(), true);
         if (!is_array($body) || empty($body['name']) || !isset($body['entry_fee']) || !isset($body['duration_days'])) {
@@ -350,6 +373,14 @@ class TournamentController extends AbstractController
         $this->em->persist($t);
         $this->em->flush();
 
+        // Audit log de la accion admin
+        $this->auditLogger->log(
+            AdminAuditLog::ACTION_TOURNAMENT_CREATE,
+            'admin',
+            AdminAuditLog::RESULT_SUCCESS,
+            ['tournament_id' => $t->getId(), 'name' => $name, 'entry_fee' => $entryFee, 'duration_days' => $durationDays, 'max_players' => $maxPlayers]
+        );
+
         // Notificar a los users activos (best-effort, no bloquea la respuesta)
         try {
             $this->tournamentMailer->notifyTournamentCreated($t);
@@ -376,7 +407,11 @@ class TournamentController extends AbstractController
     #[Route('/admin/{id}/close', name: 'api_tournaments_close', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function close(int $id, Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        $this->adminAuth->verify($request, AdminAuditLog::ACTION_TOURNAMENT_CLOSE);
+        $rl = $this->adminActionsLimiter->create('admin');
+        if (!$rl->consume(1)->isAccepted()) {
+            throw new TooManyRequestsHttpException(60, 'Demasiadas acciones admin. Esperá 1 minuto.');
+        }
 
         $t = $this->tournamentRepository->find($id);
         if (!$t) return new JsonResponse(['error' => 'tournament_not_found'], 404);
@@ -448,6 +483,14 @@ class TournamentController extends AbstractController
 
         $this->em->flush();
 
+        // Audit log
+        $this->auditLogger->log(
+            AdminAuditLog::ACTION_TOURNAMENT_CLOSE,
+            'admin',
+            AdminAuditLog::RESULT_SUCCESS,
+            ['tournament_id' => $t->getId(), 'participants' => count($winners), 'prize_pool' => $prizePool]
+        );
+
         return new JsonResponse([
             'success' => true,
             'tournament_id' => $t->getId(),
@@ -464,7 +507,11 @@ class TournamentController extends AbstractController
     #[Route('/admin/{id}/cancel', name: 'api_tournaments_cancel', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function cancel(int $id, Request $request): JsonResponse
     {
-        $this->requireAdmin($request);
+        $this->adminAuth->verify($request, AdminAuditLog::ACTION_TOURNAMENT_CANCEL);
+        $rl = $this->adminActionsLimiter->create('admin');
+        if (!$rl->consume(1)->isAccepted()) {
+            throw new TooManyRequestsHttpException(60, 'Demasiadas acciones admin. Esperá 1 minuto.');
+        }
 
         $t = $this->tournamentRepository->find($id);
         if (!$t) return new JsonResponse(['error' => 'tournament_not_found'], 404);
@@ -495,6 +542,14 @@ class TournamentController extends AbstractController
         $t->setStatus(Tournament::STATUS_CANCELLED);
         $t->setFinishedAt(new \DateTimeImmutable());
         $this->em->flush();
+
+        // Audit log
+        $this->auditLogger->log(
+            AdminAuditLog::ACTION_TOURNAMENT_CANCEL,
+            'admin',
+            AdminAuditLog::RESULT_SUCCESS,
+            ['tournament_id' => $t->getId(), 'refunded' => $t->getEntries()->count(), 'amount_refunded' => $entryFee]
+        );
 
         return new JsonResponse([
             'success' => true,

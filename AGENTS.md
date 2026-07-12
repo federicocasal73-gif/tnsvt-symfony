@@ -425,3 +425,17 @@
 - **Service worker cache**: users need `Ctrl+Shift+R` after deploys to see new JS
 - **Tailscale 502 errors**: chat endpoints return 502 via Tailscale Funnel but work fine locally — timeout issue in Tailscale proxy, not a code bug
 - **Build command**: `$env:JAVA_HOME = "C:\dev\jdk\jdk-21\jdk-21.0.7+6"; & ".\gradlew.bat" clean assembleDebug` (from android/ dir)
+
+
+## Phase 1-A - Security hardening (2026-07-12)
+
+### A1 - Admin password rotation
+- Old password TNSVT-2026-CristoRey! was committed in docs/tnsvt-sistema-copy-full.pdf (binary, in git history).
+- Rotated to a 256-bit random value (43 chars, base64url).
+- .env.local updated with new password for both ADMIN_PASSWORD and ACADEMIA_ADMIN_PASS.
+- Backup: .env.local.bak.20260712-183822 (rotate manually if rollback needed).
+- Old password remains valid in git history (PDF binary), but is now DEAD.
+- SeedUsersCommand has TNSVT-2026-CristoRey! as fallback when ADMIN_PASSWORD env is missing - kept as legacy safety net but never used in prod (env always set).
+
+### A2 - Rate limiting + audit log (TODO)
+- TODO: install symfony/rate-limiter, apply to admin + join endpoints, add audit log entity.
