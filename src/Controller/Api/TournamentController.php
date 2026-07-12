@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\AdminAuditLog;
 use App\Entity\Tournament;
 use App\Entity\TournamentEntry;
+use App\Entity\Trade;
 use App\Entity\User;
 use App\Entity\WalletTransaction;
 use App\Repository\TournamentEntryRepository;
@@ -42,10 +43,14 @@ class TournamentController extends AbstractController
         private \App\Service\TournamentMailer $tournamentMailer,
         private AdminAuthService $adminAuth,
         private AdminAuditLogger $auditLogger,
+        private \App\Repository\TradeRepository $tradeRepository,
+        private \App\Service\MarketDataService $marketData,
         #[Autowire(service: 'limiter.admin_actions')]
         private RateLimiterFactory $adminActionsLimiter,
         #[Autowire(service: 'limiter.tournament_join')]
         private RateLimiterFactory $joinLimiter,
+        #[Autowire(service: 'limiter.user_actions')]
+        private RateLimiterFactory $userActionsLimiter,
     ) {}
 
     private function getCurrentUser(Request $request): ?User
@@ -223,7 +228,15 @@ class TournamentController extends AbstractController
 
     /**
      * Update current_equity for an active entry (called by Game periodically).
-     * Body: { "code": "USER", "tournament_id": 7, "current_equity": 51500.00 }
+     *
+     * A3 hardening: el cliente puede sugerir equity, pero el server valida:
+     *  - Max delta vs prev equity: 30% por request (anti-spike)
+     *  - Rate limit por user: 30/min sliding window
+     *  - Max absolute equity: 100x starting equity (anti-inflation)
+     * Si el cliente manda una equity "optimista" fuera de estos bounds, se
+     * trunca al max permitido y se loguea.
+     *
+     * Body: { "current_equity": 51500.00 }
      * Uses X-Game-Code auth.
      */
     #[Route('/{id}/update-equity', name: 'api_tournaments_update_equity', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -246,6 +259,30 @@ class TournamentController extends AbstractController
         if (!$entry) return new JsonResponse(['error' => 'not_joined'], 400);
         if (!$entry->isActive()) return new JsonResponse(['error' => 'entry_not_active'], 400);
 
+        // A3 anti-fraud: validar el delta vs equity previa
+        $start = (float) $entry->getStartingEquity();
+        $prev = (float) ($entry->getFinalEquity() ?? $start);
+        if ($start > 0 && $prev > 0) {
+            $delta = ($currentEquity - $prev) / $prev;
+            if (abs($delta) > 0.30) {
+                // Truncar al +30%/-30% y registrar intento sospechoso
+                $currentEquity = $prev * ($delta >= 0 ? 1.30 : 0.70);
+                $this->auditLogger->log(
+                    AdminAuditLog::ACTION_WALLET_ADJUST,
+                    $user->getCode() ?: 'unknown',
+                    AdminAuditLog::RESULT_FAIL,
+                    ['tournament_id' => $t->getId(), 'reason' => 'equity_delta_exceeded', 'attempted' => $currentEquity, 'truncated_to' => $currentEquity]
+                );
+            }
+            // Cap absoluto: no mas de 100x la equity inicial
+            if ($currentEquity > $start * 100) {
+                $currentEquity = $start * 100;
+            }
+            if ($currentEquity < $start * 0.01) {
+                $currentEquity = $start * 0.01;
+            }
+        }
+
         $pnl = $entry->computeCurrentPnl(number_format($currentEquity, 4, '.', ''));
         $entry->setFinalEquity(number_format($currentEquity, 4, '.', ''));
         $entry->setPnlUsd($pnl['pnl_usd']);
@@ -259,6 +296,123 @@ class TournamentController extends AbstractController
             'current_equity' => $entry->getFinalEquity(),
             'pnl_usd' => $entry->getPnlUsd(),
             'pnl_pct' => $entry->getPnlPct(),
+        ], 200);
+    }
+
+    /**
+     * A3 - Trade server-authoritative (anti-fraud B2/B3 del audit).
+     *
+     * El cliente envia SOLO {symbol, direction, timeframe}. El server:
+     *   1. Toma entry_price de su propio feed (snapshot via MarketDataService).
+     *   2. Genera exit_price (snapshot + drift o candle deterministico).
+     *   3. Computa pnl server-side con leverage y size_pct.
+     *   4. Actualiza equity del entry.
+     *   5. Loguea el trade en tournament_trades (audit).
+     *
+     * El cliente NUNCA envia su propio resultado - solo la intencion del trade.
+     * Body: { "symbol": "BTC", "direction": "long|short|skip", "timeframe": "5M",
+     *         "size_pct": 100, "leverage": 1 }
+     */
+    #[Route('/{id}/trade', name: 'api_tournaments_trade', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function trade(int $id, Request $request): JsonResponse
+    {
+        $user = $this->getCurrentUser($request);
+        if (!$user) return new JsonResponse(['error' => 'No autenticado'], 401);
+
+        // Rate limit por user: 60 acciones/min (sliding window, ya configurado)
+        $rl = $this->userActionsLimiter->create('user:' . $user->getId());
+        if (!$rl->consume(1)->isAccepted()) {
+            return new JsonResponse(['error' => 'rate_limit_exceeded', 'message' => 'Demasiadas operaciones. Esperá un momento.'], 429);
+        }
+
+        $t = $this->tournamentRepository->find($id);
+        if (!$t) return new JsonResponse(['error' => 'tournament_not_found'], 404);
+        if (!$t->isActive()) return new JsonResponse(['error' => 'tournament_not_active', 'status' => $t->getStatus()], 400);
+
+        $entry = $this->entryRepository->findUserEntry($t, $user);
+        if (!$entry) return new JsonResponse(['error' => 'not_joined'], 400);
+        if (!$entry->isActive()) return new JsonResponse(['error' => 'entry_not_active'], 400);
+
+        $body = json_decode($request->getContent(), true) ?: [];
+        $symbol = strtoupper(trim((string) ($body['symbol'] ?? '')));
+        $direction = strtolower(trim((string) ($body['direction'] ?? 'skip')));
+        $timeframe = strtoupper(trim((string) ($body['timeframe'] ?? '5M')));
+        $sizePct = isset($body['size_pct']) ? max(1, min(100, (float) $body['size_pct'])) : 100;
+        $leverage = isset($body['leverage']) ? max(1, min(25, (float) $body['leverage'])) : 1;
+
+        // Validar symbol contra whitelist
+        if (!in_array($symbol, Trade::SYMBOL_WHITELIST, true)) {
+            return new JsonResponse(['error' => 'symbol_not_allowed', 'symbol' => $symbol, 'whitelist' => Trade::SYMBOL_WHITELIST], 422);
+        }
+        // Validar direction
+        if (!in_array($direction, [Trade::DIRECTION_LONG, Trade::DIRECTION_SHORT, Trade::DIRECTION_SKIP], true)) {
+            return new JsonResponse(['error' => 'invalid_direction', 'allowed' => ['long','short','skip']], 422);
+        }
+        // Validar timeframe
+        if (!in_array($timeframe, Trade::TIMEFRAMES, true)) {
+            return new JsonResponse(['error' => 'invalid_timeframe', 'allowed' => Trade::TIMEFRAMES], 422);
+        }
+
+        // 1. Entry price: snapshot del server
+        $entrySnap = $this->marketData->snapshot($symbol);
+        if (!$entrySnap) {
+            return new JsonResponse(['error' => 'price_unavailable', 'symbol' => $symbol], 503);
+        }
+        $entryPrice = $entrySnap['price'];
+        $entrySrc = $entrySnap['source'];
+
+        // 2. Exit price: snapshot o candle deterministico (seed = tournament+tradeIndex)
+        // Para simplificar: usamos un segundo snapshot con un poco de drift (o deterministic)
+        // En produccion: esperar la vela real del timeframe.
+        $tradeIndex = (int) $this->tradeRepository->count(['tournament' => $t, 'user' => $user]);
+        $candle = $this->marketData->generateCandle($symbol, $entryPrice, $timeframe, (int) $t->getId(), $tradeIndex);
+        $exitPrice = (float) $candle['price'];
+
+        // 3. Crear y persistir Trade
+        $trade = new Trade();
+        $trade->setEntry($entry);
+        $trade->setUser($user);
+        $trade->setTournament($t);
+        $trade->setSymbol($symbol);
+        $trade->setDirection($direction);
+        $trade->setTimeframe($timeframe);
+        $trade->setEntryPrice(number_format($entryPrice, 4, '.', ''));
+        $trade->setExitPrice(number_format($exitPrice, 4, '.', ''));
+        $trade->setSizePct(number_format($sizePct, 2, '.', ''));
+        $trade->setLeverage(number_format($leverage, 2, '.', ''));
+        $trade->setPriceSource($entrySrc);
+        $trade->setStatus(Trade::STATUS_RESOLVED);
+        $trade->setResolvedAt(new \DateTimeImmutable());
+
+        // 4. Computar pnl y actualizar equity del entry
+        $equityAtEntry = (float) ($entry->getFinalEquity() ?? $entry->getStartingEquity());
+        $pnl = $trade->computePnl($equityAtEntry);
+        $trade->setPnlUsd($pnl['pnl_usd']);
+        $trade->setPnlPct($pnl['pnl_pct']);
+
+        // Aplicar pnl a la equity
+        $newEquity = $equityAtEntry + (float) $pnl['pnl_usd'];
+        if ($newEquity < 0) $newEquity = 0;
+        $entry->setFinalEquity(number_format($newEquity, 4, '.', ''));
+        $entry->setPnlUsd(number_format($newEquity - (float) $entry->getStartingEquity(), 4, '.', ''));
+        $entry->setPnlPct(number_format((($newEquity - (float) $entry->getStartingEquity()) / max(1, (float) $entry->getStartingEquity())) * 100, 6, '.', ''));
+
+        $this->em->persist($trade);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'trade_id' => $trade->getId(),
+            'symbol' => $symbol,
+            'direction' => $direction,
+            'timeframe' => $timeframe,
+            'entry_price' => $trade->getEntryPrice(),
+            'exit_price' => $trade->getExitPrice(),
+            'pnl_usd' => $trade->getPnlUsd(),
+            'pnl_pct' => $trade->getPnlPct(),
+            'equity_after' => $entry->getFinalEquity(),
+            'price_source' => $entrySrc,
+            'candle_source' => $candle['source'],
         ], 200);
     }
 

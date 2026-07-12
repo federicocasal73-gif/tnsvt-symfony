@@ -3,11 +3,15 @@
 namespace App\Repository;
 
 use App\Entity\Trade;
-use App\Entity\TradingAccount;
+use App\Entity\Tournament;
+use App\Entity\TournamentEntry;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
+/**
+ * @extends ServiceEntityRepository<Trade>
+ */
 class TradeRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -15,43 +19,43 @@ class TradeRepository extends ServiceEntityRepository
         parent::__construct($registry, Trade::class);
     }
 
-    public function findByUser(User $user): array
+    /** @return Trade[] */
+    public function findRecentForEntry(TournamentEntry $entry, int $limit = 50): array
     {
-        return $this->findBy(['user' => $user], ['date' => 'DESC']);
-    }
-
-    public function findByUserAndAccount(User $user, TradingAccount $account): array
-    {
-        return $this->findBy(['user' => $user, 'account' => $account], ['date' => 'DESC']);
-    }
-
-    public function countByUserAndAccount(User $user, TradingAccount $account): int
-    {
-        return (int) $this->count(['user' => $user, 'account' => $account]);
-    }
-
-    public function computeStatsForUser(User $user): array
-    {
-        $result = $this->createQueryBuilder('t')
-            ->select(
-                'COUNT(t.id) as total',
-                'SUM(CASE WHEN t.pnl >= 0 THEN 1 ELSE 0 END) as wins',
-                'COALESCE(SUM(t.pnl), 0) as total_pnl'
-            )
-            ->where('t.user = :user')
-            ->setParameter('user', $user)
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.entry = :entry')
+            ->setParameter('entry', $entry)
+            ->orderBy('t.createdAt', 'DESC')
+            ->setMaxResults($limit)
             ->getQuery()
-            ->getSingleResult();
+            ->getResult();
+    }
 
-        $total = (int) $result['total'];
-        $wins = (int) $result['wins'];
-        return [
-            'total' => $total,
-            'wins' => $wins,
-            'losses' => $total - $wins,
-            'win_rate' => $total > 0 ? round($wins / $total * 100, 1) : 0,
-            'total_pnl' => (float) $result['total_pnl'],
-        ];
+    /** @return Trade[] */
+    public function findForUserTournament(User $user, Tournament $tournament, int $limit = 100): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.user = :user')
+            ->andWhere('t.tournament = :t')
+            ->setParameter('user', $user)
+            ->setParameter('t', $tournament)
+            ->orderBy('t.createdAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Cuenta trades resueltos en los ultimos N segundos para anti-spam. */
+    public function countRecentForUser(User $user, int $sinceSeconds = 60): int
+    {
+        $since = (new \DateTimeImmutable())->modify("-{$sinceSeconds} seconds");
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->andWhere('t.user = :user')
+            ->andWhere('t.createdAt >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 }
-
