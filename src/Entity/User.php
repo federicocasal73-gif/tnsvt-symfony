@@ -70,6 +70,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $dailyLogin = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $shopEquipped = null;
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: WalletTransaction::class)]
     private Collection $walletTransactions;
 
@@ -173,6 +176,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getDailyLogin(): ?array { return $this->dailyLogin; }
     public function setDailyLogin(?array $v): static { $this->dailyLogin = $v; return $this; }
+
+    public function getShopEquipped(): ?array { return $this->shopEquipped; }
+    public function setShopEquipped(?array $v): static { $this->shopEquipped = $v; return $this; }
 
     public function getWalletBalanceFloat(): float { return (float) $this->walletBalance; }
     public function hasBalance(float $min): bool { return $this->getWalletBalanceFloat() >= $min; }

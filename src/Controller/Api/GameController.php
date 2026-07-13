@@ -474,6 +474,35 @@ class GameController extends AbstractController
         ]);
     }
 
+    /**
+     * Week 2 - Día 7: Public profile stats by code (compare feature)
+     * GET /api/profile/public?code=ABCD
+     */
+    #[Route('/api/profile/public', name: 'api_profile_public', methods: ['GET'])]
+    public function profilePublic(Request $request): JsonResponse
+    {
+        $code = strtoupper(trim($request->query->get('code', '')));
+        if (empty($code)) {
+            return new JsonResponse(['error' => 'code_required'], 400);
+        }
+        $target = $this->em->getRepository(User::class)
+            ->findOneBy(['code' => $code, 'active' => true]);
+        if (!$target) {
+            return new JsonResponse(['error' => 'not_found'], 404);
+        }
+        $xp = $this->getUserXp($target);
+        return new JsonResponse([
+            'name' => $target->getName(),
+            'code' => $target->getCode(),
+            'xp' => $xp,
+            'coins' => $target->getCoins(),
+            'reputation' => $target->getReputation(),
+            'rank' => $this->getRank($this->getUserLevel($xp)),
+            'avatarColor' => $target->getAvatarColor(),
+            'emoji' => '👤',
+        ]);
+    }
+
     private function authByCode(Request $request): ?User
     {
         $code = trim($request->headers->get('X-Game-Code', ''));
