@@ -56,6 +56,7 @@ class GameController extends AbstractController
             'level' => $level,
             'next_level_xp' => $nextLevelXp,
             'rank' => $this->getRank($level),
+            'isAdmin' => $user->getIsAdmin(),
         ]);
     }
 
@@ -88,6 +89,7 @@ class GameController extends AbstractController
             'xp' => $this->getUserXp($user),
             'level' => $this->getUserLevel($this->getUserXp($user)),
             'rank' => $this->getRank($this->getUserLevel($this->getUserXp($user))),
+            'isAdmin' => $user->getIsAdmin(),
         ]);
     }
 
@@ -299,6 +301,179 @@ class GameController extends AbstractController
      * Autentica un user externo por código (X-Game-Code header o body.code)
      * Usado por el T.N.S.V.T Market app (com.tnsvt.game) que no comparte cookies con TNSVT
      */
+    /**
+     * Devuelve el estado VIP del usuario desde el servidor.
+     * Reemplaza la validación client-side que podía ser falsificada.
+     */
+    #[Route('/api/game/vip-status', name: 'api_game_vip_status', methods: ['GET'])]
+    public function vipStatus(Request $request, #[CurrentUser] ?User $user): JsonResponse
+    {
+        $user = $user ?? $this->authByCode($request);
+
+        if (!$user) {
+            return new JsonResponse([
+                'isVip' => false,
+                'vipUntil' => null,
+            ]);
+        }
+
+        return new JsonResponse([
+            'isVip' => $user->isVip(),
+            'vipUntil' => $user->getVipUntil()
+                ? $user->getVipUntil()->format('Y-m-d\TH:i:s.v\Z')
+                : null,
+        ]);
+    }
+
+    /**
+     * Activa VIP para un usuario (solo admin).
+     * POST /api/game/vip-activate  { code: "XXXX", days: 30 }
+     */
+    #[Route('/api/game/vip-activate', name: 'api_game_vip_activate', methods: ['POST'])]
+    public function vipActivate(Request $request): JsonResponse
+    {
+        $this->requireAdmin($request);
+
+        $data = json_decode($request->getContent(), true);
+        $targetCode = strtoupper(trim($data['code'] ?? ''));
+        $days = (int) ($data['days'] ?? 30);
+
+        if (empty($targetCode) || $days < 1 || $days > 365) {
+            return new JsonResponse(['error' => 'Parámetros inválidos'], 400);
+        }
+
+        $targetUser = $this->em->getRepository(User::class)
+            ->findOneBy(['code' => $targetCode, 'active' => true]);
+
+        if (!$targetUser) {
+            return new JsonResponse(['error' => 'Usuario no encontrado'], 404);
+        }
+
+        $now = new \DateTimeImmutable();
+        $currentVip = $targetUser->getVipUntil();
+        // Si ya tiene VIP activo, extender desde la fecha de expiración actual
+        $base = ($currentVip && $currentVip > $now) ? $currentVip : $now;
+        $newVipUntil = $base->modify("+{$days} days");
+
+        $targetUser->setVipUntil($newVipUntil);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'user' => $targetCode,
+            'vipUntil' => $newVipUntil->format('Y-m-d\TH:i:s.v\Z'),
+            'daysAdded' => $days,
+        ]);
+    }
+
+    /**
+     * Week 2 - Día 1: Triple-currency economy endpoints
+     * GET /api/game/economy — returns { coins, reputation, dailyLogin }
+     */
+    #[Route('/api/game/economy', name: 'api_game_economy', methods: ['GET'])]
+    public function economy(Request $request, #[CurrentUser] ?User $user): JsonResponse
+    {
+        $user = $user ?? $this->authByCode($request);
+        if (!$user) {
+            return new JsonResponse([
+                'coins' => 0,
+                'reputation' => 0.0,
+                'dailyLogin' => null,
+            ]);
+        }
+
+        return new JsonResponse([
+            'coins' => $user->getCoins(),
+            'reputation' => $user->getReputation(),
+            'dailyLogin' => $user->getDailyLogin(),
+        ]);
+    }
+
+    /**
+     * Week 2 - Día 1: Sync local currency changes back to server
+     * POST /api/game/economy/sync
+     * Body: { coinsDelta: 100, reputationDelta: 0.5, dailyLogin: {...} }
+     *
+     * NOTE: In a full production system this would be a wallet-style tx log
+     * (every coin gain has a `reason` and is auditable). For Week 2 Día 1 we
+     * use delta-sync to keep changes additive without breaking older clients.
+     */
+    #[Route('/api/game/economy/sync', name: 'api_game_economy_sync', methods: ['POST'])]
+    public function economySync(Request $request, #[CurrentUser] ?User $user): JsonResponse
+    {
+        $user = $user ?? $this->authByCode($request);
+        if (!$user) {
+            return new JsonResponse(['error' => 'unauthorized'], 401);
+        }
+
+        $data = json_decode($request->getContent(), true) ?: [];
+        $coinsDelta = (int) ($data['coinsDelta'] ?? 0);
+        $repDelta = (float) ($data['reputationDelta'] ?? 0);
+        $dl = $data['dailyLogin'] ?? null;
+
+        if ($coinsDelta !== 0) {
+            if ($coinsDelta > 0) {
+                $user->addCoins($coinsDelta);
+            } else {
+                // Negative: only allow if spending succeeds (validates balance)
+                if (!$user->spendCoins(abs($coinsDelta))) {
+                    return new JsonResponse(['error' => 'insufficient_coins'], 400);
+                }
+            }
+        }
+        if ($repDelta !== 0.0) {
+            $user->addReputation($repDelta);
+        }
+        if (is_array($dl)) {
+            $user->setDailyLogin($dl);
+        }
+        $this->em->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'coins' => $user->getCoins(),
+            'reputation' => $user->getReputation(),
+            'dailyLogin' => $user->getDailyLogin(),
+        ]);
+    }
+
+    /**
+     * Week 2 - Día 1: Admin endpoint to grant coins/reputation (testing only)
+     * POST /api/game/economy/admin-grant
+     * Body: { code, coins: 1000, reputation: 5.0 }
+     */
+    #[Route('/api/game/economy/admin-grant', name: 'api_game_economy_admin_grant', methods: ['POST'])]
+    public function economyAdminGrant(Request $request): JsonResponse
+    {
+        $this->requireAdmin($request);
+
+        $data = json_decode($request->getContent(), true) ?: [];
+        $targetCode = strtoupper(trim($data['code'] ?? ''));
+        $coins = (int) ($data['coins'] ?? 0);
+        $rep = (float) ($data['reputation'] ?? 0);
+
+        if (empty($targetCode)) {
+            return new JsonResponse(['error' => 'code_required'], 400);
+        }
+
+        $target = $this->em->getRepository(User::class)
+            ->findOneBy(['code' => $targetCode, 'active' => true]);
+        if (!$target) {
+            return new JsonResponse(['error' => 'user_not_found'], 404);
+        }
+
+        if ($coins !== 0) $target->addCoins($coins);
+        if ($rep !== 0.0) $target->addReputation($rep);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'user' => $targetCode,
+            'coins' => $target->getCoins(),
+            'reputation' => $target->getReputation(),
+        ]);
+    }
+
     private function authByCode(Request $request): ?User
     {
         $code = trim($request->headers->get('X-Game-Code', ''));

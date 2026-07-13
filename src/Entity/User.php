@@ -58,6 +58,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 50, nullable: true, options: ['default' => 'chime'])]
     private ?string $notificationSound = 'chime';
 
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $vipUntil = null;
+
+    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
+    private int $coins = 0;
+
+    #[ORM\Column(type: Types::FLOAT, options: ['default' => 0])]
+    private float $reputation = 0.0;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $dailyLogin = null;
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: WalletTransaction::class)]
     private Collection $walletTransactions;
 
@@ -127,6 +139,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getNotificationSound(): ?string { return $this->notificationSound; }
     public function setNotificationSound(?string $s): static { $this->notificationSound = $s; return $this; }
+
+    public function getVipUntil(): ?\DateTimeImmutable { return $this->vipUntil; }
+    public function setVipUntil(?\DateTimeImmutable $vipUntil): static { $this->vipUntil = $vipUntil; return $this; }
+
+    public function isVip(): bool
+    {
+        return $this->vipUntil !== null && $this->vipUntil > new \DateTimeImmutable();
+    }
+
+    // Week 2 - Día 1: Triple-currency economy
+    public function getCoins(): int { return $this->coins; }
+    public function setCoins(int $v): static { $this->coins = max(0, min(1000000, $v)); return $this; }
+    public function addCoins(int $amount): static
+    {
+        $this->coins = max(0, min(1000000, $this->coins + $amount));
+        return $this;
+    }
+    public function spendCoins(int $amount): bool
+    {
+        if ($amount < 0 || $this->coins < $amount) return false;
+        $this->coins -= $amount;
+        return true;
+    }
+
+    public function getReputation(): float { return $this->reputation; }
+    public function setReputation(float $v): static { $this->reputation = max(0.0, min(100.0, $v)); return $this; }
+    public function addReputation(float $amount): static
+    {
+        $this->reputation = max(0.0, min(100.0, $this->reputation + $amount));
+        return $this;
+    }
+
+    public function getDailyLogin(): ?array { return $this->dailyLogin; }
+    public function setDailyLogin(?array $v): static { $this->dailyLogin = $v; return $this; }
 
     public function getWalletBalanceFloat(): float { return (float) $this->walletBalance; }
     public function hasBalance(float $min): bool { return $this->getWalletBalanceFloat() >= $min; }

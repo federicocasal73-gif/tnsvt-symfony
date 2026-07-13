@@ -37,6 +37,7 @@
 /_backup/
 *.tar.gz
 *.bak
+.env.local.bak.*
 
 # Keystore de firma del APK (NO commitear, es privado!)
 /android/app/tnsvt-release.keystore
@@ -93,3 +94,6 @@ qa_screenshots/
 
 # PHP development server logs
 /php*.log
+
+tools/
+
