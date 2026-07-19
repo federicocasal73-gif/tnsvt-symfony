@@ -439,3 +439,112 @@
 
 ### A2 - Rate limiting + audit log (TODO)
 - TODO: install symfony/rate-limiter, apply to admin + join endpoints, add audit log entity.
+
+## Session 2026-07-18 — Offline Sync API (Phase 3)
+- **JournalEntry** entity: nueva tabla `journal_entries` con campos completos (asset, direction, date, entry, sl, tp, result, pnl, ratio, notes, photos, tags, account_id) + `created_at`/`updated_at` LWW timestamps.
+- **JournalEntryRepository**: `findSinceForUser()` y `findAllForUser()`.
+- **SyncController** (`/api/sync`):
+  - `GET /api/sync/snapshot?user_code=X[&since=UNIX_TS]` — retorna todos los entries del usuario, opcionalmente filtrados por `updated_at > since`.
+  - `POST /api/sync/push` — batch operations (create/update/delete) con LWW conflict resolution.
+  - Formato op: `{client_id, op, entity: 'journal', id?, data, client_updated_at}`.
+  - Conflictos: si `client_updated_at < server.updated_at` → status `conflict` con `server_data`.
+  - **Fix crítico**: IDs generados post-flush (antes se leía `getId()` antes de `persist()`).
+- **Tabla creada manualmente** en server Hostinger via script PHP (no se usó migration por incompatibilidad SQLite local).
+- **Testeado end-to-end**: create (ID generado correcto), update, delete, since filter, conflict detection.
+
+### Files changed/created
+- `src/Entity/JournalEntry.php` (new) — entidad con ORM mapping, setters, `touch()` PreUpdate
+- `src/Repository/JournalEntryRepository.php` (new) — queries por user_code + since
+- `src/Controller/Api/SyncController.php` (new) — 2 endpoints snapshot + push con LWW
+- `migrations/Version20260718010000.php` (new) — migration file (no ejecutada, tabla creada manual en server)
+- `AGENTS.md` — agregada esta session
+
+## Session 2026-07-18 — APK v4.19 + Offline Sync Frontend
+### Build
+- **APK v4.19** (versionCode 306, 6.8 MB debug) — `public/downloads/tnsvt-app.apk` + `public/apk/tnsvt-v4.19.apk`
+- Incluye: JournalEntry entity + SyncController + WebP icons + sync frontend UI
+- Assets recompilados (app-jxg3LlL.js, api-R9fvfu_.js), importmap actualizado
+- Cache limpiado en server
+
+### Frontend Sync
+- **`assets/api.js`**: agregados `getSyncSnapshot()` y `syncPush()` methods
+- **`templates/base.html.twig`**: botón 🔄 Sync en backup tools + badge de pendientes + status indicator
+- **`assets/app.js`**: función `tjSync()` que:
+  - Lee trades locales del localStorage
+  - Obtiene snapshot del server via `API.getSyncSnapshot()`
+  - Encuentra trades locales sin id en server y los crea via `API.syncPush()`
+  - Actualiza IDs locales post-sync
+  - Muestra status toast + badge count
+- **`tjUpdateSyncBadge()`**: muestra contador de trades no sincronizados (`_syncing: true` o sin id) en el badge del botón Sync
+- Badge se actualiza al abrir el tab Journal y tras cada sync
+
+### Files changed
+- `assets/api.js` — +2 sync methods
+- `assets/app.js` — tjSync() + tjUpdateSyncBadge() + window exports + switchTab hook
+- `templates/base.html.twig` — sync button + status div in backup tools
+- `android/app/build.gradle` — versionCode 306 / versionName "4.19"
+- `public/assets/app-jxg3LlL.js` (compiled)
+- `public/assets/api-R9fvfu_.js` (compiled)
+- `public/assets/importmap.json` (updated)
+- `public/assets/manifest.json` (updated)
+- `public/assets/entrypoint.app.json` (updated)
+
+### Deployed
+- ✅ All compiled assets uploaded to server
+- ✅ Template uploaded with sync button
+- ✅ APK uploaded: `https://tnsvt.com/downloads/tnsvt-app.apk` (HTTP 200, 6.8 MB)
+- ✅ Secondary: `https://tnsvt.com/apk/tnsvt-v4.19.apk`
+
+### Tested
+- ✅ Sync endpoint still working (snapshot returns empty)
+- ✅ Page load HTTP 200 (366 KB)
+- ✅ Sync button badge updates with pending count
+
+## Session 2026-07-19 — Desktop CSS Regression Fix (Commit WIP)
+
+### Bug
+- Animations felt slow + visual error at start of login page on Hostinger (tnsvt.com)
+- Login card extended much taller than viewport, hiding the `†` Cristo Íntegro cross and "Bienvenido al Sistema..." tagline below the form
+
+### Root cause
+- Commit `3352379` (previous session) accidentally bundled ~80 lines of "MOBILE / APK FIXES v2.0" CSS that was uncommitted in working tree. That block had:
+  - `html, body { min-height: 100dvh }` (caused login card to extend beyond viewport — 100dvh > 100vh in browsers with address bar)
+  - `canvas { will-change: transform }` (forced all canvas into permanent GPU layers → slow first-paint animations)
+  - `button/.btn/.icon-btn/.chip/.tag/[role=button] { min-height:44px; min-width:44px }` (inflated chips in pre-login hub)
+  - `input/select/textarea { font-size: max(16px, 0.85rem) !important }`
+  - `@supports (height: 100dvh) { #login-screen { min-height: 100dvh } }` ← main culprit
+
+### What was done
+- **Cleaned `assets/styles/app.css`**: removed the desktop-global mobile block, kept only the bits that apply in pre-login (e.g., the OLD `#login-screen { min-height: 100vh }` rule at line ~115 still has its original 100vh, not 100dvh)
+- **Added scoped mobile block** at end of file under `@media (max-width: 950px), (pointer: coarse) and (max-width: 1366px)` — preserves the mobile intent without polluting desktop
+- **Re-applied 4 original bug fixes**:
+  - `@media (min-width: 951px) { #sidebar-overlay { display: none !important; pointer-events: none !important } }`
+  - `.tab-content { display: none; visibility: hidden }` + `.tab-content.active { display: block; visibility: visible }` + `.tab-content:not(.active) { pointer-events: none }`
+- **Music bar guard** in `assets/app.js`: `function musicShowBar()` now returns early if `!window.TNSVT_USER || !window.TNSVT_USER.code` — defensive fix so bar never shows pre-login even if called by a stale code path
+- **APK v4.20 prep**: bumped `versionCode 306→307` and `versionName "4.19"→"4.20"` in `android/app/build.gradle`
+- **Capacitor sync**: ran `npx cap sync android` to copy new assets (`app-aThX_ib.css`, `app-0uSV-gU.js`) into `android/app/src/main/assets/public/assets/`
+- **Did NOT build APK** (10+ min build) — left command ready for user to run
+
+### Build APK v4.20 command (for user to run)
+```
+cd "C:\Users\HP 240 inch G9\Documents\TNSVT-WORK\tnsvt-symfony\android"
+$env:JAVA_HOME = "C:\dev\jdk\jdk-21\jdk-21.0.7+6"
+& ".\gradlew.bat" clean assembleDebug
+Copy-Item -Path "android\app\build\outputs\apk\debug\app-debug.apk" -Destination "public\downloads\tnsvt-app.apk" -Force
+Copy-Item -Path "android\app\build\outputs\apk\debug\app-debug.apk" -Destination "public\apk\tnsvt-v4.20.apk" -Force
+```
+
+### Files changed
+- `assets/styles/app.css` — removed 80+ lines of global mobile block, added scoped `@media (max-width: 950px), (pointer: coarse)` block at end
+- `assets/app.js` — added defensive guard in `musicShowBar()` (line ~5135)
+- `android/app/build.gradle` — versionCode 307, versionName "4.20"
+- `android/app/src/main/assets/public/assets/app-aThX_ib.css` — recompiled (210,433 B)
+- `android/app/src/main/assets/public/assets/app-0uSV-gU.js` — recompiled (391,577 B)
+- `public/assets/styles/app-aThX_ib.css` — recompiled (212,826 B)
+- `public/assets/app-0uSV-gU.js` — recompiled (393,525 B)
+- `AGENTS.md` — this entry
+
+### Verified
+- Local CSS: 100dvh NO global (only in scoped @media), no will-change:transform global, MOBILE/APK SCOPED block present, sidebar overlay @media (min-width: 951px) present, tab-content:not(.active) present, pointer:coarse present
+- Local JS: musicShowBar guard present, returns early without TNSVT_USER
+- Hostinger CSS: was `app-2t1Boor.css` (still old version); user needs to deploy manually to tnsvt.com

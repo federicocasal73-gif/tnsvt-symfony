@@ -451,6 +451,16 @@ async getNotifCount(userCode) {
 
   // ── Patch helper ──
   patch(path, body) { return this.request('PATCH', path, body); },
+
+  // ── Sync API (offline-first journal sync) ──
+  async getSyncSnapshot(userCode, since) {
+    let url = `/api/sync/snapshot?user_code=${encodeURIComponent(userCode)}`;
+    if (since) url += `&since=${since}`;
+    return this.get(url);
+  },
+  async syncPush(ops, userCode) {
+    return this.request('POST', `/api/sync/push?user_code=${encodeURIComponent(userCode)}`, { ops });
+  },
 };
 
 window.API = API;

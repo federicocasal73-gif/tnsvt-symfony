@@ -24,84 +24,31 @@
 
   html, body {
     width: 100%; min-height: 100vh; overflow-x: hidden;
-    /* P1.1: Use dynamic viewport to handle mobile address bar show/hide.
-       Si navegador soporta dvh, usamos eso; si no, caemos a vh con fallback */
-    min-height: 100dvh;
     background: var(--bg);
     font-family: 'Space Grotesk', sans-serif;
     color: #fff;
     touch-action: pan-x pan-y pinch-zoom;
-    -webkit-tap-highlight-color: transparent; /* Elimina flash azul en iOS WebView */
   }
 
-  /* === MOBILE / APK FIXES v2.0 (added 2026-07-18) === */
-
-  /* P0.1: Forzar font-size 16px en inputs/selects/textarea para evitar
-     auto-zoom en iOS Safari WebView (capacitor ready por si migramos a iOS).
-     No afecta Android pero garantiza paridad cross-platform. */
-  input:not([type="checkbox"]):not([type="radio"]),
-  select,
-  textarea {
-    font-size: max(16px, 0.85rem) !important;
-  }
-
-  /* P1.3: WCAG 2.5.5 / Apple HIG - Tap targets mínimo 44x44 px.
-     Aplicado a todos los botones y elementos clicables comunes. */
-  button,
-  input[type="submit"],
-  input[type="button"],
-  .btn,
-  .icon-btn,
-  .chip,
-  .tag,
-  [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* Excepciones: botones inline donde 44px rompería diseño */
-  .icon-btn.tnsvt-mini { min-width: 32px; min-height: 32px; }
-
-  /* P1.1: Progressive enhancement para dynamic viewport.
-     Asegura que elementos fixed-position usan dvh cuando esté disponible. */
-  @supports (height: 100dvh) {
-    .app-container,
-    #login-screen,
-    .trading-main,
-    .gate-box {
-      min-height: 100dvh;
-    }
-  }
-
-  /* P0.2: Background canvas fijo necesita actualizarse en foldable resize.
-     Forzamos repaint en resize de viewport además del listener JS ya existente. */
-  canvas { will-change: transform; }
-
-  /* === Variables dinámicas JS-driven (visualViewport + foldable) === */
-  :root {
-    --visual-height: 100vh;
-    --visual-offset-top: 0px;
-  }
-
-  /* Foldable (Z Fold 6 inner display): Más ancho, permitir split-view para trading */
-  html.tnsvt-foldable body {
-    font-size-adjust: from-font 1;
-  }
-  /* Cuando estamos en foldable, el trading puede usar dos paneles */
-  html.tnsvt-foldable .trading-main {
-    max-width: 1600px; /* Wider on foldable inner display */
-  }
-
-  /* P2.2: Cuando aparece teclado, ajustamos altura de paneles flotantes
-     para que no queden cubiertos. Usa la altura visual real (sin teclado) */
-  .cf-panel,
-  #chat-floating-panel,
-  .cf-toast {
-    max-height: min(75dvh, calc(var(--visual-height) - 100px)) !important;
-  }
+  /* === MOBILE / APK FIXES v2.0 (added 2026-07-18, scoped 2026-07-19) ===
+     Solo aplican en pantallas <950px o devices touch reales.
+     Desktop queda limpio: NO min-height 100dvh, NO will-change global,
+     NO button min-width 44px, NO max-height dvh en cf-panel. */
 
   canvas {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+  }
+
+  /* === BUG FIX 2026-07-19: tab-content overlap en switchTab ===
+     Refuerza el hide/show para que tab-content no-active no capture clicks. */
+  .tab-content { display: none; visibility: hidden; animation: fadeIn 0.3s ease; width: 100%; box-sizing: border-box; overflow-x: hidden; }
+  .tab-content.active { display: block; visibility: visible; }
+  .tab-content:not(.active) { pointer-events: none; }
+
+  /* === BUG FIX 2026-07-19: sidebar overlay bloquea clicks en desktop ===
+     El overlay debe ser invisible y no interactivo en viewports >=951px. */
+  @media (min-width: 951px) {
+    #sidebar-overlay { display: none !important; pointer-events: none !important; }
   }
 
 .app-container {
@@ -278,7 +225,7 @@
   .trading-layout { display: flex; gap: 20px; flex-wrap: wrap; }
 .trading-sidebar {
     width: 260px; display: flex; flex-direction: column; gap: 8px;
-    max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); overflow-y: auto; overflow-x: hidden;
+    max-height: calc(100vh - 140px); overflow-y: auto; overflow-x: hidden;
     scrollbar-width: thin; scrollbar-color: rgba(212,175,55,0.3) transparent;
   }
   .trading-sidebar::-webkit-scrollbar { width: 4px; }
@@ -3122,3 +3069,30 @@ button[onclick*="hamburger"]:hover {
 #avatarFileInput { display: none; }
 #avatarMenu { z-index: 200; }
 
+
+/* === MOBILE / APK SCOPED FIXES (2026-07-19) ===
+   Solo aplican en pantallas chicas o devices touch.
+   Desktop queda 100% intacto (sin 100dvh, sin will-change global,
+   sin 44px button min, sin max-height dvh en cf-panel). */
+
+@media (max-width: 950px), (pointer: coarse) and (max-width: 1366px) {
+  html, body { min-height: 100dvh; -webkit-tap-highlight-color: transparent; }
+  .app-container, #login-screen, .trading-main, .gate-box { min-height: 100dvh; }
+  /* Forzar font-size 16px en inputs para evitar auto-zoom en iOS Safari WebView */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select, textarea { font-size: max(16px, 0.85rem) !important; }
+  /* WCAG 2.5.5 / Apple HIG: tap targets mínimos 44x44 px */
+  button, input[type="submit"], input[type="button"],
+  .btn, .icon-btn, .chip, .tag, [role="button"] {
+    min-height: 44px; min-width: 44px;
+  }
+  .icon-btn.tnsvt-mini { min-width: 32px; min-height: 32px; }
+  /* Canvas fixed necesita repaint en foldable resize */
+  canvas.bg-stars, canvas#starsCanvas, canvas.particles-bg { will-change: transform; }
+  /* Foldable (Z Fold 6 inner): permitir split-view más ancho */
+  html.tnsvt-foldable .trading-main { max-width: 1600px; }
+  /* Cuando aparece teclado, ajustar altura de paneles flotantes */
+  .cf-panel, #chat-floating-panel, .cf-toast {
+    max-height: min(75dvh, calc(100vh - 100px)) !important;
+  }
+}

@@ -583,6 +583,7 @@ window.sb = window.API;
           if (typeof Diary !== 'undefined' && Diary.init) Diary.init();
         }
         if (tabId === 'tab-journal') {
+          if (typeof tjUpdateSyncBadge === 'function') tjUpdateSyncBadge();
           // Recargar el journal para que el calendario se renderice
           // loadJournalFromApi() llama a tjRefresh() que incluye tjRenderCal()
           if (typeof loadJournalFromApi === 'function') {
@@ -662,6 +663,30 @@ window.sb = window.API;
       }
 
       window.addEventListener('resize', () => { canvas.width=window.innerWidth; canvas.height=window.innerHeight; stars=[]; particles=[]; meteors=[]; initDivineBackground(); });
+
+      // P2.2 + P0.2: keyboard-aware viewport + foldable support (added 2026-07-18)
+      if (window.visualViewport) {
+        // P2.2: Cuando aparece teclado, ajustar paneles para que no queden tapados
+        window.visualViewport.addEventListener('resize', () => {
+          const vv = window.visualViewport;
+          document.documentElement.style.setProperty('--visual-height', vv.height + 'px');
+          document.documentElement.style.setProperty('--visual-offset-top', vv.offsetTop + 'px');
+        });
+      }
+
+      // P0.2: Foldable detection (Z Fold 6 inner display, Surface Duo, etc)
+      const foldableQuery = window.matchMedia('(spanning: single-fold-vertical)');
+      function handleFoldableChange(e) {
+        if (e.matches) {
+          document.documentElement.classList.add('tnsvt-foldable');
+        } else {
+          document.documentElement.classList.remove('tnsvt-foldable');
+        }
+      }
+      if (foldableQuery.addEventListener) {
+        foldableQuery.addEventListener('change', handleFoldableChange);
+        handleFoldableChange(foldableQuery);
+      }
 
       // ==================== INICIALIZACIÓN ====================
       async function checkAuthStatus() {
@@ -2174,6 +2199,125 @@ window.sb = window.API;
           showToast('❌ Error al sincronizar: ' + (e.message || 'desconocido') + ' — guardado solo local');
         });
       }
+
+    // ── Sync badge: count pending local trades ──
+    function tjUpdateSyncBadge() {
+      const badge = document.getElementById('tj-sync-badge');
+      if (!badge) return;
+      const local = JSON.parse(localStorage.getItem('tj_trades') || '[]');
+      const pending = local.filter(t => t._syncing === true || !t.id);
+      if (pending.length > 0) {
+        badge.style.display = 'inline-flex';
+        badge.textContent = pending.length;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ── Sync offline trades with server ──
+    async function tjSync() {
+      const btn = document.getElementById('tj-sync-btn');
+      const badge = document.getElementById('tj-sync-badge');
+      const status = document.getElementById('tj-sync-status');
+      if (!btn || !status) return;
+      const userCode = localStorage.getItem('tnsvt_user_code') || window.currentUserCode || '';
+      if (!userCode) { showToast('❌ No hay usuario logueado'); return; }
+
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      status.style.display = 'block';
+      status.textContent = '🔄 Sincronizando…';
+      if (badge) badge.style.display = 'none';
+
+      try {
+        // 1) Obtener trades locales no sincronizados (con _syncing:true o sin id real)
+        const local = JSON.parse(localStorage.getItem('tj_trades') || '[]');
+        const pending = local.filter(t => t._syncing === true || typeof t.id === 'number' || !t.id);
+
+        // 2) Obtener snapshot del server
+        const snapRes = await API.getSyncSnapshot(userCode);
+        if (!snapRes || !snapRes.success) throw new Error(snapRes?.error || 'Error al obtener snapshot');
+
+        const serverItems = snapRes.items || [];
+        const serverIds = new Set(serverItems.map(i => String(i.id)));
+
+        // 3) Convertir trades locales a ops de push
+        const ops = [];
+
+        // 3a) Locales sin id en server → create
+        for (const t of local) {
+          if (!t.id || !serverIds.has(String(t.id))) {
+            ops.push({
+              client_id: `local_${t.id || Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+              op: 'create',
+              entity: 'journal',
+              client_updated_at: Math.floor(Date.now() / 1000),
+              data: {
+                asset: t.asset || '',
+                dir: t.dir || t.direction || 'BUY',
+                date: t.date || new Date().toISOString(),
+                entry: t.entry || '',
+                sl: t.sl || '',
+                tp: t.tp || '',
+                result: t.result || 'OPEN',
+                pnl: t.pnl || '',
+                ratio: t.ratio || '',
+                notes: t.notes || '',
+                tags: t.tags || '',
+                account_id: t.account_id || t.accountId || null,
+              },
+            });
+          }
+        }
+
+        // 3b) Server items no locales → opcionalmente borrar (omitimos, preferimos mantener server)
+        // Solo enviamos creates
+
+        if (ops.length === 0) {
+          status.textContent = '✅ Todo sincronizado — ' + local.length + ' trades locales, ' + serverItems.length + ' en servidor';
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          setTimeout(() => { status.style.display = 'none'; }, 3000);
+          return;
+        }
+
+        // 4) Push
+        const pushRes = await API.syncPush(ops, userCode);
+        if (!pushRes || !pushRes.success) throw new Error(pushRes?.error || 'Error al subir');
+
+        const pushed = pushRes.results || [];
+        const ok = pushed.filter(r => r.status === 'ok').length;
+        const errs = pushed.filter(r => r.status !== 'ok');
+
+        // 5) Actualizar IDs locales si hubo creates
+        for (const r of pushed) {
+          if (r.status === 'ok' && r.server_id) {
+            const idx = tjTrades.findIndex(t => String(t.id) === r.client_id?.replace(/^local_/, '') || t._syncing);
+            // Buscar por client_id en el batch
+            const matchIdx = tjTrades.findIndex(t => t._syncing === true || !t.id);
+            if (matchIdx > -1 && r.client_id && ops.find(o => o.client_id === r.client_id)) {
+              tjTrades[matchIdx] = { ...tjTrades[matchIdx], id: r.server_id, _syncing: false };
+            }
+          }
+        }
+        try { localStorage.setItem('tj_trades', JSON.stringify(tjTrades)); } catch(e) {}
+
+        status.textContent = '✅ Sync completado: ' + ok + ' subidos' + (errs.length ? ', ' + errs.length + ' errores' : '');
+        showToast('🔄 Sync: ' + ok + ' trades sincronizados');
+
+        // Refresh journal
+        tjRefresh();
+        tjUpdateSyncBadge();
+
+      } catch (e) {
+        status.textContent = '❌ Error: ' + (e.message || 'desconocido');
+        showToast('❌ Sync falló: ' + (e.message || 'desconocido'));
+      }
+
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      setTimeout(() => { status.style.display = 'none'; }, 5000);
+    }
 
       // Wire up save button
       document.addEventListener('DOMContentLoaded', () => {
@@ -4342,6 +4486,7 @@ window.sb = window.API;
           }
         } catch(e) { console.warn('[journal] loadJournalFromApi:', e); }
         tjRefresh();
+        tjUpdateSyncBadge();
       }
 
       window.viewUserJournal = function(code, name) {
@@ -4518,6 +4663,8 @@ window.sb = window.API;
       window.tjCalNav = tjCalNav;
       window.openTjDay = openTjDay;
       window.closeTjDay = closeTjDay;
+      window.tjSync = tjSync;
+      window.tjUpdateSyncBadge = tjUpdateSyncBadge;
       window.filterFeed = filterFeed;
       window.selPostCat = selPostCat;
       window.createNewPost = createNewPost;
@@ -4986,6 +5133,9 @@ window.sb = window.API;
       window.applyAdminFeatures = applyAdminFeatures;
 
       function musicShowBar() {
+        // Guard defensivo 2026-07-19: nunca mostrar la barra si NO hay sesión activa.
+        // Evita que aparezca en pre-login por cualquier llamada espuria.
+        if (!window.TNSVT_USER || !window.TNSVT_USER.code) return;
         const bar = document.getElementById('musicPlayerBar');
         document.body.classList.add('music-bar-active');
         if (bar) {
