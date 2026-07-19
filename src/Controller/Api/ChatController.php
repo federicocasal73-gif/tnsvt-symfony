@@ -81,6 +81,7 @@ class ChatController extends AbstractController
             'other_user_avatar_url' => $this->getAvatarUrl($otherUser?->getCode()),
             'online' => $otherUser?->isOnline() ?? false,
             'created_at' => $conv->getCreatedAt()?->format('c'),
+            'created_at_display' => $conv->getCreatedAt() ? $conv->getCreatedAt()->format('d/m H:i') : '',
             'unread_count' => $unreadCount,
             'last_message' => $lastMessage ? [
                 'id' => $lastMessage->getId(),
@@ -90,6 +91,7 @@ class ChatController extends AbstractController
                 'has_photo' => (bool) $lastMessage->getPhoto(),
                 'is_ai' => $lastMessage->isAi(),
                 'created_at' => $lastMessage->getCreatedAt()?->format('c'),
+                'created_at_display' => $lastMessage->getCreatedAt() ? $lastMessage->getCreatedAt()->format('d/m H:i') : '',
             ] : null,
         ];
     }
@@ -108,6 +110,7 @@ class ChatController extends AbstractController
             'edited_at' => $m->getEditedAt()?->format('c'),
             'attachment' => $m->getAttachment(),
             'created_at' => $m->getCreatedAt()?->format('c'),
+            'created_at_display' => $m->getCreatedAt() ? $m->getCreatedAt()->format('d/m H:i') : '',
         ];
     }
 

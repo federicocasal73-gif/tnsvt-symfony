@@ -24,10 +24,80 @@
 
   html, body {
     width: 100%; min-height: 100vh; overflow-x: hidden;
+    /* P1.1: Use dynamic viewport to handle mobile address bar show/hide.
+       Si navegador soporta dvh, usamos eso; si no, caemos a vh con fallback */
+    min-height: 100dvh;
     background: var(--bg);
     font-family: 'Space Grotesk', sans-serif;
     color: #fff;
     touch-action: pan-x pan-y pinch-zoom;
+    -webkit-tap-highlight-color: transparent; /* Elimina flash azul en iOS WebView */
+  }
+
+  /* === MOBILE / APK FIXES v2.0 (added 2026-07-18) === */
+
+  /* P0.1: Forzar font-size 16px en inputs/selects/textarea para evitar
+     auto-zoom en iOS Safari WebView (capacitor ready por si migramos a iOS).
+     No afecta Android pero garantiza paridad cross-platform. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: max(16px, 0.85rem) !important;
+  }
+
+  /* P1.3: WCAG 2.5.5 / Apple HIG - Tap targets mínimo 44x44 px.
+     Aplicado a todos los botones y elementos clicables comunes. */
+  button,
+  input[type="submit"],
+  input[type="button"],
+  .btn,
+  .icon-btn,
+  .chip,
+  .tag,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Excepciones: botones inline donde 44px rompería diseño */
+  .icon-btn.tnsvt-mini { min-width: 32px; min-height: 32px; }
+
+  /* P1.1: Progressive enhancement para dynamic viewport.
+     Asegura que elementos fixed-position usan dvh cuando esté disponible. */
+  @supports (height: 100dvh) {
+    .app-container,
+    #login-screen,
+    .trading-main,
+    .gate-box {
+      min-height: 100dvh;
+    }
+  }
+
+  /* P0.2: Background canvas fijo necesita actualizarse en foldable resize.
+     Forzamos repaint en resize de viewport además del listener JS ya existente. */
+  canvas { will-change: transform; }
+
+  /* === Variables dinámicas JS-driven (visualViewport + foldable) === */
+  :root {
+    --visual-height: 100vh;
+    --visual-offset-top: 0px;
+  }
+
+  /* Foldable (Z Fold 6 inner display): Más ancho, permitir split-view para trading */
+  html.tnsvt-foldable body {
+    font-size-adjust: from-font 1;
+  }
+  /* Cuando estamos en foldable, el trading puede usar dos paneles */
+  html.tnsvt-foldable .trading-main {
+    max-width: 1600px; /* Wider on foldable inner display */
+  }
+
+  /* P2.2: Cuando aparece teclado, ajustamos altura de paneles flotantes
+     para que no queden cubiertos. Usa la altura visual real (sin teclado) */
+  .cf-panel,
+  #chat-floating-panel,
+  .cf-toast {
+    max-height: min(75dvh, calc(var(--visual-height) - 100px)) !important;
   }
 
   canvas {
@@ -208,7 +278,7 @@
   .trading-layout { display: flex; gap: 20px; flex-wrap: wrap; }
 .trading-sidebar {
     width: 260px; display: flex; flex-direction: column; gap: 8px;
-    max-height: calc(100vh - 140px); overflow-y: auto; overflow-x: hidden;
+    max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); overflow-y: auto; overflow-x: hidden;
     scrollbar-width: thin; scrollbar-color: rgba(212,175,55,0.3) transparent;
   }
   .trading-sidebar::-webkit-scrollbar { width: 4px; }
@@ -227,8 +297,9 @@
     border-radius: 16px; padding: 20px; min-height: 500px;
     overflow-y: auto; overflow-x: hidden;
   }
-.tab-content { display: none; animation: fadeIn 0.3s ease; width: 100%; box-sizing: border-box; overflow-x: hidden; }
-.tab-content.active { display: block; }
+.tab-content { display: none; visibility: hidden; animation: fadeIn 0.3s ease; width: 100%; box-sizing: border-box; overflow-x: hidden; }
+  .tab-content.active { display: block; visibility: visible; }
+  .tab-content:not(.active) { pointer-events: none; }
 
 /* Safe-area padding override for .inner-page (inline in template) */
   .inner-page {
@@ -2060,6 +2131,10 @@
   }
   #sidebar-overlay.active { display: block; }
 
+  @media (min-width: 951px) {
+    #sidebar-overlay { display: none !important; }
+  }
+
   @media (max-width: 950px) {
     .trading-sidebar {
       position: fixed !important;
@@ -2108,7 +2183,7 @@
     /* Landscape support: constrain heights on short viewports */
     @media (orientation: landscape) {
       .trading-sidebar { padding: calc(64px + env(safe-area-inset-top, 0px)) 12px 16px calc(12px + env(safe-area-inset-left, 0px)) !important; }
-      #chat-floating-panel { max-height: calc(100vh - 140px) !important; }
+      #chat-floating-panel { max-height: calc(100vh - 140px) !important; max-height: calc(100dvh - 140px) !important; }
     }
     /* Safe areas for bottom-positioned widgets */
     #cf-fab {
@@ -2314,6 +2389,7 @@ button[onclick*="hamburger"]:hover {
   right: 24px !important;
   z-index: 9965 !important;
   max-height: calc(100vh - 140px) !important;
+  max-height: calc(100dvh - 140px) !important;
   width:380px; height:580px;
   background:rgba(10,5,22,0.88); backdrop-filter:blur(18px);
   border:1.5px solid rgba(212,175,55,0.35); border-radius:18px;
@@ -2611,7 +2687,7 @@ button[onclick*="hamburger"]:hover {
 @media (max-width: 600px) {
   .cf-fab { bottom:14px !important; right:14px !important; width:54px !important; height:54px !important; }
   .cf-presence { right:20px !important; bottom:108px !important; }
-  .cf-panel { width:calc(100vw - 16px) !important; right:8px !important; bottom:100px !important; height:75vh !important; left:8px !important; }
+  .cf-panel { width:calc(100vw - 16px) !important; right:8px !important; bottom:100px !important; height:75vh !important; height:75dvh !important; left:8px !important; max-height:calc(100dvh - 80px) !important; }
   .cf-toast { right:8px !important; max-width:calc(100vw - 100px) !important; bottom:108px !important; }
 }
 

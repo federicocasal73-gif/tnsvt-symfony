@@ -16,7 +16,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.webp') }}" type="image/webp">
+    <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}" type="image/png">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
 {% block stylesheets %}
@@ -537,11 +538,7 @@
 
         <!-- AVATAR del usuario actual — click = menú perfil -->
         <div class="avatar-wrap" id="myAvatarWrap" style="position:relative;">
-          <div class="user-avatar" id="myAvatar" data-user-avatar
-               style="width:36px;height:36px;border-radius:50%;background:var(--violet);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;cursor:pointer;border:2px solid rgba(212,175,55,0.4);transition:all 0.2s;color:#fff;overflow:hidden;"
-               title="Mi perfil">
-            ?
-          </div>
+          <div class="user-avatar" id="myAvatar" data-user-avatar style="width:36px;height:36px;border-radius:50%;background:var(--violet);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;cursor:pointer;border:2px solid rgba(212,175,55,0.4);transition:all 0.2s;color:#fff;overflow:hidden;" title="Mi perfil">   </div>
         </div>
       </div>
     </div>
@@ -2959,7 +2956,9 @@
               <button class="tj-tool-btn" onclick="tjExportHTML()">📄 HTML</button>
               <button class="tj-tool-btn" onclick="tjExport()">💾 JSON</button>
               <label class="tj-tool-btn" style="cursor:pointer;">⬆️ Importar<input type="file" accept="application/json" style="display:none;" onchange="tjImport(this)"></label>
+              <button class="tj-tool-btn" id="tj-sync-btn" onclick="tjSync()" style="display:inline-flex;align-items:center;gap:4px;">🔄 Sync <span id="tj-sync-badge" style="display:none;background:#d4af37;color:#0a0712;border-radius:50%;width:18px;height:18px;font-size:0.6rem;font-weight:700;display:none;align-items:center;justify-content:center;"></span></button>
             </div>
+            <div id="tj-sync-status" style="display:none;text-align:right;font-size:0.65rem;color:var(--gold-dim);margin-bottom:8px;"></div>
 
             <!-- DASHBOARD PANEL -->
             <div class="tj-panel active" id="tj-dash">
@@ -4046,7 +4045,7 @@
 <div class="cf-presence" id="cfPresence" style="display:none;"></div>
 
 <div class="cf-toast" id="cfToast" onclick="CF.openConv(this.dataset.convId)">
-  <div class="cf-toast-av" id="cfToastAv">?</div>
+  <div class="cf-toast-av" id="cfToastAv"></div>
   <div class="cf-toast-content">
     <div class="cf-toast-name" id="cfToastName">—</div>
     <div class="cf-toast-text" id="cfToastText">—</div>
@@ -4208,7 +4207,7 @@
           avatar: c.other_user_avatar_url || '',
           online: c.online || false,
           isGroup: c.type === 'group',
-          time: c.last_message?.created_at || c.created_at || '',
+          time: c.last_message?.created_at_display || c.created_at_display || '',
           preview: c.last_message?.content || '',
           unread: c.unread_count || 0,
         }));
