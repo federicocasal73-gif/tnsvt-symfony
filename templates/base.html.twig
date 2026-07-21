@@ -40,15 +40,19 @@
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}" type="image/png">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
+{% set lw_ver = asset('js/lightweight-charts.standalone.production.js')|split('?')|first|split('/')|last|length ~ '_' ~ 'now'|date('U') %}
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/app.css') }}?v={{ 'now'|date('U') }}">
-    <link rel="stylesheet" href="{{ asset('styles/apk-layout-fix.css') }}?v={{ 'now'|date('U') }}">
-    <link rel="stylesheet" href="{{ asset('styles/web-glowup.css') }}?v={{ 'now'|date('U') }}">
-    <link rel="stylesheet" href="{{ asset('styles/apk-glowup.css') }}?v={{ 'now'|date('U') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('styles/apk-layout-fix.css') }}">
+    <link rel="stylesheet" href="{{ asset('styles/web-glowup.css') }}">
+    <link rel="stylesheet" href="{{ asset('styles/apk-glowup.css') }}">
 {% endblock %}
-    <script src="{{ asset('api.js') }}?v={{ 'now'|date('U') }}"></script>
-    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v={{ 'now'|date('U') }}"></script>
-    <script src="{{ asset('chart.js') }}?v={{ 'now'|date('U') }}"></script>
+    <script src="{{ asset('api.js') }}" defer></script>
+    <script src="{{ asset('chart.js') }}" defer></script>
+    <script src="{{ asset('js/lightweight-charts.standalone.production.js') }}?v={{ lw_ver }}" defer></script>
    {% block javascripts %}
       {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
@@ -67,15 +71,18 @@
           imap.textContent = JSON.stringify(data);
         } catch (_) {}
       })();
-// ─── Watchdog: si a los 4s no hay funciones críticas, forzar reload ───
+// ─── Watchdog: si a los 20s no hay funciones críticas, recargar (máx 1 vez) ───
       setTimeout(function(){
+        var reloaded = sessionStorage.getItem('tnsvt_watchdog_reload');
+        if (reloaded) { console.warn('[TNSVT] Watchdog ya recargó antes, aborto'); return; }
         if (typeof window.API === 'undefined' || typeof window.fetch !== 'function') {
-          console.warn('[TNSVT] Assets no cargaron — recargando con cache-bust');
+          console.warn('[TNSVT] Assets no cargaron — recargando una vez');
+          sessionStorage.setItem('tnsvt_watchdog_reload', '1');
           var u = location.href.split('#')[0];
           u += (u.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
           location.replace(u);
         }
-      }, 4000);
+      }, 20000);
 
 // ─── ⛧ Fresh nuclear: si ?fresh=1, limpiar TODO (Cache Storage + SW + localStorage) ───
       (async function tnsvtFreshNuclear() {

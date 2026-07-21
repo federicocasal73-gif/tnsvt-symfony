@@ -3,7 +3,7 @@
    Reino del Cristo Íntegro — Neuro-Spiritual Value Theory
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+/* Fonts now loaded via <link> in base.html.twig for faster discovery */
 
   :root {
     --bg: #030106;
@@ -3101,6 +3101,8 @@ button[onclick*="hamburger"]:hover {
 @media (max-width: 950px), (pointer: coarse) and (max-width: 1366px) {
   html, body { min-height: 100dvh; -webkit-tap-highlight-color: transparent; }
   .app-container, #login-screen, .trading-main, .gate-box { min-height: 100dvh; }
+  /* Canvas fixed usa 100dvh para seguir el resize de la address bar */
+  canvas { height: 100dvh; }
   /* Forzar font-size 16px en inputs para evitar auto-zoom en iOS Safari WebView */
   input:not([type="checkbox"]):not([type="radio"]),
   select, textarea { font-size: max(16px, 0.85rem) !important; }
@@ -3118,4 +3120,9 @@ button[onclick*="hamburger"]:hover {
   .cf-panel, #chat-floating-panel, .cf-toast {
     max-height: min(75dvh, calc(100vh - 100px)) !important;
   }
+}
+
+/* Pantallas muy chicas: reducir padding del gate-box para que no desborde */
+@media (max-width: 480px) {
+  .gate-box { padding: 30px 20px; }
 }
