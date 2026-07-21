@@ -31,11 +31,14 @@ class FeedPost
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $comments = null;
 
-    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[ORM\Column(name: 'signal_data', type: Types::JSON, nullable: true)]
     private ?array $signal = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $photo = null;
+
+    #[ORM\Column(name: 'link_previews', type: Types::JSON, nullable: true)]
+    private ?array $linkPreviews = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private ?\DateTimeImmutable $createdAt = null;
@@ -67,6 +70,9 @@ class FeedPost
 
     public function getPhoto(): ?string { return $this->photo; }
     public function setPhoto(?string $photo): static { $this->photo = $photo; return $this; }
+
+    public function getLinkPreviews(): ?array { return $this->linkPreviews; }
+    public function setLinkPreviews(?array $linkPreviews): static { $this->linkPreviews = $linkPreviews; return $this; }
 
     public function getCreatedAt(): ?\DateTimeImmutable { return $this->createdAt; }
     public function setCreatedAt(\DateTimeImmutable $createdAt): static { $this->createdAt = $createdAt; return $this; }

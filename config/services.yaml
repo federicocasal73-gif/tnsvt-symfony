@@ -6,12 +6,21 @@
 
 parameters:
     app.firebase.credentials_path: '%env(default::FIREBASE_CREDENTIALS_PATH)%'
+    app.link_preview.cache_ttl: 86400
+    app.link_preview.max_download: 2097152
+    app.link_preview.http_timeout: 5.0
+    app.link_preview.upload_dir: '%kernel.project_dir%/public/uploads/link-previews'
 
 services:
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            $cacheTtl: '%app.link_preview.cache_ttl%'
+            $maxDownloadBytes: '%app.link_preview.max_download%'
+            $httpTimeout: '%app.link_preview.http_timeout%'
+            $uploadDir: '%app.link_preview.upload_dir%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -33,6 +42,20 @@ services:
             $mercureUrl: '%mercure.url%'
             $mercurePublicUrl: '%mercure.public_url%'
             $jwtSecret: '%mercure.jwt_secret%'
+
+    # Screenshot provider is null by default. Replace with Playwright impl later.
+    App\Service\LinkPreview\ScreenshotProviderInterface:
+        alias: App\Service\LinkPreview\NullScreenshotProvider
+
+    # Tag all SiteEnricherInterface implementations for iterable injection.
+    _instanceof:
+        App\Service\LinkPreview\SiteEnrichers\SiteEnricherInterface:
+            tags: ['app.link_preview.enricher']
+
+    # LinkPreviewService receives the iterable of tagged enrichers.
+    App\Service\LinkPreview\LinkPreviewService:
+        arguments:
+            $enrichers: !tagged_iterator app.link_preview.enricher
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -75,9 +75,11 @@ class RateLimiterService
         static $exists = false;
         if ($exists) return;
 
-        $driver = $conn->getDatabasePlatform()->getName();
-        $isPostgres = $driver === 'postgresql';
-        $isSqlite = $driver === 'sqlite';
+        $platform = $conn->getDatabasePlatform();
+        $class = $platform::class;
+        $isPostgres = $platform instanceof \Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+        $isMysql = $platform instanceof \Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+        $isSqlite = $platform instanceof \Doctrine\DBAL\Platforms\SQLitePlatform;
 
         if ($isPostgres) {
             $conn->executeStatement('CREATE TABLE IF NOT EXISTS ' . self::TABLE_NAME . ' (
@@ -86,6 +88,17 @@ class RateLimiterService
                 created_at INTEGER NOT NULL,
                 expires_at INTEGER NOT NULL
             )');
+            $conn->executeStatement('CREATE INDEX IF NOT EXISTS idx_rl_key ON ' . self::TABLE_NAME . ' (key_name)');
+            $conn->executeStatement('CREATE INDEX IF NOT EXISTS idx_rl_expires ON ' . self::TABLE_NAME . ' (expires_at)');
+        } elseif ($isMysql) {
+            $conn->executeStatement('CREATE TABLE IF NOT EXISTS ' . self::TABLE_NAME . ' (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                key_name VARCHAR(128) NOT NULL,
+                created_at INT NOT NULL,
+                expires_at INT NOT NULL,
+                INDEX idx_rl_key (key_name),
+                INDEX idx_rl_expires (expires_at)
+            )');
         } else {
             $conn->executeStatement('CREATE TABLE IF NOT EXISTS ' . self::TABLE_NAME . ' (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,10 +106,9 @@ class RateLimiterService
                 created_at INTEGER NOT NULL,
                 expires_at INTEGER NOT NULL
             )');
+            $conn->executeStatement('CREATE INDEX IF NOT EXISTS idx_rl_key ON ' . self::TABLE_NAME . ' (key_name)');
+            $conn->executeStatement('CREATE INDEX IF NOT EXISTS idx_rl_expires ON ' . self::TABLE_NAME . ' (expires_at)');
         }
-
-        $conn->executeStatement('CREATE INDEX IF NOT EXISTS idx_rl_key ON ' . self::TABLE_NAME . ' (key_name)');
-        $conn->executeStatement('CREATE INDEX IF NOT EXISTS idx_rl_expires ON ' . self::TABLE_NAME . ' (expires_at)');
 
         $exists = true;
     }

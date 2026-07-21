@@ -248,19 +248,23 @@ window.sb = window.API;
           const data = await sb.login(code, name, password);
           if (!data.success || !data.user) {
             const err = data.error || 'Código inválido';
+            const code_ = (data && data.error_code) || '';
             let friendly = '❌ ' + err;
-            if (/password|contrase/i.test(err)) {
+            if (/password|contrase/i.test(err) || /admin_password/.test(code_)) {
               friendly = '❌ Contraseña incorrecta. Consultá al administrador.';
-            } else if (/nombre.*incorrecto|usuario.*incorrecto/i.test(err)) {
+            } else if (/nombre.*incorrecto|usuario.*incorrecto/i.test(err) || /name_invalid/.test(code_)) {
               friendly = '❌ Nombre de usuario incorrecto. Revisá que sea el que te dió el administrador.';
-            } else if (/invalido|desactivado/i.test(err)) {
+            } else if (/invalido|desactivado/i.test(err) || /invalid_code/.test(code_)) {
               friendly = '❌ Código inválido o desactivado. Revisá que esté bien escrito.';
             } else if (/requerida/i.test(err)) {
               friendly = '⚠️ Este código es de admin — necesitás contraseña.';
+            } else if (/server|caído|reintent|timeout|conexi/i.test(err)) {
+              friendly = '🌐 ' + err;
             }
             showLoginError(friendly);
             const passEl = document.getElementById('gatePass');
-            if (passEl) { passEl.value = ''; passEl.focus(); }
+            if (passEl && /admin_password_required/.test(code_)) { passEl.focus(); }
+            else if (passEl) { passEl.value = ''; passEl.focus(); }
             return;
           }
           const isAdmin = data.user.isAdmin || false;
@@ -305,7 +309,14 @@ window.sb = window.API;
           // Mostrar el botón ⚙️ Admin INMEDIATAMENTE después del login
           applyAdminFeatures(isAdmin);
         } catch (e) {
-          showLoginError("❌ Error de conexión: " + (e.message || 'intentá de nuevo'));
+          const m = (e && e.message) || '';
+          if (/Failed to fetch|NetworkError|network/i.test(m)) {
+            showLoginError('🌐 Sin conexión con el server. Verificá tu red o que https://tnsvt.com esté online.');
+          } else if (/c[oó]digo|contrase[ñn]a|invalid|unauthor/i.test(m)) {
+            showLoginError('❌ ' + m);
+          } else {
+            showLoginError("❌ Error: " + (m || 'intentá de nuevo'));
+          }
         } finally {
           if (loginBtn) { loginBtn.disabled = false; loginBtn.innerText = 'ENTRAR AL GATEWAY'; }
         }
@@ -1612,23 +1623,306 @@ window.sb = window.API;
       function tjImport(input) {
         const file = input.files[0];
         if (!file) return;
+        const name = (file.name || '').toLowerCase();
         const reader = new FileReader();
         reader.onload = function(e) {
           try {
-            const data = JSON.parse(e.target.result);
-            if (!data.trades || !Array.isArray(data.trades)) throw new Error('formato');
-            if (!confirm(`Reemplazar ${tjTrades.length} trades por ${data.trades.length}?`)) return;
-            tjTrades = data.trades;
-            if (data.account) document.getElementById('tj-account-size').value = data.account;
-            localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
-            tjRefresh();
-            showToast('Journal importado: ' + data.trades.length + ' trades ✅');
+            const text = String(e.target.result || '');
+            if (name.endsWith('.json') || text.trim().startsWith('{')) {
+              tjImportJson(text, file);
+            } else if (name.endsWith('.csv') || text.includes(',') && text.split('\n')[0].includes(',')) {
+              tjImportCsv(text, file);
+            } else if (name.endsWith('.html') || name.endsWith('.htm') || /<table/i.test(text)) {
+              tjImportHtml(text, file);
+            } else {
+              throw new Error('Formato no soportado');
+            }
           } catch (err) {
-            alert('Archivo inválido.');
+            alert('Archivo inválido: ' + (err.message || err));
           }
           input.value = '';
         };
+        reader.onerror = function() { alert('No se pudo leer el archivo.'); input.value = ''; };
         reader.readAsText(file);
+      }
+
+      const TJ_HEADER_ALIASES = {
+        date: ['date','fecha','datetime','created','created_at'],
+        account: ['account','cuenta'],
+        asset: ['asset','activo','symbol','instrument','par','ticker'],
+        dir: ['dir','direction','direccion','dirección','side'],
+        entry: ['entry','entrada','price','open','open_price'],
+        sl: ['sl','stop','stop_loss','stoploss'],
+        tp: ['tp','take_profit','takeprofit','target'],
+        result: ['result','resultado','outcome'],
+        pnl: ['pnl','p&l','profit','profit_loss','net'],
+        ratio: ['ratio','r:r','rr','risk_reward'],
+        notes: ['notes','notas','comment','comments','observaciones'],
+      };
+
+      function tjParseCsv(text) {
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        const rows = [];
+        let cur = [], field = '', inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const c = text[i];
+          if (inQuotes) {
+            if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+            else if (c === '"') { inQuotes = false; }
+            else { field += c; }
+          } else {
+            if (c === '"') inQuotes = true;
+            else if (c === ',') { cur.push(field); field = ''; }
+            else if (c === '\n' || c === '\r') {
+              if (c === '\r' && text[i+1] === '\n') i++;
+              cur.push(field); field = '';
+              if (cur.length > 1 || (cur[0] && cur[0].trim() !== '')) rows.push(cur);
+              cur = [];
+            } else field += c;
+          }
+        }
+        if (field !== '' || cur.length) { cur.push(field); if (cur.length > 1 || cur[0]) rows.push(cur); }
+        return rows;
+      }
+
+      function tjNormalizeDir(v) {
+        v = String(v || '').trim().toUpperCase();
+        if (['LONG','BUY','B','COMPRA','BULL'].includes(v)) return 'BUY';
+        if (['SHORT','SELL','S','VENTA','BEAR'].includes(v)) return 'SELL';
+        return v;
+      }
+
+      function tjNormalizeResult(v) {
+        v = String(v || '').trim().toUpperCase();
+        if (['WIN','W','TP','GANADA','TP_HIT'].includes(v)) return 'WIN';
+        if (['LOSS','L','SL','PERDIDA','SL_HIT'].includes(v)) return 'LOSS';
+        if (['BE','BREAKEVEN','BREAK_EVEN'].includes(v)) return 'BE';
+        return v;
+      }
+
+      function tjNormalizeDate(v) {
+        v = String(v || '').trim();
+        if (!v) return '';
+        const fmts = ['Y-m-d\\TH:i:s','Y-m-d H:i:s','Y-m-d H:i','d/m/Y H:i','d-m-Y H:i','Y-m-d','d/m/Y'];
+        for (const f of fmts) {
+          const re = f
+            .replace(/Y/g, '(\\d{4})').replace(/m/g, '(\\d{2})').replace(/d/g, '(\\d{2})')
+            .replace(/H/g, '(\\d{2})').replace(/i/g, '(\\d{2})').replace(/s/g, '(\\d{2})');
+          const m = new RegExp('^' + re + '$').exec(v);
+          if (m) {
+            const y = m[1], mo = m[2], d = m[3];
+            const hh = m[4] || '00', mm = m[5] || '00', ss = m[6] || '00';
+            return `${y}-${mo}-${d}T${hh}:${mm}:${ss}`;
+          }
+        }
+        const ts = Date.parse(v);
+        if (!isNaN(ts)) {
+          const d = new Date(ts);
+          const pad = n => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+        return v;
+      }
+
+      function tjMapHeaders(header) {
+        const map = {};
+        header.forEach((h, i) => {
+          let n = String(h || '').toLowerCase().trim().replace(/[\s\-\/]/g, '_');
+          for (const [field, aliases] of Object.entries(TJ_HEADER_ALIASES)) {
+            if (aliases.includes(n) && map[field] === undefined) map[field] = i;
+          }
+        });
+        return map;
+      }
+
+      function tjTradesFromRows(rows, headerIndex) {
+        const map = tjMapHeaders(rows[0] || []);
+        if (map.asset === undefined || map.dir === undefined) {
+          throw new Error('Faltan columnas requeridas (asset, dir)');
+        }
+        const out = [];
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          if (!row || row.length < 2) continue;
+          const trade = {};
+          for (const [field, idx] of Object.entries(map)) {
+            trade[field] = String(row[idx] ?? '').trim();
+          }
+          trade.dir = tjNormalizeDir(trade.dir);
+          trade.result = tjNormalizeResult(trade.result);
+          trade.pnl = String(trade.pnl || '').replace(',', '.').replace(/[^0-9\.\-]/g, '');
+          trade.date = tjNormalizeDate(trade.date);
+          if (!trade.asset && !trade.dir) continue;
+          out.push(trade);
+        }
+        if (out.length === 0) throw new Error('Sin filas válidas');
+        return out;
+      }
+
+      function tjParseCsvText(text) {
+        const rows = tjParseCsv(text);
+        if (rows.length < 2) throw new Error('CSV vacío o sin filas');
+        return tjTradesFromRows(rows);
+      }
+
+      function tjParseHtmlText(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const table = doc.querySelector('table');
+        if (!table) throw new Error('HTML sin tabla de trades');
+        let headerRow = table.querySelector('thead tr') || table.querySelector('tr');
+        if (!headerRow) throw new Error('HTML sin fila de encabezados');
+        let headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+        if (headers.length === 0) headers = Array.from(headerRow.querySelectorAll('td')).map(td => td.textContent.trim());
+        if (headers.length === 0) throw new Error('HTML sin encabezados');
+
+        const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+        const rows = bodyRows.length ? [headers, ...bodyRows.map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent.trim()))] : [];
+        if (rows.length < 2) {
+          const trs = Array.from(table.querySelectorAll('tr')).slice(1);
+          return tjTradesFromRows([headers, ...trs.map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent.trim()))]);
+        }
+        return tjTradesFromRows(rows);
+      }
+
+      function tjTradeKey(t) {
+        const date = tjNormalizeDate(t.date || '');
+        const asset = String(t.asset || '').toUpperCase().trim();
+        const dir = tjNormalizeDir(t.dir || '');
+        const entry = String(t.entry || '').replace(',', '.').replace(/[^0-9\.\-]/g, '');
+        if (!date || !asset || !dir) return null;
+        return `${date}|${asset}|${dir}|${entry}`;
+      }
+
+      function tjMergeDedup(existing, incoming) {
+        const byKey = new Map();
+        for (const t of existing) {
+          const k = tjTradeKey(t);
+          if (k) byKey.set(k, t);
+        }
+        let added = 0, skipped = 0;
+        for (const t of incoming) {
+          const k = tjTradeKey(t);
+          if (!k) continue;
+          if (byKey.has(k)) {
+            const merged = { ...byKey.get(k) };
+            for (const [f, v] of Object.entries(t)) {
+              if (v !== '' && v !== null && v !== undefined) merged[f] = v;
+            }
+            byKey.set(k, merged);
+            skipped++;
+          } else {
+            byKey.set(k, t);
+            added++;
+          }
+        }
+        return { trades: Array.from(byKey.values()), added, skipped };
+      }
+
+      function tjNormalizeImportedTrade(t, accountCode) {
+        const now = new Date().toISOString();
+        return {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          date: t.date || now,
+          asset: (t.asset || '').toUpperCase(),
+          dir: t.dir || 'BUY',
+          result: t.result || 'OPEN',
+          entry: t.entry ?? '',
+          sl: t.sl ?? '',
+          tp: t.tp ?? '',
+          pnl: parseFloat(t.pnl) || 0,
+          ratio: t.ratio ?? '',
+          notes: t.notes ?? '',
+          tags: [],
+          photos: [],
+          user_code: accountCode || window.TNSVT_USER?.code || '',
+          account_id: null,
+          _syncing: true,
+        };
+      }
+
+      async function tjImportJson(text, file) {
+        const data = JSON.parse(text);
+        if (!data.trades || !Array.isArray(data.trades)) throw new Error('formato JSON inválido');
+        if (!confirm(`Reemplazar ${tjTrades.length} trades por ${data.trades.length}?`)) return;
+        tjTrades = data.trades;
+        if (data.account) { const el = document.getElementById('tj-account-size'); if (el) el.value = data.account; }
+        localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
+        tjRefresh();
+        showToast('Journal importado: ' + data.trades.length + ' trades ✅');
+      }
+
+      async function tjImportCsv(text, file) {
+        const incoming = tjParseCsvText(text);
+        tjShowImportPreview(incoming, file.name);
+      }
+
+      async function tjImportHtml(text, file) {
+        const incoming = tjParseHtmlText(text);
+        tjShowImportPreview(incoming, file.name);
+      }
+
+      function tjShowImportPreview(incoming, fileName) {
+        const existing = JSON.parse(localStorage.getItem('tj_trades') || '[]');
+        const merged = tjMergeDedup(existing, incoming);
+        const modal = document.getElementById('tj-import-modal');
+        const summary = document.getElementById('tj-import-summary');
+        const table = document.getElementById('tj-import-table');
+        if (!modal || !summary || !table) {
+          const r = confirm(`Importar ${incoming.length} trades a tu journal? (${merged.added} nuevos, ${merged.skipped} duplicados)`);
+          if (!r) return;
+          tjTrades = merged.trades;
+          localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
+          tjRefresh();
+          showToast(`✅ ${merged.added} importados, ${merged.skipped} duplicados`);
+          return;
+        }
+        summary.innerHTML =
+          `<div style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:var(--gold);margin-bottom:8px;">📥 Importar "${fileName}"</div>` +
+          `<div style="font-size:0.75rem;color:#a89bc5;margin-bottom:12px;">` +
+          `<b style="color:var(--green);">${merged.added} nuevos</b> · ` +
+          `<b style="color:var(--gold);">${merged.skipped} duplicados</b> · ` +
+          `Total final: <b>${merged.trades.length}</b></div>`;
+        const preview = merged.trades.slice(-Math.min(8, merged.trades.length));
+        table.innerHTML = '<tr style="font-size:0.65rem;color:var(--gold-dim);text-transform:uppercase;">'
+          + '<th>Fecha</th><th>Activo</th><th>Dir</th><th>Entry</th><th>Resultado</th><th>PNL</th>'
+          + '</tr>' +
+          preview.map(t => `<tr style="font-size:0.72rem;">`
+            + `<td style="padding:4px 8px;">${(t.date||'').replace('T',' ').slice(0,16)}</td>`
+            + `<td style="padding:4px 8px;"><b>${t.asset||''}</b></td>`
+            + `<td style="padding:4px 8px;color:${t.dir==='BUY'?'var(--green)':'var(--red)'};">${t.dir||''}</td>`
+            + `<td style="padding:4px 8px;">${t.entry||''}</td>`
+            + `<td style="padding:4px 8px;">${t.result||''}</td>`
+            + `<td style="padding:4px 8px;">${t.pnl||''}</td>`
+            + `</tr>`).join('');
+        modal.style.display = 'flex';
+        const confirmBtn = document.getElementById('tj-import-confirm');
+        const cancelBtn = document.getElementById('tj-import-cancel');
+        const close = () => { modal.style.display = 'none'; };
+        const onConfirm = async () => {
+          const code = window.TNSVT_USER?.code;
+          const newOnes = merged.trades.filter(t => !existing.some(e => tjTradeKey(e) === tjTradeKey(t)));
+          const normalized = newOnes.map(t => tjNormalizeImportedTrade(t, code));
+          const final = existing.map(e => merged.trades.find(m => tjTradeKey(m) === tjTradeKey(e)) || e);
+          tjTrades = [...final, ...normalized];
+          localStorage.setItem('tj_trades', JSON.stringify(tjTrades));
+          tjRefresh();
+          tjUpdateSyncBadge();
+          showToast(`✅ ${merged.added} importados, ${merged.skipped} duplicados — sincronizando…`);
+          close();
+          confirmBtn?.removeEventListener('click', onConfirm);
+          cancelBtn?.removeEventListener('click', onCancel);
+          if (typeof tjSync === 'function' && normalized.length > 0) {
+            try { await tjSync(); } catch (e) { console.warn('Auto-sync:', e); }
+          }
+        };
+        const onCancel = () => {
+          close();
+          confirmBtn?.removeEventListener('click', onConfirm);
+          cancelBtn?.removeEventListener('click', onCancel);
+        };
+        confirmBtn?.addEventListener('click', onConfirm);
+        cancelBtn?.addEventListener('click', onCancel);
       }
 
       function tjPeriod(period, btn) {
@@ -2698,6 +2992,36 @@ window.sb = window.API;
         return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
       }
 
+      function renderLinkPreviews(previews) {
+        if (!previews || !previews.length) return '';
+        return '<div class="lp-stack">' + previews.map(function(lp) {
+          var href = escapeHtml(lp.url || '#');
+          var domain = escapeHtml(lp.domain || '');
+          var title = escapeHtml(lp.title || domain);
+          var desc = escapeHtml((lp.description || '').substring(0, 160));
+          var img = lp.image_external || '';
+          var favicon = lp.favicon_external || '';
+          var kind = lp.enriched && lp.enriched.kind || 'generic';
+          var extraCls = 'lp-card-' + escapeHtml(kind);
+          var hasImage = img ? ' lp-has-img' : '';
+          var imageHtml = img ? '<div class="lp-thumb"><img src="' + escapeHtml(img) + '" alt="" loading="lazy"></div>' : '';
+          var faviconHtml = favicon ? '<img src="' + escapeHtml(favicon) + '" alt="" class="lp-favicon" onerror="this.style.display=\'none\'">' : '<div class="lp-favicon lp-favicon-fallback">' + domain.charAt(0).toUpperCase() + '</div>';
+          var tickerHtml = '';
+          if (kind === 'tradingview' && lp.enriched && lp.enriched.ticker) {
+            var ticker = escapeHtml(lp.enriched.ticker);
+            tickerHtml = '<div class="lp-ticker-badge" onclick="window.open(\'' + escapeHtml(href) + '\',\'_blank\')">' + ticker + ' ↗</div>';
+          }
+          return '<div class="lp-card ' + extraCls + hasImage + '" onclick="window.open(\'' + escapeHtml(href) + '\',\'_blank\')">'
+            + imageHtml
+            + '<div class="lp-body">'
+            + '<div class="lp-header">' + faviconHtml + '<span class="lp-domain">' + domain + '</span>' + tickerHtml + '</div>'
+            + '<div class="lp-title">' + (title || domain) + '</div>'
+            + (desc ? '<div class="lp-desc">' + desc + '</div>' : '')
+            + '</div>'
+            + '</div>';
+        }).join('') + '</div>';
+      }
+
       async function renderFeed() {
         const container = document.getElementById('postsFeed');
         if (!container) return;
@@ -2788,7 +3112,7 @@ window.sb = window.API;
                   ${deleteBtn}
                 </div>
                 <div class="signal-body">${sanitizePostText(p.text)}</div>
-                ${photoHtml}${signalHtml}
+                ${photoHtml}${signalHtml}${renderLinkPreviews(p.link_previews)}
                 <div class="signal-actions">
                   <div class="signal-action ${iLiked ? 'liked' : ''}" data-like-id="${safeId}" onclick="likeFeedPost('${safeId}')" style="${iLiked ? 'color:var(--gold-bright);' : ''}">
                     ${iLiked ? '♥' : '♡'} <span class="act-count">${p.likes || 0}</span>
@@ -4658,6 +4982,10 @@ window.sb = window.API;
       window.tjEditTrade = tjEditTrade;
       window.tjExport = tjExport;
       window.tjImport = tjImport;
+      window.tjParseCsvText = tjParseCsvText;
+      window.tjParseHtmlText = tjParseHtmlText;
+      window.tjMergeDedup = tjMergeDedup;
+      window.tjTradeKey = tjTradeKey;
       window.tjPeriod = tjPeriod;
       window.tjRefresh = tjRefresh;
       window.tjCalNav = tjCalNav;
@@ -4677,6 +5005,7 @@ window.sb = window.API;
       window.attachCommentPhoto = attachCommentPhoto;
       window.removeCommentPhoto = removeCommentPhoto;
       window.renderFeed = renderFeed;
+      window.renderLinkPreviews = renderLinkPreviews;
       window.initFeedRealtime = initFeedRealtime;
       window.renderAcademia = renderAcademia;
       window.openAcadCourse = openAcadCourse;
@@ -4782,6 +5111,33 @@ window.sb = window.API;
       window.adminMusicSetActive = adminMusicSetActive;
       window.adminMusicRemove = adminMusicRemove;
       window.adminMusicSetExternal = adminMusicSetExternal;
+
+      async function tnsvtClearCacheAndReload() {
+        const statusEl = document.getElementById('appCacheClearStatus');
+        const btn = document.getElementById('appCacheClearBtn');
+        if (btn) { btn.disabled = true; btn.innerText = '⏳ Limpiando…'; }
+        if (statusEl) { statusEl.style.color = 'var(--gold-bright)'; statusEl.textContent = 'Eliminando Service Worker + cache…'; }
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister().catch(() => null)));
+          }
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          try {
+            const keys = ['tnsvt_user', 'tnsv_user', 'tnsvt_cf_sound'];
+            for (const k of keys) localStorage.removeItem(k);
+          } catch (_) {}
+          if (statusEl) statusEl.textContent = '✅ Cache purgada. Recargando en 1s…';
+          setTimeout(() => { try { window.location.reload(true); } catch (_) { window.location.reload(); } }, 800);
+        } catch (e) {
+          if (statusEl) { statusEl.style.color = '#ff3b30'; statusEl.textContent = '❌ Error: ' + (e.message || e); }
+          if (btn) { btn.disabled = false; btn.innerText = '🔄 Actualizar ahora'; }
+        }
+      }
+      window.tnsvtClearCacheAndReload = tnsvtClearCacheAndReload;
 
       // ==================== PLAYER DE MÚSICA DE FONDO (PLAYLIST + VISUALIZER) ====================
       var bgAudio = null;

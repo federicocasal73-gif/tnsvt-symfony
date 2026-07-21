@@ -97,3 +97,6 @@ qa_screenshots/
 
 tools/
 
+# Windows reserved device name (accidental file creation)
+/NUL
+

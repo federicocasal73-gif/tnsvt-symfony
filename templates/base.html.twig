@@ -16,6 +16,26 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<script>
+  // TNSVT v4.22 — SW killer de un solo uso.
+  // Desregistra cualquier SW viejo y borra caches previos para evitar que
+  // la APK siga mostrando JS desactualizado tras deploys (no requiere
+  // que el usuario borre datos manualmente desde Ajustes).
+  (function() {
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { try { r.unregister(); } catch (_) {} });
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        });
+      }
+    } catch (_) {}
+  })();
+</script>
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.webp') }}" type="image/webp">
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}" type="image/png">
 <title>{% block title %}T.N.S.V.T - Reino del Cristo Íntegro{% endblock %}</title>
@@ -196,6 +216,27 @@
 
   .mf-reset-btn { padding:10px 24px; background:transparent; border:1px solid rgba(138,60,255,0.35); border-radius:8px; color:#c4a0ff; font-family:'Orbitron',sans-serif; font-size:0.65rem; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
   .mf-reset-btn:hover { background:rgba(138,60,255,0.1); }
+
+  /* ===== OFFLINE BANNER (Phase 1 offline-resilient APK) ===== */
+  #tnsvt-offline-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+    padding: 10px 16px; display: none; align-items: center; justify-content: center;
+    gap: 10px; font-size: 0.78rem; font-weight: 600; text-align: center;
+    background: linear-gradient(90deg, #c327fb, #8a3cff); color: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5); padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    animation: tnsvtBannerSlide 0.3s ease;
+  }
+  #tnsvt-offline-banner.show { display: flex; }
+  #tnsvt-offline-banner.warn { background: linear-gradient(90deg, #d97706, #f59e0b); }
+  #tnsvt-offline-banner > button {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem;
+    cursor: pointer; flex-shrink: 0;
+  }
+  @keyframes tnsvtBannerSlide {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 
   /* ===== MÚSICA: BARRA PERSISTENTE (TIPO SPOTIFY) ===== */
   #musicPlayerBar {
@@ -2955,10 +2996,22 @@
               <button class="tj-tool-btn" onclick="tjExportCSV()">⬇️ CSV</button>
               <button class="tj-tool-btn" onclick="tjExportHTML()">📄 HTML</button>
               <button class="tj-tool-btn" onclick="tjExport()">💾 JSON</button>
-              <label class="tj-tool-btn" style="cursor:pointer;">⬆️ Importar<input type="file" accept="application/json" style="display:none;" onchange="tjImport(this)"></label>
+              <label class="tj-tool-btn" style="cursor:pointer;">⬆️ Importar<input id="tj-import-input" type="file" accept=".json,application/json,.csv,text/csv,.html,.htm,text/html" style="display:none;" onchange="tjImport(this)"></label>
               <button class="tj-tool-btn" id="tj-sync-btn" onclick="tjSync()" style="display:inline-flex;align-items:center;gap:4px;">🔄 Sync <span id="tj-sync-badge" style="display:none;background:#d4af37;color:#0a0712;border-radius:50%;width:18px;height:18px;font-size:0.6rem;font-weight:700;display:none;align-items:center;justify-content:center;"></span></button>
             </div>
             <div id="tj-sync-status" style="display:none;text-align:right;font-size:0.65rem;color:var(--gold-dim);margin-bottom:8px;"></div>
+
+            <div id="tj-import-modal" style="display:none;position:fixed;inset:0;z-index:100040;background:rgba(5,3,15,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+              <div style="background:linear-gradient(135deg,#15102a,#0d0818);border:1px solid rgba(212,175,55,0.35);border-radius:14px;padding:20px;max-width:min(560px,92vw);max-height:80vh;overflow:auto;color:#fff;box-shadow:0 24px 60px rgba(0,0,0,0.6);">
+                <div id="tj-import-summary"></div>
+                <div style="font-size:0.7rem;color:var(--gold-dim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px;">Vista previa (últimos 8)</div>
+                <table id="tj-import-table" style="width:100%;border-collapse:collapse;"></table>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                  <button class="tj-tool-btn" id="tj-import-cancel">Cancelar</button>
+                  <button class="tj-tool-btn" id="tj-import-confirm" style="background:linear-gradient(135deg,var(--gold),#f4d060);color:#0a0712;font-weight:700;">✅ Importar</button>
+                </div>
+              </div>
+            </div>
 
             <!-- DASHBOARD PANEL -->
             <div class="tj-panel active" id="tj-dash">
@@ -3726,6 +3779,32 @@
         • Si tu dispositivo no tiene huella o falla, podés usar un PIN de respaldo.<br>
         • Si no configurás PIN y la huella no está disponible, no se puede activar el bloqueo.<br>
         • Podés desactivarlo en cualquier momento desde acá.
+      </div>
+    </div>
+
+    <div style="margin-top:18px; padding:14px 16px; background:rgba(13,8,24,0.7); border:1px solid rgba(212,175,55,0.25); border-radius:12px;">
+      <div style="font-size:0.85rem; color:var(--gold-bright); margin-bottom:6px;">🔄 Actualizar app (limpia cache)</div>
+      <div style="font-size:0.75rem; color:#a499b8; line-height:1.5; margin-bottom:10px;">
+        Si ves cambios que no se aplican o la app quedó con un error visual viejo, pulsá acá para borrar el Service Worker y la cache local sin desinstalar.
+      </div>
+      <button id="appCacheClearBtn" onclick="tnsvtClearCacheAndReload()" style="padding:8px 18px; border-radius:10px; border:1px solid rgba(212,175,55,0.4); background:rgba(212,175,55,0.1); color:var(--gold-bright); font-size:0.82rem; cursor:pointer; transition:all 0.2s;">🔄 Actualizar ahora</button>
+      <div id="appCacheClearStatus" style="font-size:0.72rem; margin-top:8px; color:#645a78;"></div>
+    </div>
+
+    <div style="margin-top:18px; padding:14px 16px; background:rgba(13,8,24,0.7); border:1px solid rgba(0,200,180,0.25); border-radius:12px;">
+      <div style="font-size:0.85rem; color:#67e8f9; margin-bottom:6px;">🌐 Servidor (backend)</div>
+      <div style="font-size:0.75rem; color:#a499b8; line-height:1.5; margin-bottom:10px;">
+        Esta APK funciona offline. Para conectarte al backend, ingresá la URL (sin barra final). Si querés reset, usa el botón "Volver a default".
+        <br><span style="color:var(--gold-dim);">Actual: <code id="tnsvt-current-api-base">—</code></span>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <input id="tnsvt-api-base-input" type="url" placeholder="https://tnsvt.com" style="flex:1; padding:9px 12px; background:rgba(9,5,18,0.8); border:1px solid rgba(0,200,180,0.3); border-radius:8px; color:#e2dcf0; font-size:0.85rem; outline:none;">
+        <button id="tnsvt-api-base-test" style="padding:9px 14px; border-radius:8px; border:1px solid rgba(0,200,180,0.4); background:rgba(0,200,180,0.1); color:#67e8f9; font-size:0.78rem; cursor:pointer; min-width:80px;">Test</button>
+        <button id="tnsvt-api-base-save" style="padding:9px 14px; border-radius:8px; border:1px solid rgba(52,199,89,0.4); background:rgba(52,199,89,0.1); color:#52c779; font-size:0.78rem; cursor:pointer; min-width:80px;">Guardar</button>
+      </div>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button id="tnsvt-api-base-reset" style="padding:6px 12px; border-radius:6px; border:1px solid rgba(212,175,55,0.25); background:transparent; color:var(--gold-dim); font-size:0.72rem; cursor:pointer;">↺ Volver a default</button>
+        <span id="tnsvt-api-base-status" style="font-size:0.72rem; align-self:center; color:#645a78;"></span>
       </div>
     </div>
   </div>
@@ -4760,6 +4839,12 @@
       </div>
     </div>
 
+<!-- ==================== OFFLINE BANNER (Phase 1 offline-resilient APK v4.23) ==================== -->
+<div id="tnsvt-offline-banner" role="status" aria-live="polite" hidden>
+  <span id="tnsvt-offline-banner-text">📡 Sin conexión — los cambios se guardan localmente</span>
+  <button id="tnsvt-offline-banner-retry" type="button">Reintentar</button>
+</div>
+
 <!-- ==================== MÚSICA: PLAYER + BARRA PERSISTENTE (BODY LEVEL) ==================== -->
 <audio id="bgMusicAudio" preload="auto" style="display:none;"></audio>
 
@@ -4834,6 +4919,181 @@
 </div>
 <script src="{{ asset('capacitor-bridge.js') }}?v={{ 'now'|date('U') }}" defer></script>
 <script src="{{ asset('fold-bridge.js') }}?v={{ 'now'|date('U') }}" defer></script>
+<script src="{{ asset('mutation-queue.js') }}?v={{ 'now'|date('U') }}" defer></script>
+
+<script>
+(function() {
+  // ── Offline banner + MutationQueue drain on reconnect ──
+  const banner = document.getElementById('tnsvt-offline-banner');
+  const bannerText = document.getElementById('tnsvt-offline-banner-text');
+  const bannerRetry = document.getElementById('tnsvt-offline-banner-retry');
+
+  function pendingCount() {
+    try { return (window.MutationQueue && window.MutationQueue.size) ? window.MutationQueue.size() : 0; }
+    catch (_) { return 0; }
+  }
+
+  function showOffline(show) {
+    if (!banner) return;
+    if (show) {
+      banner.removeAttribute('hidden');
+      banner.classList.add('show');
+      bannerText.textContent = '📡 Sin conexión — los cambios se guardan localmente y subirán al reconectar';
+    } else {
+      banner.classList.remove('show');
+      banner.setAttribute('hidden', '');
+    }
+  }
+
+  function showPending(n) {
+    if (!banner) return;
+    if (n > 0) {
+      banner.removeAttribute('hidden');
+      banner.classList.add('show', 'warn');
+      bannerText.textContent = '🔄 ' + n + ' cambio' + (n === 1 ? '' : 's') + ' pendiente' + (n === 1 ? '' : 's') + ' de sincronizar';
+    } else {
+      banner.classList.remove('warn');
+    }
+  }
+
+  async function drainPending() {
+    if (!window.API || !window.API.drainPending) return;
+    const r = await window.API.drainPending();
+    if (r && r.ok > 0) {
+      showToast('🔄 Sync: ' + r.ok + ' cambio' + (r.ok === 1 ? '' : 's') + ' sincronizado' + (r.ok === 1 ? '' : 's'));
+    }
+    showPending(pendingCount());
+    if (navigator.onLine) showOffline(false);
+  }
+
+  if (bannerRetry) bannerRetry.addEventListener('click', drainPending);
+
+  window.addEventListener('online', () => {
+    if (navigator.onLine) {
+      showOffline(false);
+      drainPending();
+    }
+  });
+  window.addEventListener('offline', () => { showOffline(true); });
+
+  // Hook al banner desde api.js
+  window.API = window.API || {};
+  window.API._pendingOpAdded = function () { showPending(pendingCount()); };
+  window.API._pendingOpDrained = function () { showPending(pendingCount()); };
+
+  // Estado inicial
+  if (!navigator.onLine) showOffline(true);
+  if (pendingCount() > 0) showPending(pendingCount);
+})();
+
+// ── API URL settings panel + first-run prompt (Phase 3 offline-first) ──
+(function() {
+  function getStoredApiBase() {
+    try { return localStorage.getItem('tnsvt_api_base') || ''; } catch (_) { return ''; }
+  }
+
+  // Sync UI whenever baseURL cambia
+  function refreshApiBaseUi() {
+    const cur = getStoredApiBase() || (window.API && window.API.DEFAULT_API_BASE) || '';
+    const code = document.getElementById('tnsvt-current-api-base');
+    if (code) code.textContent = cur;
+    const input = document.getElementById('tnsvt-api-base-input');
+    if (input && document.activeElement !== input) input.value = cur;
+  }
+  window.addEventListener('tnsvt:api-base-changed', refreshApiBaseUi);
+  setTimeout(refreshApiBaseUi, 200);
+
+  function setStatus(msg, ok) {
+    const el = document.getElementById('tnsvt-api-base-status');
+    if (el) {
+      el.style.color = ok ? '#52c779' : '#ff7066';
+      el.textContent = msg;
+    }
+  }
+
+  // Save
+  const saveBtn = document.getElementById('tnsvt-api-base-save');
+  if (saveBtn) saveBtn.addEventListener('click', () => {
+    const input = document.getElementById('tnsvt-api-base-input');
+    if (!input) return;
+    const url = input.value.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(url)) { setStatus('La URL debe empezar con http(s)://', false); return; }
+    if (window.API && window.API.setApiBase) {
+      window.API.setApiBase(url, true);
+      setStatus('✅ Guardado. Recargá para aplicar al baseURL.', true);
+    } else {
+      try { localStorage.setItem('tnsvt_api_base', url); } catch (_) {}
+      setStatus('✅ Guardado (recargá la app).', true);
+    }
+  });
+
+  // Reset
+  const resetBtn = document.getElementById('tnsvt-api-base-reset');
+  if (resetBtn) resetBtn.addEventListener('click', () => {
+    if (window.API && window.API.clearApiBase) window.API.clearApiBase();
+    else try { localStorage.removeItem('tnsvt_api_base'); } catch (_) {}
+    refreshApiBaseUi();
+    setStatus('↺ Reset a default. Recargá para aplicar.', true);
+  });
+
+  // Test (sin requerir login)
+  const testBtn = document.getElementById('tnsvt-api-base-test');
+  if (testBtn) testBtn.addEventListener('click', async () => {
+    const input = document.getElementById('tnsvt-api-base-input');
+    if (!input) return;
+    const url = input.value.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(url)) { setStatus('La URL debe empezar con http(s)://', false); return; }
+    setStatus('Probando…', true);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const r = await fetch(url.replace(/\/$/, '') + '/api/auth/check', { credentials: 'omit', signal: ctrl.signal });
+      clearTimeout(t);
+      if (r.ok) {
+        setStatus('✅ Alcanzable (HTTP ' + r.status + '). El backend responde.', true);
+      } else {
+        setStatus('⚠️ HTTP ' + r.status + '. El server está pero devolvió error.', false);
+      }
+    } catch (e) {
+      clearTimeout(t);
+      setStatus('❌ No se pudo alcanzar: ' + (e.message || 'network'), false);
+    }
+  });
+
+  // First-run prompt (sólo cuando no hay URL guardada)
+  setTimeout(() => {
+    if (getStoredApiBase()) return; // ya configurado
+    const isCap = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    const isBundled = location.protocol === 'https:' && location.hostname === 'localhost';
+    if (!isCap && !isBundled) return; // navegador tradicional sin necesidad
+    const existing = document.getElementById('tnsvt-apisetup-overlay');
+    if (existing) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'tnsvt-apisetup-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100100;background:rgba(5,3,15,0.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:18px;';
+    overlay.innerHTML = '<div style="background:linear-gradient(135deg,#15102a,#0d0818);border:1px solid rgba(212,175,55,0.4);border-radius:14px;padding:22px;max-width:min(440px,92vw);color:#fff;box-shadow:0 24px 60px rgba(0,0,0,0.6);">'
+      + '<div style="font-family:Cinzel,serif;font-size:1.2rem;color:#d4af37;letter-spacing:2px;margin-bottom:6px;">⛧ T.N.S.V.T ⛧</div>'
+      + '<div style="font-size:0.82rem;color:#a89bc5;margin-bottom:14px;line-height:1.5;">Esta APK funciona offline. Para conectarte al backend de TNSVT ingresá la URL completa (sin / al final). Podés cambiarla después en Seguridad → Servidor.</div>'
+      + '<input id="tnsvt-apisetup-input" type="url" placeholder="https://tnsvt.com" value="https://tnsvt.com" style="width:100%;padding:11px 14px;background:rgba(0,0,0,0.5);border:1px solid rgba(212,175,55,0.3);border-radius:8px;color:#fff;font-size:0.92rem;outline:none;margin-bottom:10px;">'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+      + '<button id="tnsvt-apisetup-later" style="padding:9px 16px;border-radius:8px;background:transparent;border:1px solid rgba(212,175,55,0.2);color:var(--gold-dim);font-size:0.82rem;cursor:pointer;">Más tarde (modo offline)</button>'
+      + '<button id="tnsvt-apisetup-ok" style="padding:9px 16px;border-radius:8px;background:linear-gradient(135deg,var(--gold),#f4d060);border:none;color:#0a0712;font-weight:700;font-size:0.82rem;cursor:pointer;">Guardar y conectar</button>'
+      + '</div></div>';
+    document.body.appendChild(overlay);
+    const input = document.getElementById('tnsvt-apisetup-input');
+    if (input) setTimeout(() => input.focus(), 50);
+    const ok = document.getElementById('tnsvt-apisetup-ok');
+    const later = document.getElementById('tnsvt-apisetup-later');
+    if (ok) ok.addEventListener('click', () => {
+      const v = (input && input.value || '').trim().replace(/\/+$/, '');
+      if (!/^https?:\/\//i.test(v)) { if (input) input.focus(); return; }
+      try { localStorage.setItem('tnsvt_api_base', v); } catch (_) {}
+      overlay.remove();
+      location.reload();
+    });
+    if (later) later.addEventListener('click', () => overlay.remove());
+  }, 600);
+})();
 
 <script>
 (function() {

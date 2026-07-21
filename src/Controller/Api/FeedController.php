@@ -8,6 +8,7 @@ use App\Repository\FeedPostRepository;
 use App\Repository\LikedPostRepository;
 use App\Repository\UserRepository;
 use App\Security\RateLimiterTrait;
+use App\Service\LinkPreview\LinkPreviewService;
 use App\Service\PushService;
 use App\Service\RateLimiterService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,7 @@ class FeedController extends AbstractController
         private UserRepository $userRepository,
         private PushService $pushService,
         private RateLimiterService $rateLimiter,
+        private LinkPreviewService $linkPreviewService,
     ) {}
 
     private function getCurrentUser(Request $request): ?\App\Entity\User
@@ -64,6 +66,7 @@ class FeedController extends AbstractController
                 'comments' => $p->getComments() ?? [],
                 'signal' => $signal ? (is_string($signal) ? json_decode($signal, true) : $signal) : null,
                 'photo' => $p->getPhoto(),
+                'link_previews' => $p->getLinkPreviews() ?? null,
                 'created_at' => $p->getCreatedAt()?->format('c'),
             ];
         }, $posts);
@@ -104,6 +107,29 @@ class FeedController extends AbstractController
 
         $this->em->persist($post);
         $this->em->flush();
+
+        // Link Preview: detect URLs in post text and generate previews.
+        $linkPreviews = [];
+        if (!empty($data['text']) && is_string($data['text'])) {
+            preg_match_all('/https?:\/\/[^\s]+/', $data['text'], $urlMatches);
+            $seen = [];
+            foreach ($urlMatches[0] ?? [] as $url) {
+                $normalized = rtrim($url, ".,;:!?\'\"");
+                if (isset($seen[$normalized])) continue;
+                $seen[$normalized] = true;
+                if (count($linkPreviews) >= 3) break; // max 3 previews per post
+                try {
+                    $preview = $this->linkPreviewService->preview($normalized);
+                    $linkPreviews[] = $preview->toArray();
+                } catch (\Throwable $e) {
+                    // Silently skip failed previews
+                }
+            }
+        }
+        if ($linkPreviews !== []) {
+            $post->setLinkPreviews($linkPreviews);
+            $this->em->flush();
+        }
 
         $isSignal = !empty($data['signal']);
         $type = $isSignal ? 'signal' : 'post';

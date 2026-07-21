@@ -58,6 +58,7 @@ public class MainActivity extends BridgeActivity {
             prefs.edit().remove(KEY_STARTUP_FAIL).remove("startup_first_fail_time").apply();
         }
 
+        android.webkit.WebView.setWebContentsDebuggingEnabled(true);
         try {
             getBridge().getWebView().getSettings().setBuiltInZoomControls(true);
             getBridge().getWebView().getSettings().setDisplayZoomControls(false);

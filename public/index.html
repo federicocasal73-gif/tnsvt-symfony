@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" id="tnsvt-viewport">
+<meta name="theme-color" content="#d4af37">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TNSVT">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="TNSVT">
+<meta name="description" content="T.N.S.V.T - Reino del Cristo Íntegro. Plataforma de trading, academia, música y comunidad para ejecutores.">
+<link rel="manifest" href="./manifest.json">
+<meta name="format-detection" content="telephone=no">
+<meta name="msapplication-tap-highlight" content="no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script>
+  (function() {
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { try { r.unregister(); } catch (_) {} });
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        });
+      }
+    } catch (_) {}
+  })();
+</script>
+    <link rel="apple-touch-icon" href="./icons/icon-192.webp" type="image/webp">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" type="image/png">
+<title>T.N.S.V.T - Reino del Cristo Íntegro</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⛧</text></svg>">
+    <link rel="stylesheet" href="./assets/styles/app-kijAKLp.css">
+<script src="./assets/api-Q7b4ep0.js"></script>
+<script src="./js/lightweight-charts.standalone.production.js"></script>
+<script src="./assets/chart-yvS873S.js"></script>
+<script type="importmap" data-turbo-track="reload">
+{
+    "imports": {
+        "app": "./assets/app-S86XJiY.js",
+        "@hotwired/stimulus": "./assets/vendor/@hotwired/stimulus/stimulus.index-S4zNcea.js",
+        "@symfony/stimulus-bundle": "./assets/@symfony/stimulus-bundle/loader-IOzBDLu.js",
+        "/assets/@symfony/stimulus-bundle/controllers.js": "./assets/@symfony/stimulus-bundle/controllers-l48UNx5.js",
+        "/assets/@symfony/ux-turbo/turbo_controller.js": "./assets/@symfony/ux-turbo/turbo_controller-bFCo5ub.js",
+        "/assets/@symfony/ux-turbo/mercure_stream_source_element.js": "./assets/@symfony/ux-turbo/mercure_stream_source_element-XIjPTus.js",
+        "/assets/controllers/hello_controller.js": "./assets/controllers/hello_controller-VYgvytJ.js",
+        "/assets/controllers/csrf_protection_controller.js": "./assets/controllers/csrf_protection_controller-6ynUAeX.js",
+        "@hotwired/turbo": "./assets/vendor/@hotwired/turbo/turbo.index-dF2AMYF.js"
+    }
+}
+</script>
+<link rel="modulepreload" href="./assets/app-S86XJiY.js">
+<script type="module" data-turbo-track="reload">import 'app';</script>
+</head>
+<body>
+
+<canvas id="divineCanvas" style="position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"></canvas>
+
+<div class="app-container">
+
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <div class="gate-box">
+      <h2>⛧ T.N.S.V.T ⛧</h2>
+      <p class="sub">NEURO-SPIRITUAL VALUE THEORY</p>
+      <input type="text" id="gateKey" placeholder="TU CÓDIGO DE ACCESO" aria-label="Código de acceso" autofocus oninput="toggleAdminPassField()" onkeydown="if(event.key==='Enter'){event.preventDefault();maybeFocusPass();}" style="text-transform:uppercase;">
+      <input type="text" id="gateName" placeholder="TU NOMBRE DE USUARIO" aria-label="Nombre de usuario" style="margin-top:8px; text-transform:capitalize;" onkeydown="if(event.key==='Enter'){event.preventDefault();if(document.getElementById('gatePassWrap').style.display==='block'){document.getElementById('gatePass').focus();}else{verifyGateKey();}}">
+      <form id="gateForm" onsubmit="event.preventDefault();verifyGateKey();" style="margin:0;">
+      <div id="gatePassWrap" style="position:relative; display:none; margin-top:8px;">
+        <input type="password" id="gatePass" placeholder="CONTRASEÑA" aria-label="Contraseña de administrador" autocomplete="current-password" style="padding-right:46px;" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyGateKey();}">
+        <button type="button" id="gatePassToggle" onclick="togglePassVisibility()" aria-label="Mostrar u ocultar contraseña" title="Mostrar contraseña 👁" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); color:var(--gold-bright); cursor:pointer; font-size:1.2rem; padding:6px 10px; line-height:1; border-radius:6px; transition:all 0.2s; display:flex; align-items:center; justify-content:center; min-width:36px; min-height:36px;" onmouseover="this.style.background='rgba(212,175,55,0.25)';this.style.borderColor='var(--gold-bright)';" onmouseout="this.style.background='rgba(212,175,55,0.1)';this.style.borderColor='rgba(212,175,55,0.3)';">👁</button>
+      </div>
+      </form>
+      <button class="login-btn" onclick="verifyGateKey()" aria-label="Entrar al gateway">ENTRAR AL GATEWAY</button>
+      <p id="adminPassHint" style="display:none; font-size:0.75rem; color:var(--gold); margin-top:8px;">👑 Admin detectado — ingresá tu contraseña</p>
+      <p id="loginError" style="display:none; font-size:0.82rem; color:#ff7066; margin-top:10px; padding:8px 12px; background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.3); border-radius:8px;"></p>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT (oculto hasta login) -->
+  <div id="main-content" style="display:none; width:100%;">
+
+    <!-- LOADING BAR GLOBAL -->
+    <div id="appLoadingBar" style="position:fixed; top:0; left:0; right:0; height:3px; background:transparent; z-index:200000; pointer-events:none;">
+      <div id="appLoadingBarFill" style="height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--gold-bright)); box-shadow:0 0 8px var(--gold-bright); transition:width 0.3s ease;"></div>
+    </div>
+    <div id="appLoadingToast" style="position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:200000; background:rgba(13,8,24,0.95); border:1px solid rgba(212,175,55,0.4); border-radius:20px; padding:6px 14px; font-size:0.75rem; color:var(--gold-bright); font-family:'Orbitron',sans-serif; letter-spacing:0.5px; box-shadow:0 4px 16px rgba(0,0,0,0.4); backdrop-filter:blur(8px); display:none; align-items:center; gap:8px;">
+      <span style="display:inline-block; width:10px; height:10px; border:2px solid var(--gold); border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span>
+      <span id="appLoadingText">Cargando reino…</span>
+    </div>
+    <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <!-- OVERLAY DE CARGA -->
+    <div id="appLoadingOverlay" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(9,5,18,0.92); z-index:1500; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; backdrop-filter:blur(4px);">
+      <div style="width:60px; height:60px; border:4px solid rgba(212,175,55,0.2); border-top-color:var(--gold-bright); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:20px;"></div>
+      <div style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:1.3rem; margin-bottom:8px;">Cargando el Reino</div>
+      <div id="appLoadingStatus" style="font-family:'Orbitron',sans-serif; font-size:0.75rem; color:#a499b8; letter-spacing:0.5px;">Iniciando servicios…</div>
+      <div id="appLoadingProgress" style="margin-top:16px; width:200px; max-width:80%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+        <div id="appLoadingBarFill2" style="height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--gold-bright)); transition:width 0.4s ease;"></div>
+      </div>
+      <div id="appLoadingCounter" style="margin-top:8px; font-family:'Orbitron',sans-serif; font-size:0.65rem; color:#645a78;"></div>
+    </div>
+
+    <!-- CONTAINERS VACÍOS PARA PANELES (llenados por app.js) -->
+    <div class="trading-layout">
+      <div class="trading-sidebar" id="tradingSidebar">
+        <div class="sidebar-scroll">
+          <div id="sidebar-overlay" style="display:none;" onclick="toggleSidebar()"></div>
+          <div class="sidebar-profile">
+            <div id="myAvatarWrap" class="avatar-wrap" onclick="toggleAvatarMenu()" style="cursor:pointer; position:relative;">
+              <img id="myAvatar" src="" alt="Avatar" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--gold-dim);">
+            </div>
+            <div id="avatarMenu" class="avatar-menu" style="display:none; position:absolute; top:52px; left:0; background:rgba(13,8,24,0.98); border:1px solid rgba(212,175,55,0.3); border-radius:10px; padding:6px 0; min-width:180px; z-index:1000; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+              <button onclick="document.getElementById('avatarUpload').click()" style="display:block; width:100%; padding:10px 16px; background:none; border:none; color:#e2dcf0; cursor:pointer; font-size:0.82rem; text-align:left;">📷 Cambiar avatar</button>
+              <button id="deleteAvatarBtn" onclick="deleteAvatar()" style="display:none; width:100%; padding:10px 16px; background:none; border:none; color:#ff7066; cursor:pointer; font-size:0.82rem; text-align:left;">🗑 Eliminar avatar</button>
+            </div>
+            <input type="file" id="avatarUpload" accept="image/*" style="display:none;" onchange="uploadAvatar(this.files[0])">
+            <div class="sidebar-name">
+              <div id="profileCodename" class="profile-codename">—</div>
+              <div id="profileRole" class="profile-role">—</div>
+            </div>
+          </div>
+          <nav class="sidebar-nav" id="sidebarNav">
+            <button class="sidebar-btn" data-tab="home" onclick="switchTab('home')"><span>🏠</span><span class="sidebar-label">INICIO</span></button>
+            <button class="sidebar-btn" data-tab="journal" onclick="switchTab('journal')"><span>📓</span><span class="sidebar-label">JOURNAL</span></button>
+            <button class="sidebar-btn" data-tab="posts" onclick="switchTab('posts')"><span>📜</span><span class="sidebar-label">MANUSCRITO</span></button>
+            <button class="sidebar-btn" data-tab="academia" onclick="switchTab('academia')"><span>🎓</span><span class="sidebar-label">ACADEMIA</span></button>
+            <button class="sidebar-btn" data-tab="social" onclick="switchTab('social')"><span>🔗</span><span class="sidebar-label">SOCIAL</span><span id="social-notif-badge" class="notif-badge" style="display:none;">0</span></button>
+            <button class="sidebar-btn" data-tab="chat" onclick="switchTab('chat')"><span>💬</span><span class="sidebar-label">CHAT</span></button>
+            <button class="sidebar-btn" data-tab="calendar" onclick="switchTab('calendar')"><span>📅</span><span class="sidebar-label">CALENDARIO</span></button>
+            <button class="sidebar-btn" data-tab="tasks" onclick="switchTab('tasks')"><span>✅</span><span class="sidebar-label">TAREAS</span></button>
+            <button class="sidebar-btn" data-tab="security" onclick="switchTab('security')"><span>🔒</span><span class="sidebar-label">SEGURIDAD</span></button>
+            <button class="sidebar-btn" id="adminSidebarBtn" onclick="switchTab('admin')" style="display:none;"><span>⚙️</span><span class="sidebar-label">ADMIN</span></button>
+            <button class="sidebar-btn" id="chartSidebarBtn" onclick="switchTab('chart')" style="display:none;"><span>📊</span><span class="sidebar-label">CHART</span></button>
+          </nav>
+        </div>
+      </div>
+      <div class="trading-main">
+        <div class="topbar" id="topbar">
+          <button class="topbar-menu" onclick="toggleSidebar()" aria-label="Menú">☰</button>
+          <div class="topbar-brand">T<span style="font-size:0.55em; opacity:0.5;">.</span>N<span style="font-size:0.55em; opacity:0.5;">.</span>S<span style="font-size:0.55em; opacity:0.5;">.</span>V<span style="font-size:0.55em; opacity:0.5;">.</span>T</div>
+          <div class="topbar-right">
+            <span id="onlineCountDisplay" style="display:none; font-size:0.65rem; color:#4ade80; margin-right:8px; font-family:'Orbitron',sans-serif;"></span>
+            <div id="notifBellWrap" style="display:none; position:relative;">
+              <button id="notifBellBtn" onclick="toggleNotifPanel()" style="background:none; border:none; color:#a499b8; cursor:pointer; font-size:1.2rem; padding:4px; position:relative;" aria-label="Notificaciones">🔔<span id="notifBadge" class="notif-badge" style="display:none; position:absolute; top:-2px; right:-4px; background:#ff3b30; color:#fff; font-size:0.6rem; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'Orbitron',sans-serif; font-weight:700; padding:0 4px; box-shadow:0 2px 6px rgba(255,59,48,0.4);">0</span></button>
+            </div>
+          </div>
+        </div>
+        <div id="inner-page" style="padding-top:0;">
+          <div id="hub-view" style="padding:76px 16px 20px;"></div>
+          <div id="module-panel" style="display:none; width:100%; max-width:900px; margin:110px auto 20px auto; padding:20px; background:rgba(13,8,24,0.95); border:1px solid rgba(138,60,255,0.3); border-radius:20px;">
+            <button id="tnsvtBackBtn" onclick="showHub()" style="background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.2); color:#a499b8; padding:6px 14px; border-radius:20px; cursor:pointer; font-size:0.75rem; margin-bottom:16px;">← Volver al HUB</button>
+            <h2 id="moduleTitle" style="font-family:'Cinzel'; color:var(--gold-bright);">Módulo</h2>
+            <div id="moduleContent"></div>
+          </div>
+          <div id="trading-panel">
+            <!-- Tab containers (vacíos, llenados por app.js) -->
+            <div id="tab-home" class="tab-content"></div>
+            <div id="tab-posts" class="tab-content">
+              <div id="postsFeed"></div>
+            </div>
+            <div id="tab-academia" class="tab-content">
+              <div id="acad-grid"></div>
+            </div>
+            <div id="tab-journal" class="tab-content"></div>
+            <div id="tab-tasks" class="tab-content">
+              <div id="taskListContainer"></div>
+            </div>
+            <div id="tab-calendar" class="tab-content"></div>
+            <div id="tab-social" class="tab-content"></div>
+            <div id="tab-chat" class="tab-content"></div>
+            <div id="tab-security" class="tab-content"></div>
+            <div id="tab-admin" class="tab-content"></div>
+            <div id="tab-chart" class="tab-content"></div>
+            <div id="tab-leaderboard" class="tab-content"></div>
+            <div id="tab-2steps-adv" class="tab-content"></div>
+            <div id="tab-macro" class="tab-content"></div>
+            <div id="tab-diary" class="tab-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- OFFLINE BANNER -->
+<div id="tnsvt-offline-banner" hidden style="position:fixed; bottom:0; left:0; right:0; z-index:99999; background:linear-gradient(135deg,rgba(88,28,135,0.96),rgba(188,44,175,0.94)); backdrop-filter:blur(12px); padding:12px 16px; display:flex; align-items:center; gap:12px; font-size:0.82rem; color:#fff; box-shadow:0 -4px 20px rgba(0,0,0,0.5); animation:slide-up 0.3s ease;">
+  <span id="tnsvt-offline-banner-text" style="flex:1;">📡 Sin conexión</span>
+  <button id="tnsvt-offline-banner-retry" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:6px 14px; border-radius:20px; cursor:pointer; font-size:0.75rem; white-space:nowrap;">Reintentar</button>
+</div>
+
+<!-- NOTIFICATION PANEL -->
+<div id="notifPanel" style="display:none; position:fixed; top:56px; right:12px; width:340px; max-width:90vw; max-height:60vh; background:rgba(13,8,24,0.98); border:1px solid rgba(212,175,55,0.2); border-radius:14px; box-shadow:0 8px 40px rgba(0,0,0,0.7); z-index:100010; overflow:hidden; backdrop-filter:blur(12px);">
+  <div style="padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-family:'Cinzel',serif; color:var(--gold-bright); font-size:0.85rem;">NOTIFICACIONES</span>
+    <div style="display:flex; gap:6px;">
+      <button id="notifSoundToggle" onclick="toggleNotifSound()" style="background:rgba(255,255,255,0.05); border:none; color:#a499b8; cursor:pointer; font-size:0.85rem; padding:4px 8px; border-radius:6px;">🔔</button>
+      <button id="notifHistoryToggle" onclick="toggleNotifHistory()" style="background:rgba(255,255,255,0.05); border:none; color:#a499b8; cursor:pointer; font-size:0.72rem; padding:4px 8px; border-radius:6px;">Historial</button>
+    </div>
+  </div>
+  <div id="notifList" style="overflow-y:auto; max-height:calc(60vh - 52px); padding:4px 0;"></div>
+</div>
+
+<!-- PUSH PERMISSION BAR -->
+<div id="pushPermBar" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:99998; background:rgba(13,8,24,0.96); border-top:1px solid rgba(212,175,55,0.2); padding:10px 16px; display:flex; align-items:center; gap:10px; font-size:0.78rem; color:#e2dcf0;">
+  <span style="flex:1;">🔔 Permitir notificaciones push para recibir alertas en tiempo real</span>
+  <button onclick="requestPushPermission()" style="background:linear-gradient(135deg,var(--violet),var(--gold)); border:none; color:#fff; padding:6px 14px; border-radius:20px; cursor:pointer; font-size:0.75rem; font-family:'Orbitron',sans-serif;">ACTIVAR</button>
+  <button onclick="document.getElementById('pushPermBar').style.display='none'" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#645a78; padding:6px 10px; border-radius:20px; cursor:pointer; font-size:0.7rem;">AHORA NO</button>
+</div>
+
+<!-- MUSIC BAR -->
+<div id="musicPlayerBar" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:100000; background:rgba(9,5,18,0.96); border-top:1px solid rgba(212,175,55,0.2); backdrop-filter:blur(10px); padding:0 12px; height:52px; display:flex; align-items:center; gap:10px;">
+  <canvas id="mpbViz" width="40" height="40" style="border-radius:6px; flex-shrink:0;"></canvas>
+  <div style="flex:1; min-width:0;">
+    <div id="mpbTitle" style="font-size:0.75rem; color:#e2dcf0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">—</div>
+    <div id="mpbSub" style="font-size:0.6rem; color:#645a78;">—</div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span id="mpbTimeCur" style="font-size:0.55rem; color:#645a78; font-family:'Orbitron',sans-serif;">0:00</span>
+      <div id="mpbBar" style="flex:1; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; cursor:pointer; position:relative;">
+        <div id="mpbBarFill" style="height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--gold-bright)); border-radius:2px;"></div>
+      </div>
+      <span id="mpbTimeDur" style="font-size:0.55rem; color:#645a78; font-family:'Orbitron',sans-serif;">0:00</span>
+    </div>
+  </div>
+  <button id="mpbPlayBtn" onclick="musicTogglePlay()" style="background:none; border:none; color:#e2dcf0; cursor:pointer; font-size:1.3rem; padding:4px;" aria-label="Reproducir/Pausar">▶</button>
+  <button id="mpbLoopBtn" onclick="musicToggleLoop()" style="background:none; border:none; color:#645a78; cursor:pointer; font-size:0.8rem; padding:4px;" aria-label="Repetir">🔁</button>
+  <button onclick="musicShowFullPlayer()" style="background:none; border:none; color:#645a78; cursor:pointer; font-size:1rem; padding:4px;" aria-label="Reproductor completo">🎵</button>
+</div>
+
+<!-- CHAT WIDGET HTML -->
+<div class="cf-presence" id="cfPresence" style="display:none;"></div>
+<div class="cf-toast" id="cfToast" onclick="CF.openConv(this.dataset.convId)">
+  <div class="cf-toast-av" id="cfToastAv"></div>
+  <div class="cf-toast-content">
+    <div class="cf-toast-name" id="cfToastName">—</div>
+    <div class="cf-toast-text" id="cfToastText">—</div>
+  </div>
+</div>
+<button class="cf-fab" id="cfFab" style="display:none;" onclick="CF.toggle()" title="Chat de Ejecutores">
+  <span class="cf-ico" id="cfFabIco">💬</span>
+  <span class="cf-badge cf-hide" id="cfFabBadge">0</span>
+</button>
+<div class="cf-panel" id="cfPanel">
+  <div class="cf-panel-header">
+    <button class="cf-back" onclick="CF.backToList()">←</button>
+    <div class="cf-panel-title">
+      <span class="cf-name" id="cfHeaderName">⚔ Mensajes</span>
+      <span class="cf-sub" id="cfHeaderSub">EN VIVO</span>
+    </div>
+    <button class="cf-action" id="cfManageGroupBtn" onclick="if(window.manageGroupConvId) openManageGroupModal(window.manageGroupConvId)" title="Gestionar grupo" style="display:none;">⚙️</button>
+    <button class="cf-action cf-danger" id="cfDeleteConvBtn" onclick="CF.deleteConv()" title="Eliminar conversación" style="display:none;">🗑</button>
+    <div class="cf-panel-actions">
+      <button class="cf-action" onclick="openNewDmModal()" title="Nuevo mensaje">✉️</button>
+      <button class="cf-action" id="cfCreateGroupBtn" onclick="openCreateGroupModal()" title="Crear grupo" style="display:none;">👥</button>
+      <button class="cf-action" onclick="CF.showSoundSettings()" title="Sonido" id="cfSoundBtn">🔔</button>
+      <button class="cf-action cf-danger" onclick="CF.toggle()" title="Cerrar">✕</button>
+    </div>
+  </div>
+  <div class="cf-view-list">
+    <div class="cf-tabs">
+      <button class="cf-tab cf-active" data-tab="all" onclick="CF.tab('all')">TODOS</button>
+      <button class="cf-tab" data-tab="unread" onclick="CF.tab('unread')">NO LEÍDOS <span class="cf-count" id="cfUnreadCount"></span></button>
+      <button class="cf-tab" data-tab="groups" onclick="CF.tab('groups')">GRUPOS</button>
+    </div>
+    <div class="cf-search">
+      <input type="text" id="cfSearch" placeholder="🔍 Buscar conversación…" oninput="CF.filter(this.value)">
+    </div>
+    <div class="cf-conv-list" id="cfConvList">
+      <div class="cf-empty">
+        <div class="cf-empty-ico">💬</div>
+        <div class="cf-empty-label">Cargando conversaciones…</div>
+      </div>
+    </div>
+  </div>
+  <div class="cf-view-chat">
+    <div class="cf-chat-stream" id="cfChatStream"></div>
+    <div class="cf-typing" id="cfTyping" style="visibility:hidden;">
+      <div class="cf-typing-dots"><span></span><span></span><span></span></div>
+      <span id="cfTypingText">alguien está escribiendo…</span>
+    </div>
+    <div class="cf-input-area">
+      <div id="cfFilePreview" style="display:none;padding:6px 10px;margin-bottom:6px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;align-items:center;gap:8px;font-size:0.7rem;"></div>
+      <div class="cf-input-row">
+        <input type="file" id="cfFileInput" accept="image/*,video/*,audio/*,.pdf" hidden onchange="CF._onFileSelect(this.files[0])">
+        <button class="cf-icon-btn" onclick="document.getElementById('cfFileInput').click()" title="Adjuntar archivo (img/video/audio/pdf)">📎</button>
+        <input type="text" id="cfInput" class="cf-input-text" placeholder="Escribí al cónclave…" onkeypress="if(event.key==='Enter') CF.send()" oninput="CF.onTyping()">
+        <button class="cf-send" onclick="CF.send()">ENVIAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="bgMusicAudio" style="display:none;"></audio>
+
+<script src="./capacitor-bridge.js"></script>
+<script src="./fold-bridge.js"></script>
+<script src="./mutation-queue.js"></script>
+
+<script>
+(function() {
+  const banner = document.getElementById('tnsvt-offline-banner');
+  const bannerText = document.getElementById('tnsvt-offline-banner-text');
+  const bannerRetry = document.getElementById('tnsvt-offline-banner-retry');
+  function pendingCount() {
+    try { return (window.MutationQueue && window.MutationQueue.size) ? window.MutationQueue.size() : 0; }
+    catch (_) { return 0; }
+  }
+  function showOffline(show) {
+    if (!banner) return;
+    if (show) {
+      banner.removeAttribute('hidden');
+      bannerText.textContent = '📡 Sin conexión — los cambios se guardan localmente y subirán al reconectar';
+    } else {
+      banner.setAttribute('hidden', '');
+    }
+  }
+  function showPending(n) {
+    if (!banner) return;
+    if (n > 0) {
+      banner.removeAttribute('hidden');
+      bannerText.textContent = '🔄 ' + n + ' cambio' + (n === 1 ? '' : 's') + ' pendiente' + (n === 1 ? '' : 's') + ' de sincronizar';
+    }
+  }
+  async function drainPending() {
+    if (!window.API || !window.API.drainPending) return;
+    const r = await window.API.drainPending();
+    if (r && r.ok > 0) {
+      showToast('🔄 Sync: ' + r.ok + ' cambio' + (r.ok === 1 ? '' : 's') + ' sincronizado' + (r.ok === 1 ? '' : 's'));
+    }
+    showPending(pendingCount());
+    if (navigator.onLine) showOffline(false);
+  }
+  if (bannerRetry) bannerRetry.addEventListener('click', drainPending);
+  window.addEventListener('online', () => { if (navigator.onLine) { showOffline(false); drainPending(); }});
+  window.addEventListener('offline', () => { showOffline(true); });
+})();
+</script>
+
+</body>
+</html>

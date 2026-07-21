@@ -2,20 +2,15 @@
   "appId": "com.tnsvt.app",
   "appName": "TNSVT",
   "webDir": "public",
-  "server": {
-    "androidScheme": "https",
-    "url": "https://laptop-ebgqig6j.tailf43f87.ts.net",
-    "cleartext": true,
-    "errorPath": "error.html"
-  },
-  "android": {
-    "allowMixedContent": true,
-    "captureInput": true,
-    "webContentsDebuggingEnabled": true
-  },
+    "android": {
+        "allowMixedContent": false,
+        "captureInput": true,
+        "webContentsDebuggingEnabled": true,
+        "backgroundColor": "#07030f"
+    },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 5000,
+      "launchShowDuration": 3000,
       "launchAutoHide": true,
       "backgroundColor": "#0d0818",
       "androidSplashResourceName": "splash",

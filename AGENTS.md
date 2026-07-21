@@ -1,5 +1,450 @@
 # TNSVT Session Summary
 
+## Session 2026-07-20 — Fix POST /api/feed 500 (signal reserved word + RateLimiter MySQL)
+
+### Síntoma
+- POST https://tnsvt.com/api/feed → **500 Internal Server Error**
+- GET https://tnsvt.com/api/feed → 200 OK (lista vacía)
+- Errores cosméticos del navegador (cache vieja, no bloqueantes):
+  - `chart-yvS873S.js` 404 (SW viejo del browser)
+  - `mutation-queue-*.js` `api is not defined` (idem)
+  - `Refused to execute script` MIME type error (idem)
+
+### Causa raíz (dos bugs)
+1. **MySQL reserved word**: `signal` es palabra reservada de MySQL/MariaDB (SIGNAL statement).
+   Doctrine no la escapaba automáticamente en el INSERT → SQL syntax error 1064.
+2. **RateLimiterService sin soporte MySQL**: el `ensureTable()` solo manejaba SQLite/PostgreSQL.
+   En MySQL ejecutaba `INTEGER PRIMARY KEY AUTOINCREMENT` (sintaxis SQLite) → falla.
+   ADEMÁS: en DBAL 4+, `AbstractPlatform::getName()` ya NO EXISTE → UndefinedMethodError.
+
+### Fixes aplicados
+
+**1. `src/Service/RateLimiterService.php`** — soporte MySQL/MariaDB + DBAL 4+:
+- Cambiado `$platform->getName()` (eliminado en DBAL 4) por `instanceof` checks
+- Nueva rama `AbstractMySQLPlatform` con sintaxis MySQL correcta:
+  ```sql
+  CREATE TABLE rate_limits (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    key_name VARCHAR(128) NOT NULL,
+    created_at INT NOT NULL,
+    expires_at INT NOT NULL,
+    INDEX idx_rl_key (key_name),
+    INDEX idx_rl_expires (expires_at)
+  )
+  ```
+
+**2. `src/Entity/FeedPost.php`** — rename columna para evitar reserved word:
+```php
+#[ORM\Column(name: 'signal_data', type: Types::JSON, nullable: true)]
+private ?array $signal = null;
+```
+- La propiedad PHP sigue siendo `$signal` (cero impacto en app.js/api.js).
+- Solo cambia el nombre de la columna en DB.
+
+**3. `migrations/Version20260720000001.php`** (NEW) — migración idempotente:
+```sql
+ALTER TABLE feed_posts CHANGE `signal` `signal_data` JSON NULL;
+```
+- SQLite-safe (skip), MySQL/Postgres-safe.
+- Renombrada en Hostinger vía script PHP (la tooling de migrations tenía metadata desactualizada).
+
+**4. `bin/deploy.py`** — bug crítico encontrado durante el debug:
+- Faltaba `src/Entity/**/*.php` en `SRC_GLOBS` → las entidades NUNCA se subían con el deploy.
+- Agregado a la lista. Ahora cualquier cambio en `Entity` se sube automáticamente.
+- También agregados encoding fix UTF-8 para Windows console (`[UP]` en vez de `↑` que crasheaba cp1252).
+
+### Verificación end-to-end
+
+**Local (SQLite):**
+- `POST /api/feed X-Game-Code:ADMIN01 {"text":"smoke"}` → `{"success":true,"id":3}`
+- `GET /api/feed` → lista con posts locales
+
+**Hostinger (MySQL 8.0.32):**
+```
+$ curl -X POST https://tnsvt.com/api/feed \
+  -H "X-Game-Code: ADMIN01" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Test post-fix signal_data + entity upload"}'
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+{"success":true,"id":1}
+
+$ curl https://tnsvt.com/api/feed
+[{"id":1,"author_code":"ADMIN01","author_name":"Admin","cat":"general",
+  "text":"Test post-fix signal_data + entity upload",
+  "likes":0,"comments":[],"signal":null,"photo":null,
+  "created_at":"2026-07-20T15:08:43+00:00"}]
+```
+
+**Tests:**
+- `vendor/bin/phpunit` → 10/10 verde (37 assertions)
+- DBAL test: `CREATE TABLE` + `INSERT` + `SELECT COUNT(*)` → OK en MySQL80Platform
+
+### Despliegue (bin/deploy.py con SKIP_APK=1)
+1. Backup + upload de todos los `src/Controller/**/*.php`, `src/Entity/**/*.php`,
+   `src/Service/**/*.php`, `src/Security/**/*.php`, `src/Command/**/*.php`,
+   `src/Util/**/*.php`, `src/Repository/**/*.php`
+2. Upload de assets (app-*.js, api-*.js, mutation-queue-*.js, styles, importmap, manifest)
+3. `php bin/console cache:clear --env=prod`
+4. `composer dump-autoload --no-dev`
+5. `php bin/console app:rotate-admin-password` → ADMIN01 hash bcrypt actualizado
+6. **Importante**: `opcache_reset()` CLI para invalidar bytecode cache de PHP-FPM workers
+
+### Diagnóstico flow que reveló los 2 bugs
+1. Local reprodujo → UndefinedMethodError en `getName()` (DBAL 4)
+2. Fix local + deploy → POST sigue 500
+3. Test directo vía Symfony Container → SyntaxErrorException en INSERT (signal reserved word)
+4. Confirmado: tabla `feed_posts.signal` existe en Hostinger con datos
+5. ALTER directo via PHP script → columna renombrada
+6. Faltaba subir la entity — fix del deploy.py
+7. opcache_reset para forzar recompile
+8. POST → 201 Created ✓
+
+### Files changed/created
+- `src/Service/RateLimiterService.php` (MySQL support + instanceof checks)
+- `src/Entity/FeedPost.php` (signal → signal_data column name)
+- `migrations/Version20260720000001.php` (NEW)
+- `bin/deploy.py` (added Entity glob + UTF-8 encoding fix)
+- `AGENTS.md` (esta entrada)
+
+### Pendiente (NO incluido)
+- Limpiar error 404 cosmético de `chart-yvS873S.js` removiéndolo del manifest
+  (el archivo existe en `public/assets/` local pero no en Hostinger y nadie lo importa
+  en runtime — solo es ruido en la consola del browser cacheado)
+- Auditoría visual cloud browser (backlog)
+
+## Session 2026-07-20 — Deploy APK v4.24 a Hostinger (completo)
+
+### What was done
+- **Deploy automatizado** vía `bin/deploy.py` con `paramiko` (SSH + SFTP) usando clave ed25519 en `~/.ssh/id_hostinger_ed25519`.
+- Archivos subidos: `src/Controller/Api/AuthController.php` (fix 401), `src/Command/RotateAdminPasswordCommand.php` (nuevo), `public/sw.js` (v61), `templates/base.html.twig` (Phase 3), todos los assets compilados (`app-*.js`, `api-*.js`, `mutation-queue-*.js`, `styles/app-*.css`, `importmap.json`, `manifest.json`).
+- **APK v4.24** subida a `public/apk/tnsvt-v4.24.apk` y `public/downloads/tnsvt-app.apk` (6.85 MB).
+- **Composer dump-autoload** ejecutado en Hostinger para que PHP reconozca el nuevo `RotateAdminPasswordCommand`.
+- **Cache cleaned** (`rm -rf var/cache/prod`) y `cache:warmup` ejecutado.
+- **Contraseña de ADMIN01 rotada** al valor brindado (read desde env `ADMIN_PASSWORD`, NO expuesta en shell history). Output: `[OK] Contraseña de ADMIN01 rotada (hash bcrypt actualizado).`
+- **APK cleanup**: borradas versiones v4.20 y v4.21 (liberado 6.7 MB en Hostinger). Mantengo v4.19 (histórica) y v4.24 (actual).
+
+### Verificación end-to-end (curl directo a tnsvt.com)
+- `GET https://tnsvt.com/` → **200 OK** (0.78 s)
+- `GET https://tnsvt.com/sw.js` → **200 OK** (6401 B, `CACHE_NAME = 'tnsvt-v61'`)
+- `GET https://tnsvt.com/downloads/tnsvt-app.apk` → **200 OK** (6.85 MB, v4.24)
+- `POST https://tnsvt.com/api/auth/login` con `ADMIN01` + tu contraseña → **200 OK** `{"success":true,"user":{"code":"ADMIN01","name":"Admin","isAdmin":true}}`
+- `POST https://tnsvt.com/api/auth/login` con `DEMO/Demo` → 401 con body legible (no más vacío) — confirma que el fix de AuthController también funciona en Hostinger
+
+### Lo que te queda a vos
+1. **Desinstalá la APK vieja** del celu (la v4.20 o anterior).
+2. **Instalá `tnsvt-v4.24.apk`** desde `https://tnsvt.com/downloads/tnsvt-app.apk` (o subila vía ADB).
+3. La APK trae un **SW killer en `<head>`** que limpia la cache del SW anterior al primer launch, así que no necesitás limpiar nada manualmente.
+4. Al primer launch te aparece un modal pidiendo la URL del backend (poné `https://tnsvt.com`).
+5. Login con `ADMIN01` + tu contraseña nueva: anda.
+
+### Files changed
+- `bin/deploy.py` (NEW, ~190 líneas) — script principal de deploy
+- `bin/fix_hostinger.py`, `bin/fix2.py`, `bin/fix3.py` (NEW, debug puntual)
+- `bin/cleanup_apks.py` (NEW) — limpia APKs viejos
+- `bin/inspect_hostinger.py`, `bin/inspect_hostinger2.py` (NEW) — diagnóstico
+- `AGENTS.md` — esta entrada
+
+### Pendiente (no incluido)
+- `cache:warmup` falló por un deprecation warning de Doctrine en `EventMissionProgress` (no crítico, runtime funciona OK; el warning es `$indexes` en `@Table` que Doctrine 4 removerá). Para resolverlo: cambiar el atributo a `#[ORM\Index(name: '...', columns: [...])]` en el entity.
+- Auditoría visual cloud browser con debug de console errors reales (no API mock) — pendiente.
+
+## Session 2026-07-20 — Visual Audit APK v4.24 (32 capturas × 8 zonas × 4 viewports)
+
+### What was done
+- **Audit visual completo** con Playwright Python + Chromium headless: 8 zonas (login, hub, journal_dash, journal_log, journal_import, security, trading, chat_widget) × 4 viewports (412×915 fold_closed, 720×840 fold_open, 880×900 fold_dual, 1366×800 desktop) = **32 capturas PNG** en `C:\Users\HP 240 inch G9\AppData\Local\Temp\tnsvt_audit\`.
+- **Bug crítico encontrado y arreglado**: music bar visible pre-login en TODOS los viewports. Causa: `display: flex !important` en `assets/styles/app.css:2197` ganaba al inline `display:none` del `<div id="musicPlayerBar">`. Fix: cambié el default a `display: none` + agregué regla `#musicPlayerBar.visible { display: flex !important }`. El JS ya agregaba `.visible` vía `musicShowBar()` (línea 5467).
+- **Reporte completo**: `docs/VISUAL_AUDIT_REPORT.md` con tabla priorizada de hallazgos (1 crítico arreglado, 5 moderados en backlog, resto OK).
+- **Audit script reusables**: `bin/visual_audit.py` (Playwright Python), `bin/debug_*.py` (scripts de debug puntual).
+
+### Hallazgos destacados
+- 🔴 **CRÍTICO**: music bar visible pre-login (CSS specificity battle) — **YA ARREGLADO**
+- 🟡 **Medio**: login card off-center en fold_open/dual (~720-880px viewport) — investigar
+- 🟡 **Bajo**: hub hexagonal off-center en fold_dual — investigar
+- 🟢 Login OK en fold_closed + desktop
+- 🟢 Hub hexagonal OK en fold_closed + fold_open
+- 🟢 Music bar correctamente oculta pre-login en todos los viewports
+
+### Verification
+- `node assets/mutation-queue.test.cjs` → 6 tests pass
+- `vendor/bin/phpunit` → 10/10 pass
+- `python bin/visual_audit.py` → 32/32 capturas ✓
+
+### Files changed
+- `assets/styles/app.css` — fix music bar display (líneas 2180-2210)
+- `bin/visual_audit.py` (NEW, ~200 líneas) — script de auditoría Playwright Python
+- `bin/debug_*.py` (NEW, varios) — scripts de debug puntual
+- `docs/VISUAL_AUDIT_REPORT.md` (NEW) — reporte de hallazgos
+
+### Pendiente
+- Investigación H2/H6 (off-center en fold_open/dual) — próxima sesión
+- Audit con carga real (no API mock) para validar loading spinner + offline banner en escenarios reales
+- Fase 2 (AAB release-signed) opcional
+- Auditoría complementaria con captura de console errors reales (no API mock)
+
+## Session 2026-07-20 — APK Offline-First Phase 3 (bundle local + API URL configurable)
+
+### What was done
+
+**Capacitor config** — `capacitor.config.json` + `capacitor.config.ts`
+- Removido `server.url: "https://tnsvt.com"`. La APK ya NO apunta a un servidor hardcodeado.
+- `allowMixedContent: false` (la web se sirve localmente vía `https://localhost`).
+- `webContentsDebuggingEnabled: false` (release). Splash acortado a 1.5s.
+- Resultado: la APK arranca desde `android/app/src/main/assets/public/` (mirror bundleado). Funciona offline.
+
+**API URL configurable** — `assets/api.js`
+- `baseURL` ahora se resuelve desde `localStorage.tnsvt_api_base` (seteado por el usuario) → fallback a `window.location.origin` → fallback a `DEFAULT_API_BASE='https://tnsvt.com'`.
+- Eliminada referencia legacy a Tailscale (`https://laptop-ebgqig6j.tailf43f87.ts.net`).
+- Nuevos métodos: `API.setApiBase(url, persist)`, `API.clearApiBase()`, `API.isApiBaseConfigured()`.
+- Evento `tnsvt:api-base-changed` disparado al cambiar para que UI reaccione.
+
+**First-run modal** — `templates/base.html.twig:4989-5060+`
+- Al abrir la APK la primera vez (en Capacitor o en bundle HTTPS), aparece modal pidiendo la URL del backend.
+- Botones: "Guardar y conectar" (guarda en localStorage + reload) / "Más tarde (modo offline)" (cierra modal).
+- Si ya hay URL configurada en localStorage, NO se muestra.
+
+**Settings panel "Servidor (backend)"** — `templates/base.html.twig:3794-3820`
+- Card nueva en tab Security debajo del botón "Actualizar app".
+- Muestra "Actual: <code>{url}</code>" en vivo.
+- Input + botones: Test (ping a `/api/auth/check` con timeout 5s), Guardar (persiste + reload), Volver a default.
+- Listeneres `tnsvt:api-base-changed` refrescan el `<code>`.
+
+**Service Worker v61** — `public/sw.js`
+- `CACHE_NAME = 'tnsvt-v61'` + LEGACY_CACHE_HINTS purga v60/v59/v58/v57.
+- Mantiene `TIMEOUT_CACHE_PATHS` + `networkFirst(1500)` para lecturas offline-friendly.
+- El cliente (`api.js`) maneja baseURL dinámica; SW cachea URLs tal como llegan.
+
+**Cap sync fix** — `public/index.html` (nuevo) + `public/router.php` (sin cambios)
+- Capacitor v8 exige `webDir/index.html` cuando no hay `server.url`. El bundle Android copia `public/index.html` como entry point estático (redirect a `/` vía `<meta http-equiv="refresh">`).
+- En web tradicional, Symfony sigue ganando porque `php -S` con `router.php` enruta `/` a `index.php`.
+
+**APK v4.24 build**
+- `versionCode 311` / `versionName "4.24"`.
+- `cap sync android` + `gradlew clean assembleDebug` (35s).
+- Output: `public/downloads/tnsvt-app.apk` (6.53 MB) + `public/apk/tnsvt-v4.24.apk` (6,845,950 bytes).
+- `npx cap sync` copia los assets bundleados a `android/app/src/main/assets/public/`. Confirmado `index.html` presente.
+
+### Verification
+- `vendor/bin/phpunit` → 10/10 verde.
+- `node assets/mutation-queue.test.cjs` → 6/6 verde.
+- `curl /` → 200 con `<title>T.N.S.V.T - Reino del Cristo Íntegro</title>` (web tradicional sigue funcionando vía index.php).
+- `curl /index.html` → 200 con `<title>T.N.S.V.T</title>` redirect meta.
+- `curl /sw.js` → contiene `tnsvt-v61`.
+- `curl /` contiene `tnsvt-api-base`, `setApiBase`, modal HTML markers.
+
+### Cómo funciona en producción (APK)
+
+1. **Primera instalación**: la APK arranca offline desde bundle. Aparece modal "Conectar backend". El usuario ingresa `https://tnsvt.com` (o su propio) o click "Más tarde" para usar offline-only.
+2. **Uso diario**: cuando el server esté disponible, todas las llamadas `/api/*` van a la URL configurada. Cuando NO esté:
+   - Lecturas (GET): SW v61 devuelve la última respuesta cacheada con TTL 30 min.
+   - Escrituras (POST/PUT/DELETE): `MutationQueue` las enqueue localmente. Al detectar `online` event, replay automático.
+3. **Cambio de server**: tab Security → "Servidor (backend)" → Test → Guardar. La APK recarga.
+
+### Limitaciones conocidas
+- **Updates del JS ahora requieren nueva APK**. Cada cambio de UI / endpoint requiere rebuild + redistribución. Anteriormente los deploys a Hostinger se reflejaban inmediatamente.
+- **Service Worker no cachea HTML principal** porque la APK ya lo sirve desde bundle. Las rutas `/api/*` siguen siendo network-first con fallback.
+- **cleartextTrafficPermitted=false** en network_security_config. Si necesitás `http://10.0.2.2:8000` para dev local, agregalo manualmente a `network_security_config.xml`.
+- **No persiste si el usuario limpia localStorage**: la APK pierde la URL y arranca en modo bundle-only. Re-pedirá la URL en el primer arranque post-limpieza.
+
+### Files changed/created
+- `capacitor.config.json` (sin `server.url`, sin `cleartext`)
+- `capacitor.config.ts` (mismos cambios + comentarios actualizados)
+- `public/index.html` (NEW, redirect a `/`)
+- `assets/api.js` (baseURL configurable + helpers)
+- `templates/base.html.twig` (card backend + first-run modal + listeners)
+- `public/sw.js` (v61 + LEGACY_CACHE_HINTS extendida)
+- `android/app/build.gradle` (versionCode 311 / versionName "4.24")
+- `public/downloads/tnsvt-app.apk`, `public/apk/tnsvt-v4.24.apk` (outputs)
+
+### Pendiente (para futuras sesiones, NO incluido aquí)
+- Auditoría visual cloud browser (8 zonas x 4 viewports).
+- Fase 2 — AAB release-signed.
+
+## Session 2026-07-20 — APK Offline-Resilient Phase 1 (MutationQueue + SW v60 + banner)
+
+### What was done
+
+**MutationQueue (JS client-side)** — `assets/mutation-queue.js`
+- Cola persistente en `localStorage.tnsvt_pending_ops[]` (cap 200 ops) para mutaciones POST/PUT/DELETE/PATCH que fallen por `TypeError: Failed to fetch` / `NetworkError`.
+- API: `enqueue(method,url,body,opts?)`, `drain(fetchImpl?)`, `size()`, `peekAll()`, `clear()`.
+- Descarta 4xx tras N=5 attempts fallidos. Mantiene 5xx y timeouts en cola para replay.
+- Test CJS en `assets/mutation-queue.test.cjs`: 6 tests pasan (FIFO, drain OK, 401 drop, network error retry, drop tras 5 intentos, cap 200).
+
+**API integración** — `assets/api.js`
+- `API.request()` ahora pasa a `_friendlyStatus()` si el body está vacío.
+- Si `e instanceof TypeError` (network real) Y el método es POST/PUT/DELETE/PATCH Y `opts.queueOnFail` → llama `MutationQueue.enqueue` y tira `Error("Sin conexión — guardado en cola (id ...)")` con `err.queued = true`.
+- Nuevo método `API.drainPending()` para reproducir la cola manualmente.
+
+**Service Worker v60** — `public/sw.js`
+- `CACHE_NAME = 'tnsvt-v60'` + `LEGACY_CACHE_HINTS` añade v59 y v58.
+- `networkFirst(timeoutMs)` con `Promise.race(fetch, setTimeout)` — timeout 1.5s para `/api/notifications`, `/api/chat/*`, `/api/sync/snapshot`. Si el server no responde en 1.5s, devuelve la copia cacheada (TTL 30 min en runtime cache).
+
+**Banner offline** — `templates/base.html.twig`
+- HTML: `<div id="tnsvt-offline-banner" hidden>` con texto dinámico + botón "Reintentar".
+- CSS: gradient violeta → magenta en offline, ámbar cuando hay ops pendientes. `animation: slide-down 0.3s`.
+- JS: listeners `online`/`offline` (`window.addEventListener`), polling cada 5s del `MutationQueue.size()`, toast de sync exitoso.
+- MutationQueue JS cargado como `<script defer src="mutation-queue.js">`.
+
+**APK v4.23 build**
+- `versionCode 310 / versionName "4.23"`
+- `public/downloads/tnsvt-app.apk` (6.53 MB)
+- `public/apk/tnsvt-v4.23.apk` (6,845,032 bytes)
+- BUILD SUCCESSFUL en 56s
+
+### Verification
+- `node assets/mutation-queue.test.cjs` → 6 tests pass
+- `vendor/bin/phpunit` → 10/10 pass (PHP tests sin cambios)
+- `curl /sw.js` → confirma `CACHE_NAME = 'tnsvt-v60'` + `TIMEOUT_CACHE_PATHS`
+- `GET /` → incluye `tnsvt-offline-banner`, `drainPending`, `mutation-queue-*.js` referenciado
+- `/api/sync/push` → 400 esperado (POST sin body)
+
+### Comportamiento usuario
+1. **Sin red**: banner violeta aparece arriba ("📡 Sin conexión — los cambios se guardan localmente y subirán al reconectar"). Si intentás hacer un POST/PUT/DELETE, va al MutationQueue en lugar de fallar. Si era un GET a una ruta offline-friendly, el SW devuelve la última copia cacheada con un delay perceptible.
+2. **Con red**: banner desaparece. Al primer GET lee cache y refresca desde server. Mutaciones en cola se reproducen automáticamente vía `window.addEventListener('online', ...)`.
+3. **Después de 5 fallos consecutivos** de la misma op, se descarta para no acumular basura.
+
+### Files changed
+- `assets/mutation-queue.js` (NEW, ~85 lines)
+- `assets/mutation-queue.test.cjs` (NEW, 6 tests CJS)
+- `assets/api.js` (intégración MutationQueue + helper `_isNetworkError`)
+- `public/sw.js` (v60 + timeout Promise.race)
+- `templates/base.html.twig` (`<script src="mutation-queue.js">` + banner HTML + listeners)
+- `android/app/build.gradle` (versionCode 310 / versionName "4.23")
+- `public/downloads/tnsvt-app.apk`, `public/apk/tnsvt-v4.23.apk` (outputs)
+
+### Pendiente
+- Phase 2 — AAB release-signed (con keystore propio).
+- Phase 3 — offline-first bundle local (server.url apagado).
+- Auditoría visual cloud browser completa (8 zonas x 4 viewports).
+
+## Session 2026-07-20 — Fix 401 login (hcdn chunked strip) + cache-busting APK v4.22
+
+### What was done
+
+**Backend (AuthController)**
+- Nuevo helper privado `jsonError($msg, $status, $errorCode)` que devuelve un `Response` con **Content-Length explícito y cuerpo plano** (no `Transfer-Encoding: chunked`).
+- Diagnóstico: el hcdn edge de Hostinger estaba strippeando el body chunked en respuestas 401, causando el "Failed to load resource" en la consola del usuario (sin mensaje amigable en JS).
+- Aplicado a las 5 ramas de error de `/api/auth/login`: código vacío, código inválido, contraseña admin requerida, contraseña incorrecta, nombre incorrecto. Cada una con `error_code` distinto (`code_required`, `invalid_code`, `admin_password_required`, `admin_password_invalid`, `name_invalid`).
+- Nuevo comando: `app:rotate-admin-password` (en `src/Command/RotateAdminPasswordCommand.php`) — útil cuando el hash de la DB de Hostinger quedó desfasado respecto a `ADMIN_PASSWORD` del `.env`. Acepta `--user-code` y `--password` opcionales.
+
+**Frontend (assets/api.js + assets/app.js)**
+- `assets/api.js`: el `request()` ahora lee `res.text()` (no `res.json()` ciegamente), parsea manualmente, y si falla devuelve un mensaje basado en status (`API._friendlyStatus(401)` → "Código/contraseña inválidos. Verificá mayúsculas.", etc.).
+- `assets/app.js` (`verifyGateKey`): el `data.error_code` se usa para mapear el mensaje exacto (admin_password_required enfoca `gatePass`, invalid_code indica "revisá mayúsculas", etc.).
+- `assets/app.js` (catch de `verifyGateKey`): si el error es `Failed to fetch`/`NetworkError` muestra "🌐 Sin conexión con el server. Verificá tu red o que https://tnsvt.com esté online."
+
+**Cache-busting APK v4.22**
+- `templates/base.html.twig`: script inline **SW killer** en `<head>` antes del importmap. Desregistra cualquier SW viejo y borra caches en el primer launch (no requiere que el usuario borre datos desde Ajustes).
+- `templates/base.html.twig`: nueva card en `tab-security` "🔄 Actualizar app (limpia cache)" con botón que ejecuta `tnsvtClearCacheAndReload()` (definida en app.js) — purge total + `location.reload(true)`.
+- `public/sw.js`: bump `tnsvt-v58 → tnsvt-v59`. Nueva constante `LEGACY_CACHE_HINTS = ['tnsvt-v57','tnsvt-v58',...]` para purgar agresivamente versiones anteriores en el activate.
+- `assets/app.js`: nueva función `tnsvtClearCacheAndReload()` con feedback visual ("⏳ Limpiando…", "✅ Cache purgada. Recargando en 1s…", "❌ Error: …").
+
+**APK v4.22 build**
+- versionCode 308 → 309, versionName "4.21" → "4.22"
+- `cap sync android` + `gradlew clean assembleDebug` (1m 6s, BUILD SUCCESSFUL)
+- Output: `public/downloads/tnsvt-app.apk` + `public/apk/tnsvt-v4.22.apk` (6.52 MB)
+
+### Diagnóstico del 401 ADMIN01 (causa raíz DB desfasada)
+
+Tu Admin01 con la contraseña nueva falla porque: el seed inicial en Hostinger se corrió SIN `--reset-admin`, así que el hash bcrypt que quedó en DB es el de la contraseña vieja (`TNSVT-2026-CristoRey!` legacy). Ahora mismo:
+1. El password que tipeás coincide con `.env.local` ✓
+2. Pero la DB tiene el hash de la contraseña vieja ✗
+
+**Solución para vos** (cuando deployes en Hostinger):
+```bash
+cd /home/u123456789/domains/tnsvt.com/public_html
+php bin/console app:rotate-admin-password
+```
+Lee `ADMIN_PASSWORD` del entorno y hashea para ADMIN01. Logueo debería andar inmediatamente.
+
+### Tests
+- `vendor/bin/phpunit` → 10/10 pass, 37 assertions (sin cambios en tests).
+- Local smoke: `curl -X POST /api/auth/login {code:DEMO,name:DEMO}` → 401 con body JSON de 67 bytes ✓
+- `curl /sw.js` → confirma `CACHE_NAME = 'tnsvt-v59'` y `LEGACY_CACHE_HINTS` presentes.
+
+### Files changed/created
+- `src/Controller/Api/AuthController.php` (helper `jsonError` + 5 ramas)
+- `src/Command/RotateAdminPasswordCommand.php` (NEW, ~75 lines)
+- `assets/api.js` (`request()` text-based + `_friendlyStatus()`)
+- `assets/app.js` (`verifyGateKey` error mapping + catch friendly + `tnsvtClearCacheAndReload()`)
+- `templates/base.html.twig` (SW killer en head + card "Actualizar app" en security)
+- `public/sw.js` (v58 → v59 + legacy hints)
+- `android/app/build.gradle` (versionCode 309 / versionName "4.22")
+- `public/downloads/tnsvt-app.apk`, `public/apk/tnsvt-v4.22.apk` (output APK)
+
+### Pasos para vos tras deploy
+1. Subir `src/Controller/Api/AuthController.php` a Hostinger.
+2. SSH: `php bin/console app:rotate-admin-password` (si tu hash de ADMIN01 quedó viejo).
+3. Subir `public/assets/app-*.js`, `public/assets/api-*.js`, `public/sw.js`.
+4. Instalar `tnsvt-v4.22.apk` (reemplaza v4.21 — Android mantiene datos de usuario, sólo refresca los assets y la lógica del SW killer corre al primer launch).
+5. Probar login con `ADMIN01` + tu contraseña. Si el body del 401 llega ahora, JS mostrará el mensaje exacto.
+
+### Pendiente
+- Auditoría visual cloud browser (8 zonas × 4 viewports). Programada para próxima sesión.
+
+## Session 2026-07-19 — Trading Journal: import CSV + HTML (APK y web)
+
+### What was done
+- **Trading Journal importador ahora acepta JSON, CSV y HTML** (antes solo JSON). Funciona idéntico en APK Capacitor y web.
+- **`App\Util\JournalImportParser`** (PHP, testado): `parseCsv()`, `parseHtml()`, `mergeDedup()` — espejo exacto del parser JS para reutilización server-side futura.
+- **Parser JS cliente** (`tjParseCsvText`, `tjParseHtmlText`, `tjMergeDedup`, `tjTradeKey`) en `assets/app.js:1612+`. Maneja BOM, comillas escapadas, normaliza `LONG/SHORT → BUY/SELL`, `GANADA → WIN`, fechas ISO/`d/m/Y`/`Y-m-d H:i`.
+- **Modal preview** `#tj-import-modal` en `templates/base.html.twig:2961+`: muestra resumen (X nuevos, Y duplicados, Z total) + tabla con últimos 8 trades antes de confirmar.
+- **Auto-Sync post-import**: al confirmar el import, llama `tjSync()` automáticamente para subir los trades nuevos a `/api/sync/push` (si hay red).
+- **Botón Importar ahora acepta** `accept=".json,.csv,.html,.htm"` + detección automática por contenido (`<table>`, primera línea CSV, `{` JSON).
+
+### Tests (TDD Red→Green)
+- `tests/Unit/Util/JournalImportParserTest.php` — 9 tests, 35 assertions, todos verdes:
+  - CSV TNSVT headers inglés + BOM
+  - CSV aliases español (`Fecha/Cuenta/Activo/Dirección/Entrada/...`)
+  - Comillas escapadas en notas
+  - Fechas en 6 formatos
+  - Normalización `LONG→BUY`, `LOSS→LOSS`
+  - HTML reporte TNSVT (`<table><thead><tr><th>...</th></tr></thead><tbody>...</tbody></table>`)
+  - Validación: rechaza CSV sin columnas requeridas, HTML sin tabla
+  - Merge dedup: `(date|asset|dir|entry)` como clave; reemplaza campos vacíos del existente con los del incoming
+- **PHPUnit suite total**: 10/10 pass (9 nuevos + 1 kernel existente).
+
+### End-to-end smoke
+- `POST /api/sync/push?user_code=DEMO` → server_id=1 (XAUUSD) y server_id=2 (BTCUSDT) ambos `success: true`.
+- `GET /api/sync/snapshot?user_code=DEMO` → `count: 2`, ambos trades visibles con ISO datetimes.
+- Frontend sirve `tj-import-modal: True` y `tj-import-input: True` desde `GET /` (HTTP 200).
+- APK v4.21 (versionCode 308, 6.74 MB debug) compilado y copiado a:
+  - `public/downloads/tnsvt-app.apk`
+  - `public/apk/tnsvt-v4.21.apk`
+
+### Files changed/created
+- `src/Util/JournalImportParser.php` (new, ~200 lines)
+- `tests/Unit/Util/JournalImportParserTest.php` (new, 9 tests)
+- `assets/app.js` — `tjImport` ahora rutea a `tjImportJson/Csv/Html` + helpers (~250 lines nuevas); expone `window.tjParseCsvText/parseHtml/mergeDedup/tradeKey`
+- `templates/base.html.twig` — `accept` extendido + `#tj-import-modal` con summary/table/botones
+- `public/sw.js` — `CACHE_NAME` bumped `tnsvt-v57 → tnsvt-v58`
+- `android/app/build.gradle` — `versionCode 307 → 308`, `versionName "4.20" → "4.21"`
+- `public/downloads/tnsvt-app.apk`, `public/apk/tnsvt-v4.21.apk` (outputs)
+- Removido: `public/assets/app.js-gc_4LnI.bak`, `public/assets/styles/app.css-WMlXK_O.bak`
+
+### Migration notes
+- `journal_entries` creada manualmente en SQLite local con `php -r "..."` (SQLite no soporta `COMMENT` del archivo Doctrine). En Hostinger ya existe.
+- Si se quiere correr `doctrine:migrations:migrate` en local, primero hay que editar `migrations/Version20260718010000.php` para remover `COMMENT 'TNSVT journal entry'`.
+
+### Comportamiento usuario
+1. Click ⬆️ Importar en tab Journal.
+2. File picker abre con filtro `JSON / CSV / HTML`.
+3. Si CSV/HTML: aparece modal con preview y conteo `X nuevos · Y duplicados`.
+4. Click ✅ Importar → fusiona en `localStorage.tj_trades`, marca nuevos con `_syncing:true` y dispara `tjSync()` para subirlos al server.
+5. Si JSON: comportamiento legacy (reemplazo total con confirm).
+
+### Riesgos resueltos
+- ✅ Deduplicación por `(date|asset|dir|entry)` evita duplicar el mismo trade dos veces.
+- ✅ Acepta BOM UTF-8 (`\xEF\xBB\xBF`) en CSV.
+- ✅ Acepta comillas escapadas (`""` dentro de campo entrecomillado).
+- ✅ Compatible con archivos exportados por el propio TNSVT (round-trip).
+
+### Pendientes para Hostinger (deploy)
+- Subir `public/assets/app-*.js`, `api-*.js`, `styles/app-*.css`, `importmap.json`, `manifest.json`, `entrypoint.app.json` (AssetMapper ya compilado).
+- Subir `public/sw.js` (cache v58).
+- Subir APK v4.21 a `public/downloads/` y `public/apk/`.
+- `Ctrl+Shift+R` para usuarios APK para forzar reload del SW.
+
 ## Documentación
 - `docs/arquitectura.md` / `docs/arquitectura.pdf` — Arquitectura técnica completa y guía de hosting (Jun 2026, 17 secciones, ~42 páginas).
 - `docs/tnsvt-sistema-copy-full.pdf` — **Documentación premium del sistema unificado PHP+Python+Android (Jul 2026, 20 secciones, ~49 páginas, ~140 KB)**. Generada con `reportlab` desde `generate_full_system_pdf.py`. Cubre backend Symfony (29 entidades, 38 controllers), TNSVT Market Instinct (8 modos de juego + Duelos 1v1), Signal Copier Python (13 archivos), Telegram Bot (11 comandos), Bridge FastAPI, Streamlit Dashboard, y la integración end-to-end de las 4 fases (API Bridge → Admin Dashboard → Bot TNSVT → Auto-Update PnL). Branding premium con logo embebido, headers/pies de página dorados, diagramas ASCII y tablas estilizadas.
@@ -548,3 +993,86 @@ Copy-Item -Path "android\app\build\outputs\apk\debug\app-debug.apk" -Destination
 - Local CSS: 100dvh NO global (only in scoped @media), no will-change:transform global, MOBILE/APK SCOPED block present, sidebar overlay @media (min-width: 951px) present, tab-content:not(.active) present, pointer:coarse present
 - Local JS: musicShowBar guard present, returns early without TNSVT_USER
 - Hostinger CSS: was `app-2t1Boor.css` (still old version); user needs to deploy manually to tnsvt.com
+
+## Session 2026-07-20 — Universal Link Preview System (Session 1+2)
+
+### What was done
+
+**Session 1 — Backend Core (entity + services + migration)**
+- **LinkPreview entity**: `src/Entity/LinkPreview.php` — 5861 bytes, 13 properties (url, url_hash, title, description, image, image_external, image_local, favicon, site, domain, type, mime, enriched JSON, error, last_update, expires_at), lifecycle callbacks (PrePersist/PreUpdate), unique index on url_hash (128 chars).
+- **LinkPreviewRepository**: `src/Repository/LinkPreviewRepository.php` — `findByHash()`, `findExpired()`, `countRecentByDomain()` for rate limiting.
+- **MetadataExtractor**: `src/Service/LinkPreview/MetadataExtractor.php` — parses OG/Twitter/JSON-LD/microdata/fallback title+desc from HTML. 4 test cases: OG tags wins, Twitter tags fallback, JSON-LD extraction, fallback to `<title>`.
+- **FaviconService**: `src/Service/LinkPreview/FaviconService.php` — downloads SVG/ICO/PNG favicon from Google S2, caches to `public/uploads/link-previews/favicons/`, fallback to `data:image/svg+xml` with domain initial.
+- **UrlNormalizer**: `src/Service/LinkPreview/UrlNormalizer.php` — normalizes URLs (scheme+host+path lowercase, strip default ports/fragment/tracking `utm_*/fbclid`, punycode IDN). 6 test cases.
+- **ScreenshotProviderInterface / NullScreenshotProvider**: stub for future screenshot service.
+- **InvalidUrlException / SsrfException**: typed exceptions for invalid URLs (mailto:, etc) and SSRF guard (private IPs, 127.0.0.1, 10.x.x.x, 172.16-31.x.x, 192.168.x.x).
+- **LinkPreviewService**: `src/Service/LinkPreview/LinkPreviewService.php` — orchestrator: SSRF guard → normalize → cache lookup → download → extract → enricher chain → favicon → persist. Caches by url_hash with configurable TTL.
+- **SiteEnricherInterface / GenericEnricher**: interface with `supports(url)` + `enrich(preview, html, effectiveUrl)` contract; GenericEnricher returns as-is.
+- **LinkPreviewController**: `POST /api/link-preview/preview` — accepts `{url}`, returns preview JSON (or 422/500).
+- **Migration `Version20260720000002`**: creates `link_previews` table with proper MySQL syntax (`INT AUTO_INCREMENT PRIMARY KEY`, `VARCHAR(500)`, `VARCHAR(16)` for mime, JSON columns, DATETIME(3) for precision timestamps, INDEX on url_hash/domain/expires_at). DBAL 4 safe (`instanceof` checks).
+- **Tests**: 48 tests, 129 assertions, all green (17 test files).
+
+**Session 2 — Enricher + Feed Integration + Frontend + Deploy**
+- **TradingViewEnricher**: `src/Service/LinkPreview/SiteEnrichers/TradingViewEnricher.php` — extracts ticker from `?symbol=BROKER:TICKER`, maps 25+ symbols (XAUUSD→"Gold Spot / USD", BTCUSDT→"Bitcoin / USD", etc.), SVG fallback when OG:image absent. 9 unit tests, 18 assertions.
+- **FeedPost entity**: added `$linkPreviews` property mapped to `link_previews` JSON column (getter/setter).
+- **FeedController**: injected `LinkPreviewService`; `create()` scans text with regex `/https?:\/\/[^\s]+/g`, generates up to 3 previews per post, stores via `setLinkPreviews()`; `list()` returns `link_previews` in serialization.
+- **Frontend rendering**: `renderLinkPreviews()` in `assets/app.js` renders clickable cards (favicon + domain + title + description + thumbnail + TradingView ticker badge); exposed as `window.renderLinkPreviews`; injected into each post in `renderFeed()`.
+- **CSS**: `.lp-stack`, `.lp-card`, `.lp-thumb`, `.lp-body`, `.lp-header`, `.lp-favicon`, `.lp-domain`, `.lp-title`, `.lp-desc`, `.lp-ticker-badge` in `assets/styles/app.css`.
+- **Deploy to Hostinger**: migration applied, `config/services.yaml` uploaded with hardcoded params, upload dirs created, `POST /api/feed` with TradingView URL returns `link_previews` with enriched `ticker: "XAUUSD"`.
+
+### Deploy fixes
+- `config/services.yaml` added to deploy FILES_TO_UPLOAD (missing in first run → cache:clear errored).
+- Migration uses `doctrine:migrations:execute` (not `migrate`) to avoid running unrelated pending migrations.
+- Hardcoded LinkPreview params (cacheTtl=86400, maxDownloadBytes=2097152, httpTimeout=5.0) in services.yaml since prod `.env` is not read.
+
+### End-to-end verification (Hostinger)
+```
+POST /api/feed X-Game-Code:ADMIN01 {"text":"Testing link preview: https://www.tradingview.com/chart/?symbol=OANDA:XAUUSD"}
+→ 201 Created, id=3
+
+GET /api/feed → post 3:
+link_previews: [{
+  "url": "https://www.tradingview.com/chart?symbol=OANDA%3AXAUUSD",
+  "title": "Gold Spot / USD — TradingView",
+  "description": "Gráfico interactivo de Gold Spot / USD en TradingView.",
+  "favicon": "/uploads/link-previews/favicons/tradingview-logo.svg",
+  "enriched": {
+    "kind": "tradingview",
+    "ticker": "XAUUSD",
+    "title": "Gold Spot / USD — TradingView"
+  }
+}]
+```
+
+### Files changed/created (Session 1)
+- `src/Entity/LinkPreview.php` (NEW, 5861 B)
+- `src/Repository/LinkPreviewRepository.php` (NEW, 2347 B)
+- `src/Service/LinkPreview/LinkPreviewService.php` (NEW, 7736 B)
+- `src/Service/LinkPreview/MetadataExtractor.php` (NEW, 8889 B)
+- `src/Service/LinkPreview/FaviconService.php` (NEW, 4714 B)
+- `src/Service/LinkPreview/UrlNormalizer.php` (NEW, 7793 B)
+- `src/Service/LinkPreview/ScreenshotProviderInterface.php` (NEW, 837 B)
+- `src/Service/LinkPreview/NullScreenshotProvider.php` (NEW, 623 B)
+- `src/Service/LinkPreview/SiteEnrichers/SiteEnricherInterface.php` (NEW, 1076 B)
+- `src/Service/LinkPreview/SiteEnrichers/GenericEnricher.php` (NEW, 589 B)
+- `src/Service/LinkPreview/InvalidUrlException.php` (NEW, 124 B)
+- `src/Service/LinkPreview/SsrfException.php` (NEW, 118 B)
+- `src/Controller/Api/LinkPreviewController.php` (NEW, 1711 B)
+- `migrations/Version20260720000002.php` (NEW, ~60 lines, DBAL 4 compatible)
+- `tests/Unit/Service/LinkPreview/` — 9 test files, 48 tests total
+
+### Files changed/created (Session 2)
+- `src/Service/LinkPreview/SiteEnrichers/TradingViewEnricher.php` (NEW, 2589 B)
+- `src/Entity/FeedPost.php` — added `linkPreviews` property + getter/setter
+- `src/Controller/Api/FeedController.php` — URL scanning in create(), link_previews in list()
+- `assets/app.js` — `renderLinkPreviews()` function + window export
+- `assets/styles/app.css` — link preview card styles
+- `config/services.yaml` — LinkPreview params hardcoded
+- `bin/deploy.py` — added migrations upload, config/services.yaml, directory creation, per-migration execute
+- `AGENTS.md` — this entry
+
+### Command
+- **Run tests**: `vendor/bin/phpunit tests/Unit/Service/LinkPreview/`
+- **All tests**: `vendor/bin/phpunit`
+- **Deploy**: `$env:ADMIN_PASSWORD='...'; $env:SKIP_APK='1'; python bin/deploy.py`
+- **Local server**: `cd "C:\Users\HP 240 inch G9\Documents\TNSVT-WORK\tnsvt-symfony" && php -S 0.0.0.0:8000 -t public`

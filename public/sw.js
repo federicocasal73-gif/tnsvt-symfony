@@ -1,7 +1,14 @@
 // TNSVT Service Worker - PWA + Offline fallback
-// v49: HTML + importmap network-first, cache-first solo para hashed assets
-const CACHE_NAME = 'tnsvt-v57';
-const RUNTIME_CACHE = 'tnsvt-runtime-v57';
+// v4.24: bump + network-first ciego a TODO el path (la baseURL es ahora
+// la misma origin si server.url está vacío, o un baseURL configurable
+// desde el cliente). Mantener timeout 1.5s para respuestas rápidas offline.
+const CACHE_NAME = 'tnsvt-v61';
+const RUNTIME_CACHE = 'tnsvt-runtime-v61';
+const LEGACY_CACHE_HINTS = ['tnsvt-v57', 'tnsvt-v58', 'tnsvt-v59', 'tnsvt-v60',
+  'tnsvt-runtime-v57', 'tnsvt-runtime-v58', 'tnsvt-runtime-v59', 'tnsvt-runtime-v60'];
+// Rutas GET que admiten timeout-then-cache (lecturas offline)
+const TIMEOUT_CACHE_PATHS = ['/api/notifications', '/api/chat', '/api/sync/snapshot'];
+const RUNTIME_TTL_MS = 30 * 60 * 1000;
 
 // Config files que CAMBIAN en cada recompilación — NO cachear nunca.
 // Siempre network-first para que el navegador reciba los hashes correctos.
@@ -16,11 +23,11 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // Borrar TODAS las caches viejas
+  // Borrar TODAS las caches viejas (incluyendo legacy hints)
   const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
   event.waitUntil(
     caches.keys()
-      .then((cacheNames) => cacheNames.filter((name) => !currentCaches.includes(name)))
+      .then((cacheNames) => cacheNames.filter((name) => !currentCaches.includes(name) || LEGACY_CACHE_HINTS.includes(name)))
       .then((cachesToDelete) => Promise.all(cachesToDelete.map((c) => caches.delete(c))))
       .then(() => self.clients.claim())
   );
@@ -54,10 +61,14 @@ self.addEventListener('fetch', (event) => {
   const path = url.pathname;
   const isHTML = request.headers.get('accept')?.includes('text/html');
 
-  // ── Network-first helpers ──
-  function networkFirst() {
+  // ── Network-first con timeout 1.5s para rutas offline-friendly ──
+  function networkFirst(timeoutMs) {
+    const ms = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 4000;
     event.respondWith(
-      fetch(request).then((response) => {
+      Promise.race([
+        fetch(request),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('sw-timeout')), ms))
+      ]).then((response) => {
         if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
@@ -87,8 +98,12 @@ self.addEventListener('fetch', (event) => {
     );
   }
 
-  // ── API: network-first ──
-  if (path.startsWith('/api/')) { networkFirst(); return; }
+  // ── API: network-first con timeout corto en rutas offline-friendly ──
+  if (path.startsWith('/api/')) {
+    const useTimeout = TIMEOUT_CACHE_PATHS.some((p) => path.startsWith(p));
+    networkFirst(useTimeout ? 1500 : 4000);
+    return;
+  }
 
   // ── Assets con ?v= (cache-bust explicito): bypass cache ──
   if (url.searchParams.has('v') || /\?v=/.test(url.search)) {

@@ -1,40 +1,91 @@
-const API = {
+var API = window.API = {
   // Tracker global de requests en curso (usado por el loader de la app)
   loadingCount: 0,
   loadingListeners: new Set(),
   onLoadingChange(cb) { this.loadingListeners.add(cb); return () => this.loadingListeners.delete(cb); },
   _emitLoading() { this.loadingListeners.forEach(cb => { try { cb(this.loadingCount); } catch (_) {} }); },
 
+  // ─── Config runtime (Phase 3 offline-first APK) ──────────────
+  // La APK ya no apunta a un server.url hardcodeado: la URL del backend
+  // se setea por el usuario la primera vez (o manualmente en Settings).
+  // Persistimos en localStorage (clave: tnsvt_api_base) para que sobreviva
+  // al reinicio de la app.
+  STORAGE_KEY_API: 'tnsvt_api_base',
+  DEFAULT_API_BASE: 'https://tnsvt.com',
+
+  _loadApiBase() {
+    try {
+      const v = window.localStorage && window.localStorage.getItem(this.STORAGE_KEY_API);
+      if (v) return v.replace(/\/+$/, '');
+    } catch (_) { /* storage disabled */ }
+    return this.DEFAULT_API_BASE;
+  },
+  setApiBase(url, persist = true) {
+    const clean = String(url || '').trim().replace(/\/+$/, '');
+    if (!clean) return false;
+    if (persist) {
+      try { window.localStorage.setItem(this.STORAGE_KEY_API, clean); } catch (_) {}
+    }
+    API._configuredBase = clean;
+    window.dispatchEvent(new CustomEvent('tnsvt:api-base-changed', { detail: { url: clean } }));
+    return true;
+  },
+  isApiBaseConfigured() {
+    try { return !!window.localStorage.getItem(this.STORAGE_KEY_API); } catch (_) { return false; }
+  },
+  clearApiBase() {
+    try { window.localStorage.removeItem(this.STORAGE_KEY_API); } catch (_) {}
+    API._configuredBase = this.DEFAULT_API_BASE;
+    window.dispatchEvent(new CustomEvent('tnsvt:api-base-changed', { detail: { url: this.DEFAULT_API_BASE } }));
+  },
+
+  _friendlyStatus(status, url) {
+    if (status === 401) {
+      if (url.includes('/api/auth/login')) return 'Código/contraseña inválidos. Verificá mayúsculas.';
+      if (url.includes('/api/auth/check')) return null;
+      return 'No autorizado. Iniciá sesión.';
+    }
+    if (status === 403) return 'No tenés permiso para esta acción.';
+    if (status === 404) return 'Recurso no encontrado.';
+    if (status === 419) return 'Sesión expirada. Volvé a iniciar sesión.';
+    if (status === 429) return 'Demasiadas peticiones. Esperá un momento.';
+    if (status >= 500) return 'Server caído. Reintentá en un minuto.';
+    return null;
+  },
+
   // Base URL absoluta del backend.
-  // - En navegador (Chrome/Edge): location es http://IP:8000, los fetch
-  //   relativos funcionan porque la web misma se sirve desde ahi.
-  // - En Capacitor (WebView): el WebView carga desde https://localhost
-  //   (assets locales), y los fetch('/api/...') no van a ningun lado. Hay
-  //   que apuntarlos a la URL absoluta del server.
-  // IMPORTANTE: Usar SIEMPRE HTTPS (Tailscale fuerza HTTPS) para evitar
-  // Mixed Content errors desde una página HTTPS.
+  // Orden de resolución para Phase 3 offline-first:
+  //   1. localStorage `tnsvt_api_base` (configurado por el usuario).
+  //   2. localStorage override del usuario (API.defaultApiBase).
+  //   3. Misma origin si el navegador sirve la web directo
+  //      (desarrollo local con `php -S`).
+  //   4. DEFAULT_API_BASE ('https://tnsvt.com') como fallback.
+  // Removido el fallback a Tailscale legado (servidor apagado).
   baseURL: (function() {
     try {
+      const stored = window.localStorage && window.localStorage.getItem('tnsvt_api_base');
+      if (stored) return stored.replace(/\/+$/, '');
       const loc = window.location;
-      // Si el origin es el scheme interno de Capacitor (https://localhost),
-      // forzamos la URL HTTPS del server.
-      if (loc.hostname === 'localhost' && loc.protocol === 'https:') {
-        return 'https://laptop-ebgqig6j.tailf43f87.ts.net';
-      }
-      // Si el WebView ya está en HTTPS (caso edge), usamos same-origin
-      if (loc.protocol === 'https:' && loc.hostname !== 'localhost') {
-        return loc.origin;
+      if (loc.protocol === 'http:' || loc.protocol === 'https:') {
+        // Si la web está sirviendo desde un server (no bundled APK),
+        // los fetch relativos funcionan — devolver origin.
+        if (loc.hostname !== 'localhost') return loc.origin;
       }
     } catch (_) {}
-    return '';
+    return API.DEFAULT_API_BASE;
   })(),
 
   _resolve(path) {
     if (!path) return path;
     if (/^https?:\/\//i.test(path)) return path; // ya es absoluta
-    if (!API.baseURL) return path; // relative (navegador sirviendo desde el server)
+    let base = API.baseURL;
+    try {
+      const stored = window.localStorage && window.localStorage.getItem('tnsvt_api_base');
+      if (stored) base = stored.replace(/\/+$/, '');
+    } catch (_) {}
+    if (!base) return path; // relative (navegador sirviendo desde el server)
     if (!path.startsWith('/')) path = '/' + path;
-    return API.baseURL + path;
+    return base + path;
   },
 
   async request(method, path, body = null, extraOpts = null) {
@@ -42,7 +93,6 @@ const API = {
     console.log('[API] ' + method + ' ' + url, body && !(body instanceof FormData) ? JSON.stringify(body) : '');
     const opts = { method, credentials: 'include' };
     if (body instanceof FormData) {
-      // FormData: dejar que el browser setee Content-Type: multipart/form-data; boundary=...
       opts.body = body;
     } else if (body && typeof body === 'object') {
       opts.headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
@@ -54,8 +104,9 @@ const API = {
     if (extraOpts && extraOpts.headers && Object.keys(extraOpts.headers).length > 0) {
       opts.headers = { ...(opts.headers || {}), ...extraOpts.headers };
     }
-    // FIX APK: AbortController con timeout para evitar cuelgues eternos
-    // en requests de carga (subir archivos grandes, red lenta).
+    if (extraOpts && extraOpts.queueOnFail) {
+      opts.queueOnFail = true;
+    }
     const controller = new AbortController();
     const timeoutMs = (extraOpts && extraOpts.timeoutMs) || 30000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -66,17 +117,59 @@ const API = {
       const res = await fetch(url, opts);
       clearTimeout(timeoutId);
       console.log('[API] ' + method + ' ' + url + ' -> ' + res.status);
-      const data = await res.json();
-      if (!res.ok && data.error) throw new Error(data.error);
-      return data;
+      const ct = res.headers.get('content-type') || '';
+      const raw = await res.text();
+      let data = null;
+      if (ct.includes('application/json') && raw) {
+        try { data = JSON.parse(raw); } catch (parseErr) { data = null; }
+      }
+      if (res.ok) {
+        return data !== null ? data : {};
+      }
+      const hint = (data && (data.error || data.error_code)) || API._friendlyStatus(res.status, url) || raw.slice(0, 140) || 'Sin detalle del server';
+      throw new Error(typeof hint === 'string' ? hint : JSON.stringify(hint));
     } catch (e) {
       clearTimeout(timeoutId);
-      if (e.name === 'AbortError') throw new Error('Timeout: la petición tardó más de ' + Math.round(timeoutMs/1000) + 's');
+      if (e.name === 'AbortError') {
+        throw new Error('Timeout: la petición tardó más de ' + Math.round(timeoutMs/1000) + 's');
+      }
+      // Network error real (sin red): queuear para replay (Phase 1 offline-resilient)
+      if (opts.queueOnFail && API._isNetworkError(e) && /^(POST|PUT|DELETE|PATCH)$/.test(method)) {
+        try {
+          if (window.MutationQueue && window.MutationQueue.enqueue) {
+            const op = window.MutationQueue.enqueue(method, url, opts.body, { headers: opts.headers });
+            API._pendingOpAdded && API._pendingOpAdded(op);
+            const err = new Error('Sin conexión — guardado en cola (id ' + op.id + ')');
+            err.queued = true;
+            err.opId = op.id;
+            throw err;
+          }
+        } catch (qErr) { /* si la cola misma falla, propagar original */ }
+      }
       console.log('[API] ERROR ' + method + ' ' + url + ': ' + e.message);
       throw e;
     } finally {
       API.loadingCount--;
       API._emitLoading();
+    }
+  },
+
+  _isNetworkError(e) {
+    if (!e) return false;
+    const msg = String(e.message || '');
+    return /Failed to fetch|NetworkError|TypeError: Load failed|Network request failed/i.test(msg)
+      || e instanceof TypeError;
+  },
+
+  async drainPending() {
+    if (!window.MutationQueue) return { ok: 0, failed: 0, skipped: true };
+    try {
+      const res = await window.MutationQueue.drain();
+      if (res.failed > 0 && window.API && window.API._pendingOpDrained) window.API._pendingOpDrained(res);
+      return res;
+    } catch (e) {
+      console.warn('[API] drainPending:', e);
+      return { ok: 0, failed: 0, skipped: true };
     }
   },
 

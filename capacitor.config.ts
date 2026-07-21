@@ -2,37 +2,30 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 /**
  * ⛧ TNSVT - Reino del Cristo Íntegro
- * Capacitor v8.x config — APK Web Android (SHELL ONLINE)
+ * Capacitor v8.x config — APK Web Android (OFFLINE-FIRST v4.24+)
  *
- * Esta APK NO contiene copia local de la web: se conecta a
- * https://federicocasal73-gif.com y la envuelve en un WebView
- * nativo con status bar, safe areas, back button, push, etc.
+ * Esta APK arranca desde los assets bundleados en
+ * `android/app/src/main/assets/public/` (espejo 1:1 de `public/`).
+ * NO usa `server.url`, por lo tanto la UI funciona offline
+ * al 100 % para todo lo estático (login screen, journal cache,
+ * settings, sidebar, hub). Las llamadas a `/api/*` van contra
+ * el backend configurado en `assets/api.js` baseURL
+ * (que se setea por runtime: ver `first-run modal` y
+ * `tnsvt_api_base` en localStorage).
  *
- * Cualquier deploy a Symfony aparece inmediatamente en la app.
+ * Actualizar la web requiere rebuild + redistribución de la APK.
  */
 
 const config: CapacitorConfig = {
   appId: 'com.tnsvt.app',
   appName: 'TNSVT',
-  // webDir obligatorio (Capacitor lo usa para indexar assets locales).
-  // Como server.url está definido, la APK ignora webDir en runtime.
   webDir: 'public',
-
-  // ─── SHELL ONLINE / local development ────────────────────
-  // Server URL: en producción apunta a Tailscale Funnel (funciona sin WiFi local).
-  // Para dev local en WiFi, cambiar a 'http://192.168.1.2:8000'
-  server: {
-    url: 'https://laptop-ebgqig6j.tailf43f87.ts.net',
-    cleartext: false,
-    androidScheme: 'https',
-    allowNavigation: ['*'],
-  },
 
   // ─── WebView nativo ───────────────────────────────────────
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false, // mismo-scheme (https://localhost) → nada mixto
     captureInput: true,
-    webContentsDebuggingEnabled: false, // false en release (true en debug)
+    webContentsDebuggingEnabled: false,
     backgroundColor: '#07030f',
   },
 
@@ -63,9 +56,7 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
     },
-    Network: {
-      // Sin opciones especiales, default funciona
-    },
+    Network: {},
   },
 };
 
