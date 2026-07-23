@@ -62,7 +62,12 @@ ASSET_GLOBS = [
     "public/assets/app-*.js",
     "public/assets/api-*.js",
     "public/assets/mutation-queue-*.js",
+    "public/assets/reliability-*.js",
     "public/assets/styles/app-*.css",
+    "public/assets/styles/apk-layout-fix-*.css",
+    "public/assets/styles/web-glowup-*.css",
+    "public/assets/styles/apk-glowup-*.css",
+    "public/assets/styles/components/*.css",
     "public/assets/importmap.json",
     "public/assets/manifest.json",
     "public/assets/entrypoint.app.json",
@@ -206,6 +211,22 @@ def main():
                 sftp_put(sftp, local, remote_rel)
         else:
             print("\n[deploy] 5) SKIP_APK=1, no subo APK")
+
+        # 5b) Limpiar bundles/archivos deprecados en server (deprecaciones explícitas)
+        # El deploy solo sube archivos, NO los borra. Esta lista permite
+        # marcar archivos viejos (ej. bundles chart eliminados) para borrar.
+        DEPRECATED_REMOTE_FILES = [
+            # Chart Binance (eliminado 2026-07-21)
+            f"{REMOTE_ROOT}/public/assets/chart-yvS873S.js",
+            f"{REMOTE_ROOT}/public/js/lightweight-charts.standalone.production.js",
+        ]
+        print("\n[deploy] 5b) Limpiando bundles deprecados…")
+        for remote_path in DEPRECATED_REMOTE_FILES:
+            try:
+                sftp.remove(remote_path)
+                print(f"  · removed {remote_path}")
+            except IOError:
+                pass  # ya no existe en server, ok
 
         # 6) Crear directorios de uploads para LinkPreview
         print("\n[deploy] 6) Creando directorios de uploads…")
