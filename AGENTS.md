@@ -1,5 +1,80 @@
 # TNSVT Session Summary
 
+## Session 2026-07-23 — Diagnóstico: módulos aparecen vacíos (solo Feed renderiza)
+
+### Síntoma reportado por el usuario
+- Al hacer login, **solo el Feed (tab-posts) renderiza correctamente**.
+- Los demás módulos aparecen vacíos (Macroeconomía, 2 Steps, Tareas, Calendario, Diario, Journal, Leaderboard, Campus, Academia, Seguridad, Social, Admin).
+- Regla importante: no modificar funcionalidades que ya funcionan; cada cambio debe preservar el comportamiento existente.
+
+### Branch
+- `refactor/ui-stability-phase1` creada a partir de `master` (antes de cualquier refactor).
+
+### Diagnóstico (en progreso)
+
+#### Causa raíz identificada en `assets/app.js`
+
+1. **`initAllPanels()` (app.js:4615-4636)** solo inicializa un subset de tabs al cargar:
+   ```js
+   async function initAllPanels() {
+     loadTasks();                     // tab-tasks
+     await loadAccounts();            // tab-journal
+     await loadJournalFromApi();      // tab-journal
+     renderFeed();                    // tab-posts (Feed) ✓
+     renderAcademia();                // tab-academia
+     loadChats();                     // chat
+     initFeedRealtime();
+     initNotifRealtime();
+     // ... notifications, music, admin (solo si isAdmin)
+   }
+   ```
+
+2. **Tabs que NO se inicializan en `initAllPanels()`** y dependen de `switchTab()` para su render:
+   - `tab-macro` → requiere `window._rET('tmpl-macro', 'macro-content')` (app.js:660-668)
+   - `tab-2steps-adv` → requiere `window._rET('tmpl-2steps', 'two-steps-content')`
+   - `tab-leaderboard` → requiere `lbRefresh()` (app.js:628-630)
+   - `tab-diary` → requiere `Diary.init()` (app.js:631-633)
+   - `tab-calendar` → **NO TIENE handler en `switchTab()`** (no se llama a `setupCalFilters()`, `loadCalEvents()`, etc.)
+   - `tab-social` → requiere `showSocialSection('users')` (app.js:625-627)
+   - `tab-security` → requiere `initAppLockUI()` (app.js:617)
+   - `tab-tasks` → renderizado por `loadTasks()` ✓ (sí está en initAllPanels)
+
+3. **HTML placeholders en `templates/base.html.twig`** que muestran "Cargando módulo..." hasta que JS los pueble:
+   - `tab-macro` → `<div class="ms-loading">Cargando módulo...</div>` (línea 734)
+   - `tab-2steps-adv` → `<div class="ms-loading">Cargando módulo...</div>` (línea 740)
+   - `tab-leaderboard` → `<div id="lb-loading">Cargando leaderboard…</div>` (línea 1610)
+   - `tab-academia` → similar (placeholder hasta que `renderAcademia()` cargue el template)
+
+#### Por qué Feed sí funciona
+- `renderFeed()` está en `initAllPanels()` → se ejecuta apenas se carga la página
+- Además el HTML del Feed tiene contenido estático placeholder que se reemplaza rápido
+
+#### Hipótesis principal
+1. **Falta invocación de inicializadores para tabs sin handler en `switchTab()`**:
+   - `tab-calendar` no tiene handler → necesita `setupCalFilters()` + `loadCalEvents()` al cargar
+2. **Posible timing issue**: si el usuario hace clic en tabs antes de que `initAllPanels()` complete, ve "Cargando módulo..." indefinidamente porque `switchTab()` solo inicializa algunos tabs
+3. **Posible JS error** en alguna función de inicialización que aborta el resto (necesita verificar consola del browser)
+
+#### Próximos pasos propuestos (NO EJECUTADOS - esperando confirmación del usuario)
+1. **Agregar handlers faltantes en `switchTab()`** para `tab-calendar`, `tab-tasks` (re-render), etc.
+2. **Mover todas las inicializaciones a `initAllPanels()`** para que carguen al inicio (paralelizar con `Promise.all` para velocidad)
+3. **Verificar consola del browser** con Playwright para detectar errores JS que abortan la carga
+4. **Agregar fallback `display:block`** en tabs que tienen `display:none` inline (como `tab-campus` y `tab-security` en Twig líneas 1696 y 1762)
+
+### Estado actual
+- ✅ Branch `refactor/ui-stability-phase1` creada
+- ✅ PHP server local corriendo en `localhost:8000`
+- ✅ Usuario DEMO activado en DB (`UPDATE User SET active=true WHERE code='DEMO'`)
+- ✅ Login funciona con `DEMO/Demo`
+- ✅ Feed visible en logged-in state
+- ❌ Browser automation con Playwright inestable para click en tabs (elementos "not stable")
+- ⏸️ Diagnóstico completo - esperando confirmación del usuario antes de aplicar fixes
+
+### Archivos analizados (sin modificar aún)
+- `assets/app.js` — funciones `switchTab()` (línea 576), `initAllPanels()` (línea 4615)
+- `templates/base.html.twig` — tabs HTML con placeholders
+- `src/Controller/Api/AuthController.php` — login flow
+
 ## Session 2026-07-20 — Fix POST /api/feed 500 (signal reserved word + RateLimiter MySQL)
 
 ### Síntoma
@@ -1076,3 +1151,134 @@ link_previews: [{
 - **All tests**: `vendor/bin/phpunit`
 - **Deploy**: `$env:ADMIN_PASSWORD='...'; $env:SKIP_APK='1'; python bin/deploy.py`
 - **Local server**: `cd "C:\Users\HP 240 inch G9\Documents\TNSVT-WORK\tnsvt-symfony" && php -S 0.0.0.0:8000 -t public`
+
+## Session 2026-07-21 — Quitar integración chart/Binance completamente
+
+### What was done
+Eliminada toda la integración con Binance API + lightweight-charts + chart.js bundle del admin "Chart en Vivo". El frontend queda libre de dependencias de APIs grátis instables. Trading Journal NADA se toca (su equity chart es SVG nativo).
+
+### Backend (PHP) — 5 archivos eliminados
+- `src/Controller/Api/MarketController.php` — endpoints `/api/market/candles`, `/api/market/symbols`
+- `src/Controller/Api/MercureController.php` — endpoints `/api/mercure/subscribe`, `/api/mercure/ticker`
+- `src/Command/MercureStreamCommand.php` — daemon `mercure:stream-candles`
+- `src/Service/MercureSubscriberService.php` — solo usado por los anteriores
+- `src/Service/RealtimePublisher.php` — solo usado por los anteriores
+- `config/services.yaml` — removidas definitions de los 2 services eliminados
+
+### Frontend (Twig/JS) — eliminadas referencias
+- `templates/base.html.twig`:
+  - `{% set lw_ver ... %}` (línea 43, antes)
+  - `<script src="chart.js">` + `<script src="lightweight-charts...">`
+  - CSS inline `.chart-select`, `.draw-btn`, `.wl-row`, `.wl-up`, `.wl-down`, `#chart-watchlist::*`
+  - Botón sidebar `chartSidebarBtn` (📈 Chart en Vivo)
+  - Bloque completo `<div id="tab-chart">` con Lightweight Charts + Drawing Toolbar (~70 líneas)
+- `assets/api.js` — eliminados `getMarketCandles()`, `getMarketSymbols()`
+- `assets/app.js`:
+  - Check `tab-chart` en switchTab
+  - Case `tab-chart`
+  - `TAB_SUBTITLES['tab-chart']`
+  - Toggle `chartSidebarBtn` en `applyAdminFeatures`
+- `public/index.html` (APK bundle) — script tag `lightweight-charts` + `chartSidebarBtn` button + `tab-chart` div
+
+### Assets eliminados
+- `assets/chart.js` (27KB)
+- `public/js/lightweight-charts.standalone.production.js` (40KB gzip)
+- `public/assets/chart-yvS873S.js` (deploy anterior)
+- `android/app/src/main/assets/public/assets/chart-yvS873S.js`
+- `android/app/src/main/assets/public/js/lightweight-charts.standalone.production.js`
+
+### Service Worker
+- `public/sw.js`: `CACHE_NAME: tnsvt-v61 → tnsvt-v62`, `RUNTIME_CACHE: tnsvt-runtime-v61 → v62`
+- `LEGACY_CACHE_HINTS`: agrega `tnsvt-v61` y `tnsvt-runtime-v61` para forzar invalidación del cache viejo
+
+### NO TOCADO (verificado)
+- `src/Service/MarketDataService.php` — lo usa `TournamentController` para entry/exit prices de trades en torneos
+- `templates/base.html.twig` líneas 1197-1567, 2953+ — **Trading Journal equity chart SVG nativo**
+- `config/packages/mercure.yaml` — Mercure se usa para chat realtime + notificaciones (no solo chart)
+- `src/Controller/CalendarController.php` — URL constante a tradingview (informativo)
+- `docs/documentacion-tecnica.md` — documentación histórica (puede actualizarse después)
+
+### Validation post-deploy
+- `GET /api/market/candles` → **404** ✅
+- `GET /api/market/symbols` → **404** ✅
+- `GET /api/mercure/subscribe` → **404** ✅
+- `GET /api/mercure/ticker` → **404** ✅
+- `GET /` → **200** (app sigue funcionando)
+- Tests PHPUnit: **48/48 verde**
+- Console errors Playwright: **0** (antes 4-6 chart-related 404s por sesión)
+
+### Métricas de limpieza
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Bundle JS frontend | 467196 bytes | 467955 bytes (-3KB chart) |
+| Líneas backend PHP | +569 | -569 |
+| Endpoint `/api/admin/*` | chart-related | eliminados |
+| Console 404s por sesión | 4-6 | 0 |
+
+### Considerations importantes
+1. **Mercure config preservada** — chat realtime y notificaciones siguen funcionando
+2. **TWIG lint pasa** — template compila sin errores
+3. **composer dump-autoload --no-dev --optimize** requerido tras eliminar archivos PHP (deploy script ya lo hace)
+4. **deploy.py actualizado** con lista `DEPRECATED_REMOTE_FILES` para limpieza automática de bundles viejos en futuros deploys
+5. **APK Android sync manual** — `android/app/src/main/assets/public/{index.html, sw.js}` actualizados (se regeneran automáticamente en próximo `./gradlew assembleDebug`)
+
+### Files changed
+- ❌ `src/Controller/Api/MarketController.php` (deleted)
+- ❌ `src/Controller/Api/MercureController.php` (deleted)
+- ❌ `src/Command/MercureStreamCommand.php` (deleted)
+- ❌ `src/Service/MercureSubscriberService.php` (deleted)
+- ❌ `src/Service/RealtimePublisher.php` (deleted)
+- ❌ `assets/chart.js` (deleted)
+- ❌ `public/js/lightweight-charts.standalone.production.js` (deleted)
+- ❌ `android/app/src/main/assets/public/assets/chart-yvS873S.js` (deleted)
+- ❌ `android/app/src/main/assets/public/js/lightweight-charts.*` (deleted)
+- ✏️ `templates/base.html.twig` — 4 bloques chart eliminados
+- ✏️ `assets/api.js` — 2 métodos eliminados
+- ✏️ `assets/app.js` — 4 referencias eliminadas
+- ✏️ `public/index.html` — 3 referencias eliminadas
+- ✏️ `public/sw.js` — bump a v62
+- ✏️ `config/services.yaml` — 2 services removidos
+- ✏️ `bin/deploy.py` — agregado DEPRECATED_REMOTE_FILES cleanup
+
+## Session 2026-07-22 — Hybrid Template + CSS Unification (Pillars A+B)
+
+### What was done
+
+**Pilar A — Template único + reliability.js + build script**
+- **`assets/reliability.js`** (NEW, ~80 lines): standalone script síncrono en `<head>` que corre antes que cualquier otro JS. Funciones: SW killer (desregistra + purge caches de SWs viejos), cache-busting del importmap (adds fresh=timestamp a scripts), watchdog 20s (si app.js no carga en 20s, reload con fresh=1), fresh nuclear (?fresh=1 purga todo y recarga), API retry guard, SW auto-update (escucha `updatefound` + message `sw-updated`).
+- **`templates/base.html.twig`**: inline reliability block (líneas 19-133) reemplazado por `<script src="{{ asset('reliability.js') }}">`. Agregado `{% set is_apk = is_apk|default(false) %}` + `data-apk="true"` condicional en `<html>` para gating CSS vía `body.is-apk`.
+- **`src/Command/GenerateApkIndexCommand.php`** (NEW): renderiza `base.html.twig` con `is_apk=true`, post-procesa paths absolutos (`/assets/`→`./assets/`, `/uploads/`→`./uploads/`, `/styles/`→`./styles/`, `/icons/`→`./icons/`, `/capacitor-bridge.js`→`./capacitor-bridge.js`, etc) para que Capacitor sirva correctamente desde bundle local. Guarda en `public/index.html`.
+- **`bin/build.py`** (NEW, ~120 lines): script unificado con pasos `compile` (asset-map:compile), `index` (generate-apk-index), `sync` (npx cap sync), `apk` (gradlew assembleDebug), `deploy` (deploy.py wrapper). Flags: `--apk-only`, `--no-clean`, `--skip-deploy`.
+- **`config/services.yaml`**: bind `$projectDir` agregado para autowiring del comando.
+
+**Pilar B — CSS unificado en app.css**
+- **`assets/styles/app.css`**: agregados `@import` de `apk-layout-fix.css`, `web-glowup.css`, `apk-glowup.css` al final. Los 3 archivos copiados de `public/styles/` a `assets/styles/` para que AssetMapper los compile y versione.
+- **`templates/base.html.twig`**: removidos los 3 `<link>` separados para `apk-layout-fix.css`, `web-glowup.css`, `apk-glowup.css`. Ahora solo un `<link href="{{ asset('styles/app.css') }}">` que via `@import` carga los auxiliares.
+- **Resultado**: 4 CSS versioneados por AssetMapper en vez de 4 raw `<link>`. APK index genera solo 1 `<link>` con versión hash.
+
+**Post-procesado mejorado** en `GenerateApkIndexCommand.php`:
+- Agregados `/styles/` → `./styles/`, `/icons/` → `./icons/`, `capacitor-bridge.js` y `fold-bridge.js` a la lista de reemplazo de paths absolutos → relativos.
+- Verificado: 0 paths absolutos restantes en `public/index.html`.
+
+### Verification
+- `vendor/bin/phpunit` → 48/48 tests, 129 assertions (5 PHPUnit notices pre-existing)
+- `php bin/console asset-map:compile` → 22 assets compiled
+- `php bin/console app:generate-apk-index` → `public/index.html` (374,232 bytes)
+- APK index: 1 CSS link (`./assets/styles/app-j7_Co4L.css`), 0 absolute paths, `data-apk="true"` presente
+
+### Files changed/created
+- `assets/reliability.js` (NEW)
+- `src/Command/GenerateApkIndexCommand.php` (NEW)
+- `bin/build.py` (NEW)
+- `assets/styles/apk-layout-fix.css` (copied from public/styles/)
+- `assets/styles/web-glowup.css` (copied from public/styles/)
+- `assets/styles/apk-glowup.css` (copied from public/styles/)
+- `assets/styles/app.css` — @import de 3 aux files
+- `templates/base.html.twig` — inline reliability → script, is_apk flag, removidos 3 CSS links
+- `config/services.yaml` — bind $projectDir
+- `public/index.html` — regenerado con paths relativos completos
+- `AGENTS.md` — esta entrada
+
+### Pendiente (Pilar C)
+- Migrar módulos educativos (Macroeconomía + 2 Steps) de render Twig a JS dinámico
+- Build APK completo: `python bin/build.py index sync apk`
