@@ -1,5 +1,54 @@
 # TNSVT Session Summary
 
+## Session 2026-07-23 — Pillar A.1: CSS extraction + Hostinger deploy
+
+### Tarea completada
+1. Extraer CSS inline de base.html.twig a componentes modulares
+2. Compilar assets
+3. Subir cambios a Hostinger via SFTP (paramiko)
+4. Verificar deploy con curl
+
+### Cambios (6dca10a + 10b1e30)
+
+**1. Archivos CSS nuevos (3):**
+- `assets/styles/components/mf-module.css` (multifractal module, ~80 reglas)
+- `assets/styles/components/offline-banner.css` (offline banner, 5 reglas)
+- `assets/styles/components/music-bar.css` (music player, 30 reglas)
+
+**2. Modificaciones:**
+- `assets/styles/app.css`: añadidos 3 `@import` statements al final
+- `templates/base.html.twig`: removidos 197 líneas de `<style>` inline
+- `bin/deploy.py`: añadida línea para subir `public/assets/styles/components/*.css`
+
+### Deploy a Hostinger (producción)
+
+**Comandos ejecutados:**
+```bash
+python bin/deploy.py  # sube 200+ archivos via SFTP
+python bin/activate_demo.py  # crea + activa usuario DEMO (que no existía en prod)
+```
+
+**Resultados:**
+- ✅ Login DEMO/Demo: `{"success":true,"user":{"code":"DEMO","name":"Demo","isAdmin":false}}`
+- ✅ CSS `app-f70iDov.css` (nuevo bundle) contiene los `@import` a componentes
+- ✅ Componentes CSS servidos correctamente: HTTP 200 OK
+
+### Helper scripts (no commiteados)
+- `bin/activate_demo.py` — crea + activa usuario DEMO en prod
+- `bin/activate_demo.php` — script PHP standalone para activación
+- `bin/deploy_refactor_pillarA.py` — deploy manual sin rotar ADMIN01
+
+### Verificación local
+- `php bin/console asset-map:compile` → 24 assets
+- `vendor/bin/phpunit` → 100/100 tests passed
+- `curl -I https://tnsvt.com/` → HTTP 200 OK
+
+### Pendiente (siguiente prioridad)
+- Pillar A.2: refactorizar `assets/app.js` (8766 líneas → módulos ESM)
+- Pillar A.3: dividir `app.css` por componentes
+- Pillar B: accesibilidad WCAG 2.2 AA
+- Pillar C: performance Hostinger shared
+
 ## Session 2026-07-23 — Fix 2026-07-23 tabs vacíos (commit ea16581)
 
 ### Problema
