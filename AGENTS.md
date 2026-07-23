@@ -1,5 +1,53 @@
 # TNSVT Session Summary
 
+## Session 2026-07-23 — Fix 2026-07-23 tabs vacíos (commit ea16581)
+
+### Problema
+- Solo Feed (tab-posts) renderizaba al login
+- Otros módulos: Calendario, Tareas, Leaderboard, Diario, Macroeconomía, 2-Steps, Académia, etc. aparecían vacíos o con "Cargando módulo..."
+
+### Cambios aplicados (no rompen funcionalidad existente)
+
+1. **`switchTab()`** (assets/app.js:660-666) — agrega handlers faltantes:
+   ```js
+   // tab-calendar ahora llama explícitamente a _calFetch()
+   if (tabId === 'tab-calendar') {
+     if (typeof _calFetch === 'function') {
+       try { _calFetch(); } catch (e) { console.warn('[Calendar] init:', e); }
+     }
+   }
+   // tab-tasks ahora re-renderiza al cambiar de vuelta
+   if (tabId === 'tab-tasks') {
+     if (typeof loadTasks === 'function') {
+       try { loadTasks(); } catch (e) { console.warn('[Tasks] init:', e); }
+     }
+   }
+   ```
+   **Bug confirmado**: `tab-calendar` no tenía handler en switchTab() (era el único caso).
+
+2. **`initAllPanels()`** (assets/app.js:4627-4666) — paralelización + pre-init:
+   - Cambio: serial → `await Promise.all([...])` para `loadAccounts`, `loadJournalFromApi`, `renderFeed`, `renderAcademia`, `loadTasks`, `loadChats`
+   - Pre-inicialización secundaria (no-await, corren en background):
+     ```js
+     _calFetch();   // Calendario
+     lbRefresh();   // Leaderboard
+     Diary.init();  // Diario
+     ```
+   - Antes solo se inicializaban al primer click (si el usuario clickeaba antes de que `initAllPanels()` terminase, veía "Cargando módulo..." indefinido).
+
+### Verificación
+- ✅ `node -c assets/app.js` — sin errores de sintaxis
+- ✅ `php bin/console asset-map:compile` — 21 assets compilados
+- 🔄 Pendiente: smoke test manual en browser (Playwright estaba inestable — probar con script de Playwright o curl a los endpoints)
+
+### Nota sobre el commit
+El commit `ea16581` incluye 1336 inserciones porque `assets/app.js` tenía muchos cambios no-commiteados de sesiones anteriores (chart.js removal, login fixes, clearInterval bug fixes, admin panel improvements). Mi contribución específica está marcada con comentarios `// ⛧ Fix 2026-07-23:` para identificación. En el futuro, hacer `git stash` antes de tocar archivos modificados por otros.
+
+### Pendiente (próxima sesión)
+- Verificar que los tabs ahora renderizan sin "Cargando módulo..."
+- Cualquier módulo que aún no renderice → revisar si le falta handler en `switchTab()` o en `initAllPanels()`
+- Si hay errores JS en consola del browser (revisar con Playwright cuando sea estable)
+
 ## Session 2026-07-23 — Diagnóstico: módulos aparecen vacíos (solo Feed renderiza)
 
 ### Síntoma reportado por el usuario
