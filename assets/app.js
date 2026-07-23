@@ -272,6 +272,10 @@ window.sb = window.API;
           sessionStorage.setItem('tnsv_auth', 'true');
           localStorage.setItem('tnsv_user', JSON.stringify(activeUserSession));
           window.TNSVT_USER = { code: code, name: data.user.name || 'Trader', isAdmin };
+          // Persistir contraseña admin si el login fue como ADMIN (para llamadas admin subsiguientes)
+          if (isAdmin && password) {
+            try { localStorage.setItem('tnsvt_admin_pass', password); } catch (_) {}
+          }
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
           document.getElementById('profileCodename').innerText = data.user.name || "Alma Electa";
@@ -326,6 +330,14 @@ window.sb = window.API;
         sessionStorage.removeItem('tnsv_auth');
         localStorage.removeItem('tnsv_user');
         window.TNSVT_USER = null;
+        // Limpiar todos los intervalos activos para evitar memory leaks
+        if (window.chatPingTimer) { clearInterval(window.chatPingTimer); delete window.chatPingTimer; }
+        if (window._pollConversationsTimer) { clearInterval(window._pollConversationsTimer); delete window._pollConversationsTimer; }
+        if (window._musicProgressTimer) { clearInterval(window._musicProgressTimer); delete window._musicProgressTimer; }
+        if (typeof _calRefreshTimer !== 'undefined' && _calRefreshTimer) { clearInterval(_calRefreshTimer); _calRefreshTimer = null; }
+        if (typeof _calCountdownTimer !== 'undefined' && _calCountdownTimer) { clearInterval(_calCountdownTimer); _calCountdownTimer = null; }
+        if (typeof _calNowTimer !== 'undefined' && _calNowTimer) { clearInterval(_calNowTimer); _calNowTimer = null; }
+        if (typeof _searchTimer !== 'undefined' && _searchTimer) { clearTimeout(_searchTimer); _searchTimer = null; }
         // Limpiar clase de admin para resetear visibilidad de botones admin en APK
         if (typeof document !== 'undefined' && document.body) {
           document.body.classList.remove('is-real-admin');
@@ -549,16 +561,47 @@ window.sb = window.API;
       });
       window.toggleSidebar = toggleSidebar;
 
+      function _renderEduTab(tmplId, containerId) {
+        const key = '_edu_' + tmplId;
+        if (window[key]) return;
+        const tmpl = document.getElementById(tmplId);
+        const container = document.getElementById(containerId);
+        if (!tmpl || !container) { console.warn('[Edu] template/container not found:', tmplId, containerId); return; }
+        container.innerHTML = '';
+        container.appendChild(tmpl.content.cloneNode(true));
+        window[key] = true;
+      }
+      window._rET = _renderEduTab;
+
       function switchTab(tabId) {
-        if ((tabId === 'tab-admin' || tabId === 'tab-chart') && !(window.TNSVT_USER && window.TNSVT_USER.isAdmin)) {
+        if (tabId === 'tab-admin' && !(window.TNSVT_USER && window.TNSVT_USER.isAdmin)) {
           console.warn('[switchTab] Access denied: admin-only tab', tabId);
           return;
         }
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        // ⛧ Fix 2026-07-21: ocultar hub-view, module-panel y mostrar trading-panel al cambiar a un tab
+        const hub = document.getElementById('hub-view');
+        if (hub) hub.style.display = 'none';
+        const mp = document.getElementById('module-panel');
+        if (mp) mp.style.display = 'none';
+        const tp = document.getElementById('trading-panel');
+        // ⛧ FIX 2026-07-21: mostrar trading-panel (no ocultarlo) porque los tabs viven dentro
+        if (tp) tp.style.display = 'block';
+        document.querySelectorAll('.tab-content').forEach(t => {
+          t.classList.remove('active');
+          // Quitar inline display:none si existe para que CSS .active funcione
+          if (t.style.display === 'none') t.style.display = '';
+        });
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
         const target = document.getElementById(tabId);
         if (target) {
           target.classList.add('active');
+          // ⛧ Fix 2026-07-21: forzar display:block para sobreescribir inline display:none
+          target.style.display = 'block';
+          // ⛧ Fix 2026-07-21: forzar width/height mínimos si tab está colapsado
+          if (target.offsetWidth === 0 && target.offsetHeight === 0) {
+            target.style.minWidth = '100%';
+            target.style.minHeight = '100px';
+          }
         } else {
           console.warn('[switchTab] tab not found:', tabId);
         }
@@ -579,11 +622,6 @@ window.sb = window.API;
           return;
         }
         if (tabId === 'tab-admin' && typeof adminRefreshList === 'function') adminRefreshList();
-        if (tabId === 'tab-chart') {
-          if (typeof window.initChartTab === 'function') {
-            window.initChartTab();
-          }
-        }
         if (tabId === 'tab-social') {
           if (typeof showSocialSection === 'function') showSocialSection('users');
         }
@@ -609,6 +647,37 @@ window.sb = window.API;
             tjRefresh();
           }
         }
+        if (tabId === 'tab-campus') {
+          if (typeof renderCampusContent === 'function') {
+            try { renderCampusContent(); } catch (e) { console.warn('[Campus] init:', e); }
+          }
+        }
+        if (tabId === 'tab-academia') {
+          if (typeof renderAcademia === 'function') {
+            try { renderAcademia(); } catch (e) { console.warn('[Academia] init:', e); }
+          }
+        }
+        // ⛧ Fix 2026-07-23: handler para Calendario — antes faltaba y quedaba en 'Cargando módulo...'
+        if (tabId === 'tab-calendar') {
+          if (typeof _calFetch === 'function') {
+            try { _calFetch(); } catch (e) { console.warn('[Calendar] init:', e); }
+          }
+        }
+        // ⛧ Fix 2026-07-23: handler para Tareas — forzar re-render al volver al tab
+        if (tabId === 'tab-tasks') {
+          if (typeof loadTasks === 'function') {
+            try { loadTasks(); } catch (e) { console.warn('[Tasks] init:', e); }
+          }
+        }
+        if (tabId === 'tab-macro' || tabId === 'tab-2steps-adv') {
+          if (typeof window._rET === 'function') {
+            try {
+              const t = tabId === 'tab-macro' ? 'tmpl-macro' : 'tmpl-2steps';
+              const c = tabId === 'tab-macro' ? 'macro-content' : 'two-steps-content';
+              window._rET(t, c);
+            } catch (e) { console.warn('[Edu] init:', e); }
+          }
+        }
         // Close drawer on tab switch (mobile)
         if (window.innerWidth <= 950) {
           const s = document.querySelector('.trading-sidebar');
@@ -628,7 +697,6 @@ window.sb = window.API;
 
       const TAB_SUBTITLES = {
         'tab-posts': 'MANUSCRITO',
-        'tab-chart': 'CHART EN VIVO',
         'tab-macro': 'MACRO',
         'tab-2steps-adv': 'METODOLOGÍA',
         'tab-tasks': 'TAREAS',
@@ -637,6 +705,7 @@ window.sb = window.API;
         'tab-journal': 'TRADING JOURNAL',
         'tab-leaderboard': 'RANKING',
         'tab-academia': 'ACADEMIA',
+        'tab-campus': 'CAMPUS',
         'tab-social': 'SOCIAL',
         'tab-admin': 'ADMIN',
         'tab-chat': 'CHAT GLOBAL',
@@ -689,9 +758,9 @@ window.sb = window.API;
       const foldableQuery = window.matchMedia('(spanning: single-fold-vertical)');
       function handleFoldableChange(e) {
         if (e.matches) {
-          document.documentElement.classList.add('tnsvt-foldable');
+          document.body.classList.add('tnsvt-foldable');
         } else {
-          document.documentElement.classList.remove('tnsvt-foldable');
+          document.body.classList.remove('tnsvt-foldable');
         }
       }
       if (foldableQuery.addEventListener) {
@@ -3308,6 +3377,8 @@ window.sb = window.API;
         try {
           await sb.post('/api/admin/verify-academia-pass', { password: pass });
           adminAuthenticated = true;
+          // Persistir para futuras llamadas admin
+          try { localStorage.setItem('tnsvt_admin_pass', pass); } catch (_) {}
           document.getElementById('admin-login-view').style.display = 'none';
           document.getElementById('admin-main-view').style.display = 'block';
           document.getElementById('adminPassInput').value = '';
@@ -3325,11 +3396,12 @@ window.sb = window.API;
         list.innerHTML = '<div style="color:#645a78;font-size:0.82rem;text-align:center;padding:10px;">Cargando...</div>';
         try {
           const data = await sb.getAcademia();
-          if (!data || !data.length) {
+          acadCoursesCache = data || []; // ✅ BUG #13: popular cache para adminEditCourse/adminDeleteCourse
+          if (!acadCoursesCache.length) {
             list.innerHTML = '<div style="color:#645a78;font-size:0.82rem;text-align:center;padding:20px;">No hay cursos aún. Creá el primero arriba ↑</div>';
             return;
           }
-          list.innerHTML = data.map(c => {
+          list.innerHTML = acadCoursesCache.map(c => {
             const safeId = String(c.id).replace(/[^0-9]/g, '');
             const safeTitle = escapeHtml(c.title || '');
             const safeEmoji = escapeHtml(c.emoji || '📚');
@@ -3896,6 +3968,14 @@ window.sb = window.API;
           window.TNSVT_USER.avatar_color = data.avatar_color || null;
           window.TNSVT_USER.initials    = data.initials || '?';
           renderHeaderAvatar();
+          // ⛧ FIX 2026-07-22: refrescar el topbar para que el avatar del
+          // #tnsvtUserAvatar (derecha del header) use el nuevo avatar_url
+          // cargado desde /api/profile/{code}. Sin esto, el topbar
+          // quedaba con las iniciales porque renderTopbarUser() se ejecutó
+          // antes de que avatar_url estuviera disponible.
+          if (typeof window.refreshTopbar === 'function') {
+            try { window.refreshTopbar(); } catch (e) { /* silent */ }
+          }
           // Mostrar/ocultar botón "Quitar foto"
           const del = document.getElementById('deleteAvatarBtn');
           if (del) del.style.display = data.avatar_url ? 'flex' : 'none';
@@ -4544,13 +4624,35 @@ window.sb = window.API;
       window._pollConversationsTimer = setInterval(pollAllConversations, 5000);
 
       // ==================== INICIALIZACIÓN GENERAL ====================
+      // ⛧ Fix 2026-07-23: agregar inicializadores faltantes (Calendario, Tareas, Leaderboard, Diario)
+      // y paralelizar con Promise.all donde sea posible para no bloquear otros paneles.
+      // Antes algunas tabs solo se inicializaban al primer click vía switchTab(),
+      // lo que mostraba "Cargando módulo..." indefinido si el usuario clickeaba antes
+      // de que initAllPanels() terminase.
       async function initAllPanels() {
-        loadTasks();
-        await loadAccounts();
-        await loadJournalFromApi();
-        renderFeed();
-        renderAcademia();
-        loadChats();
+        // Cargas que no necesitan esperar a otras se paralelizan
+        await Promise.all([
+          loadAccounts(),
+          loadJournalFromApi(),
+          renderFeed(),
+          renderAcademia(),
+          loadTasks(),
+          loadChats(),
+        ]);
+        // ⛧ Fix 2026-07-23: calendario, leaderboard y diario también se pre-inicializan
+        try {
+          if (typeof _calFetch === 'function') {
+            _calFetch();  // no-await: deja que corra en background, no bloquea UI
+          }
+          if (typeof lbRefresh === 'function') {
+            lbRefresh();   // no-await
+          }
+          if (typeof Diary !== 'undefined' && typeof Diary.init === 'function') {
+            try { Diary.init(); } catch (e) { console.warn('[Diary] init:', e); }
+          }
+        } catch (e) {
+          console.warn('[initAllPanels] secondary panels:', e);
+        }
         initFeedRealtime();
         initNotifRealtime();
         if (typeof checkPushPermission === 'function') checkPushPermission();
@@ -5459,7 +5561,7 @@ window.sb = window.API;
       // Llamar después del login Y después del session restore
       function applyAdminFeatures(isAdmin) {
         // Toggle .is-real-admin class on <body> so APK CSS can show admin-only buttons
-        // (the APK CSS hides adminSidebarBtn/chartSidebarBtn by default with !important,
+        // (the APK CSS hides adminSidebarBtn by default with !important,
         //  so we need a body class as the gate — inline display:none/block won't win
         //  against !important rules)
         if (typeof document !== 'undefined' && document.body) {
@@ -5468,8 +5570,10 @@ window.sb = window.API;
         }
         const adminBtn = document.getElementById('adminSidebarBtn');
         if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
-        const chartBtn = document.getElementById('chartSidebarBtn');
-        if (chartBtn) chartBtn.style.display = isAdmin ? 'block' : 'none';
+        const acadAdminBtn = document.getElementById('acadAdminBtn');
+        if (acadAdminBtn) acadAdminBtn.style.display = isAdmin ? 'flex' : 'none';
+        const campusAdminBtn = document.getElementById('campusAdminBtn');
+        if (campusAdminBtn) campusAdminBtn.style.display = isAdmin ? 'flex' : 'none';
         const createGroupBtn = document.getElementById('cfCreateGroupBtn');
           if (createGroupBtn) createGroupBtn.style.display = isAdmin ? 'flex' : 'none';
         // Init notif sound toggle
@@ -5487,6 +5591,84 @@ window.sb = window.API;
         console.log('[admin] applyAdminFeatures(isAdmin=' + isAdmin + ')');
       }
       window.applyAdminFeatures = applyAdminFeatures;
+
+      // ─── refreshTopbar: muestra/oculta topbar + user block según sesión ───
+      // Fix 2026-07-22: función llamada por verifyGateKey(), logout() y
+      // checkAuthStatus(). Antes NO existía como implementación → el topbar
+      // quedaba con style="display:none" inline y nunca se mostraba tras login.
+      // Fix 2026-07-22 (2da iteración): ahora también delega en
+      // window.renderTopbarUser() (definida en templates/base.html.twig) para
+      // actualizar tnsvtUserTag/tnsvtUserSub/tnsvtUserAvatar con los datos
+      // correctos de TNSVT_USER (incluyendo avatar_url). Sin esto, el topbar
+      // quedaba con "⛧ USUARIO / Ejecutor" incluso cuando isAdmin=true.
+      function refreshTopbar() {
+        var topbar = document.getElementById('tnsvt-topbar');
+        if (!topbar) return;
+        var userBlock = document.getElementById('tnsvtUserBlock');
+        var notifBell = document.getElementById('tnsvtNotifBell');
+        var logoutBtn = document.getElementById('tnsvtLogoutBtn');
+        var adminBtn = document.getElementById('adminSidebarBtn');
+        var isAuthed = window.TNSVT_USER && window.TNSVT_USER.code;
+        if (isAuthed) {
+          topbar.style.display = 'flex';
+          if (userBlock) userBlock.style.display = '';
+          if (notifBell) notifBell.style.display = '';
+          if (logoutBtn) logoutBtn.style.display = '';
+          if (adminBtn && window.TNSVT_USER.isAdmin) adminBtn.style.display = '';
+        } else {
+          topbar.style.display = 'none';
+          if (userBlock) userBlock.style.display = 'none';
+          if (notifBell) notifBell.style.display = 'none';
+          if (logoutBtn) logoutBtn.style.display = 'none';
+          if (adminBtn) adminBtn.style.display = 'none';
+        }
+        // Delegar al template para actualizar tag/sub/avatar del topbar.
+        // Si no está expuesta (entornos donde solo se carga app.js), usar
+        // un fallback inline para no perder el admin/avatar en pantalla.
+        if (typeof window.renderTopbarUser === 'function') {
+          try { window.renderTopbarUser(); } catch (e) { console.warn('[topbar] renderTopbarUser() failed', e); }
+        } else {
+          var user = window.TNSVT_USER;
+          var tag = document.getElementById('tnsvtUserTag');
+          var sub = document.getElementById('tnsvtUserSub');
+          var av  = document.getElementById('tnsvtUserAvatar');
+          if (user && tag) {
+            tag.textContent = user.isAdmin
+              ? '👑 ADMIN'
+              : ('⛧ ' + String(user.username || user.code || 'USUARIO').toUpperCase());
+          }
+          if (user && sub) {
+            if (user.isAdmin)      sub.textContent = 'Administrador';
+            else if (user.role)    sub.textContent = user.role;
+            else if (user.isPro || user.pro) sub.textContent = 'Ejecutor Pro';
+            else                   sub.textContent = 'Ejecutor';
+          }
+          if (user && av) {
+            if (user.avatar_url && typeof user.avatar_url === 'string') {
+              av.innerHTML = '';
+              var img = document.createElement('img');
+              img.src = user.avatar_url + (user.avatar_url.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
+              img.alt = 'avatar';
+              img.style.width = '100%';
+              img.style.height = '100%';
+              img.style.objectFit = 'cover';
+              img.style.borderRadius = '50%';
+              img.onerror = function() {
+                av.innerHTML = '';
+                av.textContent = (user.initials || user.code || '?').toString().slice(0, 2).toUpperCase();
+                av.style.background = user.avatar_color || '#9353ff';
+              };
+              av.appendChild(img);
+              av.style.background = 'transparent';
+            } else {
+              av.innerHTML = '';
+              av.textContent = (user.initials || user.code || '?').toString().slice(0, 2).toUpperCase();
+              av.style.background = user.avatar_color || '#9353ff';
+            }
+          }
+        }
+      }
+      window.refreshTopbar = refreshTopbar;
 
       function musicShowBar() {
         // Guard defensivo 2026-07-19: nunca mostrar la barra si NO hay sesión activa.
@@ -8060,4 +8242,1137 @@ document.addEventListener('DOMContentLoaded', function(){
 
   window.loadAccessRequests = loadAccessRequests;
   window.loadJournalSettings = loadJournalSettings;
+
+  // ==================== CAMPUS MODULE ====================
+  let campusCurrentSection = 'inicio';
+  let campusCoursesData = [];
+  let campusCurrentCourse = null;
+  let campusCurrentLesson = null;
+
+  function switchCampusSection(section) {
+    campusCurrentSection = section;
+    document.querySelectorAll('.campus-nav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.section === section);
+    });
+    renderCampusContent();
+  }
+
+  async function renderCampusContent() {
+    if (campusCurrentSection === 'inicio') {
+      campusCurrentCourse = null;
+      campusCurrentLesson = null;
+    }
+    const content = document.getElementById('campus-content');
+    if (!content) return;
+
+    const userCode = window.TNSVT_USER?.code;
+    if (!userCode) {
+      content.innerHTML = '<div class="campus-error">Iniciá sesión para acceder al Campus</div>';
+      return;
+    }
+
+    content.innerHTML = '<div class="campus-loading">Cargando...</div>';
+
+    try {
+      switch (campusCurrentSection) {
+        case 'inicio':
+          await renderCampusInicio(content, userCode);
+          break;
+        case 'tareas':
+          await renderCampusTareas(content, userCode);
+          break;
+        case 'historial':
+          await renderCampusHistorial(content, userCode);
+          break;
+        case 'material':
+          await renderCampusMaterial(content, userCode);
+          break;
+        case 'progreso':
+          await renderCampusProgreso(content, userCode);
+          break;
+        case 'perfil':
+          await renderCampusPerfil(content, userCode);
+          break;
+        default:
+          content.innerHTML = '<div class="campus-error">Sección no encontrada</div>';
+      }
+    } catch (e) {
+      console.error('[Campus] Error:', e);
+      content.innerHTML = '<div class="campus-error">Error cargando datos: ' + e.message + '</div>';
+    }
+  }
+
+  async function renderCampusInicio(container, userCode) {
+    const data = await API.getCampusDashboard(userCode);
+    const courses = data.courses || [];
+
+    let html = '<div class="campus-inicio">';
+    html += '<h4 style="color:var(--gold-bright);margin-bottom:16px;">Tus Cursos</h4>';
+
+    if (courses.length === 0) {
+      html += '<div class="campus-empty">No hay cursos disponibles aún.</div>';
+    } else {
+      courses.forEach(c => {
+        html += `<div class="campus-course-card" onclick="openCampusCourse(${c.id})">
+          <div class="campus-course-emoji">${c.emoji || '📚'}</div>
+          <div class="campus-course-info">
+            <div class="campus-course-title">${c.title}</div>
+            <div class="campus-course-progress">
+              <div class="campus-progress-bar"><div class="campus-progress-fill" style="width:${c.progress_percent}%"></div></div>
+              <span>${c.progress_percent}%</span>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function renderCampusTareas(container, userCode) {
+    const assignments = await API.getCampusAssignments(userCode);
+
+    let html = '<div class="campus-tareas">';
+    html += '<h4 style="color:var(--gold-bright);margin-bottom:16px;">Mis Tareas</h4>';
+
+    if (assignments.length === 0) {
+      html += '<div class="campus-empty">No tenés tareas entregas aún.</div>';
+    } else {
+      assignments.forEach(a => {
+        const statusColors = {
+          'pending': '#ff9500',
+          'submitted': '#007aff',
+          'corrected': '#34c759',
+          'revision': '#ff3b30',
+          'completed': '#30d158'
+        };
+        const statusLabels = {
+          'pending': '🟡 Pendiente',
+          'submitted': '🔵 En revisión',
+          'corrected': '✅ Corregida',
+          'revision': '🔴 Rehacer',
+          'completed': '✓ Completada'
+        };
+        const color = statusColors[a.status] || '#645a78';
+
+        html += `<div class="campus-tarea-card" onclick="viewCampusAssignment(${a.id})">
+          <div class="campus-tarea-header">
+            <span class="campus-tarea-status" style="background:${color}20;border-color:${color};color:${color};">${statusLabels[a.status] || a.status}</span>
+            <span class="campus-tarea-date">${a.submitted_at ? new Date(a.submitted_at).toLocaleDateString('es-AR') : ''}</span>
+          </div>
+          <div class="campus-tarea-title">${a.title}</div>
+          <div class="campus-tarea-course">${a.course?.title} › ${a.module?.title}</div>
+          ${a.grade ? `<div class="campus-tarea-grade">Nota: ${a.grade}</div>` : ''}
+        </div>`;
+      });
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function renderCampusHistorial(container, userCode) {
+    const data = await API.getCampusHistory(userCode);
+    const submissions = data.submissions || [];
+
+    let html = '<div class="campus-historial">';
+    html += '<h4 style="color:var(--gold-bright);margin-bottom:16px;">Historial de Entregas</h4>';
+
+    if (submissions.length === 0) {
+      html += '<div class="campus-empty">No hay entregas en el historial.</div>';
+    } else {
+      html += `<div class="campus-historial-stats">
+        <div class="campus-stat"><span class="campus-stat-value">${data.total_count || 0}</span><span class="campus-stat-label">Total</span></div>
+        <div class="campus-stat"><span class="campus-stat-value">${data.graded_count || 0}</span><span class="campus-stat-label">Calificadas</span></div>
+        <div class="campus-stat"><span class="campus-stat-value">${data.average_grade || '—'}</span><span class="campus-stat-label">Promedio</span></div>
+      </div>`;
+
+      submissions.forEach(s => {
+        const color = s.grade ? '#34c759' : (s.status === 'revision' ? '#ff3b30' : '#645a78');
+        html += `<div class="campus-historial-item">
+          <div class="campus-historial-title">${s.assignment_title}</div>
+          <div class="campus-historial-course">${s.course_title} › ${s.module_title}</div>
+          <div class="campus-historial-meta">
+            <span style="color:${color}">${s.grade ? 'Nota: ' + s.grade : s.status}</span>
+            <span>${new Date(s.submitted_at).toLocaleDateString('es-AR')}</span>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function renderCampusMaterial(container, userCode) {
+    const data = await API.getCampusDashboard(userCode);
+    const courses = data.courses || [];
+
+    let html = '<div class="campus-material">';
+    html += '<h4 style="color:var(--gold-bright);margin-bottom:16px;">Material por Curso</h4>';
+
+    if (courses.length === 0) {
+      html += '<div class="campus-empty">No hay cursos disponibles.</div>';
+    } else {
+      courses.forEach(c => {
+        html += `<div class="campus-material-course">
+          <div class="campus-material-course-header" onclick="toggleCampusCourseMaterials(${c.id})">
+            <span>${c.emoji || '📚'} ${c.title}</span>
+            <span class="campus-material-toggle">▼</span>
+          </div>
+          <div id="campus-materials-${c.id}" class="campus-material-list" style="display:none;">
+            <div class="campus-loading">Cargando...</div>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function renderCampusProgreso(container, userCode) {
+    const data = await API.getCampusProgress(userCode);
+
+    let html = '<div class="campus-progreso">';
+    html += '<h4 style="color:var(--gold-bright);margin-bottom:16px;">Mi Progreso</h4>';
+
+    html += `<div class="campus-progreso-global">
+      <div class="campus-progreso-circle">
+        <svg viewBox="0 0 36 36">
+          <path class="campus-progreso-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          <path class="campus-progreso-fill" stroke-dasharray="${data.global?.progress_percent || 0}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        </svg>
+        <div class="campus-progreso-text">${data.global?.progress_percent || 0}%</div>
+      </div>
+      <div class="campus-progreso-stats">
+        <div class="campus-progreso-stat">
+          <span class="campus-progreso-stat-value">${data.global?.completed_lessons || 0}</span>
+          <span class="campus-progreso-stat-label">Lecciones completadas</span>
+        </div>
+        <div class="campus-progreso-stat">
+          <span class="campus-progreso-stat-value">${data.global?.total_lessons || 0}</span>
+          <span class="campus-progreso-stat-label">Total de lecciones</span>
+        </div>
+      </div>
+    </div>`;
+
+    if (data.courses && data.courses.length > 0) {
+      html += '<h5 style="color:var(--gold);margin:16px 0 8px;">Por Curso</h5>';
+      data.courses.forEach(c => {
+        html += `<div class="campus-progreso-course">
+          <div class="campus-progreso-course-header">
+            <span>${c.course_emoji || '📚'} ${c.course_title}</span>
+            <span>${c.progress_percent}%</span>
+          </div>
+          <div class="campus-progreso-course-bar">
+            <div class="campus-progreso-course-fill" style="width:${c.progress_percent}%"></div>
+          </div>
+        </div>`;
+      });
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function renderCampusPerfil(container, userCode) {
+    const progress = await API.getCampusProgress(userCode);
+    const history = await API.getCampusHistory(userCode);
+
+    let html = '<div class="campus-perfil">';
+    html += '<h4 style="color:var(--gold-bright);margin-bottom:16px;">Mi Perfil</h4>';
+
+    html += `<div class="campus-perfil-card">
+      <div class="campus-perfil-avatar">👤</div>
+      <div class="campus-perfil-name">${window.TNSVT_USER?.name || 'Usuario'}</div>
+      <div class="campus-perfil-code">${userCode}</div>
+    </div>`;
+
+    html += `<div class="campus-perfil-stats">
+      <div class="campus-perfil-stat">
+        <span class="campus-perfil-stat-value">${progress.global?.progress_percent || 0}%</span>
+        <span class="campus-perfil-stat-label">Progreso Global</span>
+      </div>
+      <div class="campus-perfil-stat">
+        <span class="campus-perfil-stat-value">${progress.assignments?.total || 0}</span>
+        <span class="campus-perfil-stat-label">Tareas Entregadas</span>
+      </div>
+      <div class="campus-perfil-stat">
+        <span class="campus-perfil-stat-value">${history.average_grade || '—'}</span>
+        <span class="campus-perfil-stat-label">Promedio</span>
+      </div>
+    </div>`;
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  window.openCampusCourse = async function(courseId) {
+    campusCurrentCourse = courseId;
+    campusCurrentLesson = null;
+    const data = await API.getCampusCourse(courseId);
+    const container = document.getElementById('campus-content');
+    let html = '<div class="campus-course-detail">';
+    html += `<button class="campus-back-btn" onclick="renderCampusContent()">← Volver</button>`;
+    html += `<h3 style="color:var(--gold-bright);">${data.emoji || '📚'} ${data.title}</h3>`;
+    html += `<p style="color:#a499b8;margin-bottom:16px;">${data.description || ''}</p>`;
+
+    if (data.modules && data.modules.length > 0) {
+      data.modules.forEach((m, mi) => {
+        html += `<div class="campus-module">
+          <div class="campus-module-header">Módulo ${mi + 1}: ${m.title}</div>`;
+        if (m.lessons && m.lessons.length > 0) {
+          m.lessons.forEach((l, li) => {
+            const statusClass = l.completed ? 'completed' : '';
+            html += `<div class="campus-lesson ${statusClass}" onclick="openCampusLesson(${l.id})">
+              <span class="campus-lesson-num">${mi + 1}.${li + 1}</span>
+              <span class="campus-lesson-title">${l.title}</span>
+              <span class="campus-lesson-status">${l.completed ? '✓' : '○'}</span>
+            </div>`;
+          });
+        }
+        html += '</div>';
+      });
+    } else {
+      html += '<div class="campus-empty">Este curso no tiene módulos aún.</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  };
+
+  window.openCampusLesson = async function(lessonId) {
+    const data = await API.getCampusLesson(lessonId);
+    const container = document.getElementById('campus-content');
+    const userCode = window.TNSVT_USER?.code;
+
+    let html = '<div class="campus-lesson-detail">';
+    html += `<button class="campus-back-btn" onclick="campusCurrentCourse && openCampusCourse(campusCurrentCourse) || renderCampusContent()">← Volver</button>`;
+    html += `<h3 style="color:var(--gold-bright);">${data.title}</h3>`;
+    html += `<p style="color:#a499b8;margin-bottom:16px;">${data.description || ''}</p>`;
+
+    if (data.video_url) {
+      html += `<div class="campus-video-embed">
+        <iframe src="${data.video_url.replace('watch?v=', 'embed/')}" allowfullscreen></iframe>
+      </div>`;
+    }
+
+    if (data.materials && data.materials.length > 0) {
+      html += '<h4 style="color:var(--gold);margin:16px 0 8px;">Material</h4>';
+      html += '<div class="campus-materials-grid">';
+      data.materials.forEach(m => {
+        const icon = m.type === 'pdf' ? '📄' : m.type === 'video' ? '🎬' : m.type === 'image' ? '🖼️' : '📎';
+        html += `<a href="${m.url}" target="_blank" class="campus-material-item">${icon} ${m.title}</a>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.assignments && data.assignments.length > 0) {
+      const a = data.assignments[0];
+      html += '<h4 style="color:var(--gold);margin:16px 0 8px;">Tarea</h4>';
+      html += `<div class="campus-assignment-card">
+        <div class="campus-assignment-title">${a.title}</div>
+        <div class="campus-assignment-desc">${a.description || ''}</div>
+        ${a.objective ? `<div class="campus-assignment-obj"><strong>Objetivo:</strong> ${a.objective}</div>` : ''}
+        ${a.instructions ? `<div class="campus-assignment-instr"><strong>Consigna:</strong> ${a.instructions}</div>` : ''}
+        ${a.due_date ? `<div class="campus-assignment-due">📅 Fecha límite: ${new Date(a.due_date).toLocaleDateString('es-AR')}</div>` : ''}
+        ${a.estimated_minutes ? `<div class="campus-assignment-time">⏱️ Tiempo estimado: ${a.estimated_minutes} min</div>` : ''}
+        ${data.my_submission ? `<div class="campus-assignment-status">Estado: ${data.my_submission.status}</div>` : ''}
+        <button class="campus-submit-btn" onclick="showCampusSubmitForm(${a.id})">📤 ${data.my_submission ? 'Actualizar entrega' : 'Subir entrega'}</button>
+      </div>`;
+    }
+
+    if (!data.completed) {
+      html += `<button class="campus-complete-btn" onclick="completeCampusLesson(${lessonId})">✓ Marcar como completada</button>`;
+    } else {
+      html += '<div class="campus-completed-badge">✓ Lección completada</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  };
+
+  window.completeCampusLesson = async function(lessonId) {
+    const userCode = (window.TNSVT_USER && window.TNSVT_USER.code) || '';
+    try {
+      await API.completeCampusLesson(lessonId, userCode);
+      showToast('Lección marcada como completada');
+      openCampusLesson(lessonId);
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  };
+
+  window.showCampusSubmitForm = function(assignmentId) {
+    const container = document.getElementById('campus-content');
+    const existingModal = document.getElementById('campus-submit-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'campus-submit-modal';
+    modal.className = 'campus-modal-overlay';
+    modal.innerHTML = `<div class="campus-modal">
+      <div class="campus-modal-header">
+        <h3>Entregar Tarea</h3>
+        <button onclick="this.closest('.campus-modal-overlay').remove()">✕</button>
+      </div>
+      <div class="campus-modal-body">
+        <div class="campus-upload-zone" onclick="document.getElementById('campus-submit-files').click()">
+          <span>📁 Click para subir archivos</span>
+          <span style="font-size:0.75rem;color:#645a78;">PDF, DOCX, PNG, JPG, GIF, WEBP, MP4, MP3, ZIP</span>
+        </div>
+        <input type="file" id="campus-submit-files" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.mp3,.ogg,.wav,.zip" style="display:none;">
+        <div id="campus-submit-files-list"></div>
+        <textarea id="campus-submit-comments" placeholder="Comentarios del alumno..." rows="4"></textarea>
+      </div>
+      <div class="campus-modal-footer">
+        <button class="campus-modal-cancel" onclick="this.closest('.campus-modal-overlay').remove()">Cancelar</button>
+        <button class="campus-modal-submit" onclick="submitCampusAssignment(${assignmentId})">Entregar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById('campus-submit-files').addEventListener('change', async function() {
+      const list = document.getElementById('campus-submit-files-list');
+      list.innerHTML = '';
+      const files = Array.from(this.files);
+      for (const file of files) {
+        list.innerHTML += `<div class="campus-file-item">📄 ${file.name}</div>`;
+      }
+    });
+  };
+
+  window.submitCampusAssignment = async function(assignmentId) {
+    const fileInput = document.getElementById('campus-submit-files');
+    const comments = document.getElementById('campus-submit-comments').value;
+    const userCode = window.TNSVT_USER?.code;
+
+    try {
+      const files = [];
+      const failed = [];
+      if (fileInput.files.length > 0) {
+        for (const file of fileInput.files) {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('user_code', userCode);
+            const r = await fetch(API._resolve('/api/campus/upload'), {
+              method: 'POST',
+              body: formData,
+              credentials: 'include'
+            });
+            if (!r.ok) {
+              const err = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
+              failed.push({ name: file.name, error: err.error || ('HTTP ' + r.status) });
+              continue;
+            }
+            const result = await r.json();
+            if (result.success) {
+              files.push({ url: result.url, name: result.name, mime: result.mime });
+            } else {
+              failed.push({ name: file.name, error: result.error || 'falló' });
+            }
+          } catch (uploadErr) {
+            failed.push({ name: file.name, error: uploadErr.message || 'error de red' });
+          }
+        }
+      }
+      if (failed.length > 0 && files.length === 0) {
+        showToast('❌ No se pudo subir ningún archivo. ' + failed[0].name + ': ' + failed[0].error);
+        return;
+      }
+      if (failed.length > 0) {
+        showToast('⚠️ ' + failed.length + ' archivo(s) no se subieron: ' + failed.map(f => f.name).join(', '));
+      }
+
+      await API.submitCampusAssignment(assignmentId, { files, comments, user_code: userCode });
+      showToast('Tarea entregada correctamente');
+      document.getElementById('campus-submit-modal')?.remove();
+      renderCampusContent();
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  };
+
+  window.viewCampusAssignment = async function(submissionId) {
+    const data = await API.getCampusSubmission(submissionId);
+    const container = document.getElementById('campus-content');
+
+    let html = '<div class="campus-assignment-detail">';
+    html += `<button class="campus-back-btn" onclick="renderCampusContent()">← Volver</button>`;
+    html += `<h3 style="color:var(--gold-bright);">${data.assignment.title}</h3>`;
+    html += `<div style="color:#a499b8;margin-bottom:16px;">${data.assignment.description || ''}</div>`;
+
+    if (data.assignment.objective) {
+      html += `<div class="campus-detail-section"><strong>Objetivo:</strong> ${data.assignment.objective}</div>`;
+    }
+    if (data.assignment.instructions) {
+      html += `<div class="campus-detail-section"><strong>Consigna:</strong> ${data.assignment.instructions}</div>`;
+    }
+
+    html += `<div class="campus-detail-section"><strong>Estado:</strong> ${data.status}</div>`;
+    html += `<div class="campus-detail-section"><strong>Entregado:</strong> ${new Date(data.submitted_at).toLocaleString('es-AR')}</div>`;
+
+    if (data.files && data.files.length > 0) {
+      html += '<div class="campus-detail-section"><strong>Archivos:</strong></div>';
+      data.files.forEach(f => {
+        html += `<a href="${f.url}" target="_blank" class="campus-file-link">📄 ${f.name}</a>`;
+      });
+    }
+
+    if (data.comments) {
+      html += `<div class="campus-detail-section"><strong>Comentarios:</strong> ${data.comments}</div>`;
+    }
+
+    if (data.feedback) {
+      html += `<div class="campus-feedback-card">
+        <div class="campus-feedback-header">Corrección</div>
+        <div class="campus-feedback-grade">Nota: ${data.feedback.grade}</div>
+        ${data.feedback.comment ? `<div class="campus-feedback-comment">${data.feedback.comment}</div>` : ''}
+      </div>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  };
+
+  window.toggleCampusCourseMaterials = async function(courseId) {
+    const el = document.getElementById(`campus-materials-${courseId}`);
+    if (!el) return;
+
+    if (el.style.display === 'none') {
+      el.style.display = 'block';
+      const data = await API.getCampusCourse(courseId);
+      let html = '';
+      data.modules?.forEach(m => {
+        m.lessons?.forEach(l => {
+          if (l.materials && l.materials.length > 0) {
+            html += `<div class="campus-material-lesson">`;
+            html += `<div class="campus-material-lesson-title">${l.title}</div>`;
+            l.materials.forEach(mat => {
+              const icon = mat.type === 'pdf' ? '📄' : mat.type === 'video' ? '🎬' : '📎';
+              html += `<a href="${mat.url}" target="_blank" class="campus-material-link">${icon} ${mat.title}</a>`;
+            });
+            html += `</div>`;
+          }
+        });
+      });
+      el.innerHTML = html || '<div style="padding:8px;color:#645a78;">No hay materiales</div>';
+    } else {
+      el.style.display = 'none';
+    }
+  };
+
+  // ==================== CAMPUS ADMIN ====================
+  let campusAdminAuthenticated = false;
+  const _escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  async function checkCampusAdminPass() {
+    const pass = document.getElementById('campusAdminPassInput')?.value.trim();
+    const errEl = document.getElementById('campus-admin-login-error');
+    if (errEl) errEl.style.display = 'none';
+    if (!pass) {
+      if (errEl) { errEl.textContent = '⚠️ Ingresá la contraseña'; errEl.style.display = 'block'; }
+      return;
+    }
+    try {
+      await API.post('/api/admin/verify-academia-pass', { password: pass });
+      campusAdminAuthenticated = true;
+      try { localStorage.setItem('tnsvt_admin_pass', pass); } catch (_) {}
+      document.getElementById('campus-admin-login-view').style.display = 'none';
+      document.getElementById('campus-admin-main-view').style.display = 'block';
+      renderCampusAdminContent('courses');
+    } catch (e) {
+      if (errEl) { errEl.textContent = '❌ ' + (e.message || 'Contraseña incorrecta'); errEl.style.display = 'block'; }
+    }
+  }
+  window.checkCampusAdminPass = checkCampusAdminPass;
+
+  function openCampusAdmin() {
+    const overlay = document.getElementById('campus-admin-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    // Si ya está autenticado en esta sesión, ir directo al panel
+    if (campusAdminAuthenticated) {
+      document.getElementById('campus-admin-login-view').style.display = 'none';
+      document.getElementById('campus-admin-main-view').style.display = 'block';
+      renderCampusAdminContent('courses');
+    } else {
+      document.getElementById('campus-admin-login-view').style.display = 'block';
+      document.getElementById('campus-admin-main-view').style.display = 'none';
+      const inp = document.getElementById('campusAdminPassInput');
+      if (inp) setTimeout(() => inp.focus(), 50);
+    }
+  }
+
+  window.closeCampusAdmin = function() {
+    document.getElementById('campus-admin-overlay').style.display = 'none';
+  };
+
+  window.openCampusAdmin = openCampusAdmin;
+
+  async function renderCampusAdminContent(tab) {
+    const content = document.getElementById('campus-admin-content');
+    content.innerHTML = '<div class="campus-loading">Cargando...</div>';
+
+    try {
+      let data;
+      let html = '';
+
+      switch (tab) {
+        case 'courses':
+          data = await API.getCampusAdminCourses();
+          html = renderCampusAdminCourses(data);
+          break;
+        case 'modules':
+          data = await API.getCampusAdminModules();
+          html = renderCampusAdminModules(data);
+          break;
+        case 'lessons':
+          data = await API.getCampusAdminLessons();
+          html = renderCampusAdminLessons(data);
+          break;
+        case 'assignments':
+          data = await API.getCampusAdminAssignments();
+          html = renderCampusAdminAssignments(data);
+          break;
+        case 'materials':
+          data = await API.getCampusAdminMaterials();
+          html = renderCampusAdminMaterials(data);
+          break;
+        case 'submissions':
+          data = await API.getCampusAdminSubmissions();
+          html = renderCampusAdminSubmissions(data);
+          break;
+      }
+
+      content.innerHTML = html;
+    } catch (e) {
+      content.innerHTML = '<div class="campus-error">Error: ' + _escHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderCampusAdminCourses(courses) {
+    let html = `<div class="campus-admin-section">
+      <button class="campus-admin-add" onclick="showCampusAdminCourseForm()">+ Nuevo Curso</button>
+      <div class="campus-admin-list">`;
+    if (!courses || !courses.length) {
+      html += '<div style="padding:20px;text-align:center;color:#645a78;font-size:0.85rem;">No hay cursos aún. Creá el primero arriba ↑</div>';
+    } else {
+      courses.forEach(c => {
+        const safeId = String(c.id).replace(/[^0-9]/g, '');
+        const safeTitle = _escHtml(c.title || '');
+        const safeEmoji = _escHtml(c.emoji || '📚');
+        html += `<div class="campus-admin-item">
+          <span>${safeEmoji} ${safeTitle} <span style="font-size:0.7rem;color:#645a78;">(orden ${c.orden ?? '—'})</span></span>
+          <div class="campus-admin-actions">
+            <button onclick="editCampusCourse(${safeId})" title="Editar">✏️</button>
+            <button onclick="deleteCampusCourse(${safeId})" title="Eliminar">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderCampusAdminModules(modules) {
+    let html = `<div class="campus-admin-section">
+      <button class="campus-admin-add" onclick="showCampusAdminModuleForm()">+ Nuevo Módulo</button>
+      <div class="campus-admin-list">`;
+    if (!modules || !modules.length) {
+      html += '<div style="padding:20px;text-align:center;color:#645a78;font-size:0.85rem;">No hay módulos aún.</div>';
+    } else {
+      modules.forEach(m => {
+        const safeId = String(m.id).replace(/[^0-9]/g, '');
+        const safeTitle = _escHtml(m.title || '');
+        const safeCourse = _escHtml(m.course_title || '');
+        html += `<div class="campus-admin-item">
+          <span>${safeTitle} <span style="font-size:0.7rem;color:#645a78;">(${safeCourse})</span></span>
+          <div class="campus-admin-actions">
+            <button onclick="editCampusModule(${safeId})" title="Editar">✏️</button>
+            <button onclick="deleteCampusModule(${safeId})" title="Eliminar">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderCampusAdminLessons(lessons) {
+    let html = `<div class="campus-admin-section">
+      <button class="campus-admin-add" onclick="showCampusAdminLessonForm()">+ Nueva Lección</button>
+      <div class="campus-admin-list">`;
+    if (!lessons || !lessons.length) {
+      html += '<div style="padding:20px;text-align:center;color:#645a78;font-size:0.85rem;">No hay lecciones aún.</div>';
+    } else {
+      lessons.forEach(l => {
+        const safeId = String(l.id).replace(/[^0-9]/g, '');
+        const safeTitle = _escHtml(l.title || '');
+        const safeCourse = _escHtml(l.course_title || '');
+        html += `<div class="campus-admin-item">
+          <span>${safeTitle} <span style="font-size:0.7rem;color:#645a78;">(${safeCourse})</span></span>
+          <div class="campus-admin-actions">
+            <button onclick="editCampusLesson(${safeId})" title="Editar">✏️</button>
+            <button onclick="deleteCampusLesson(${safeId})" title="Eliminar">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderCampusAdminAssignments(assignments) {
+    let html = `<div class="campus-admin-section">
+      <button class="campus-admin-add" onclick="showCampusAdminAssignmentForm()">+ Nueva Tarea</button>
+      <div class="campus-admin-list">`;
+    if (!assignments || !assignments.length) {
+      html += '<div style="padding:20px;text-align:center;color:#645a78;font-size:0.85rem;">No hay tareas aún.</div>';
+    } else {
+      assignments.forEach(a => {
+        const safeId = String(a.id).replace(/[^0-9]/g, '');
+        const safeTitle = _escHtml(a.title || '');
+        const safeCourse = _escHtml(a.course_title || '');
+        html += `<div class="campus-admin-item">
+          <span>${safeTitle} <span style="font-size:0.7rem;color:#645a78;">(${safeCourse}) · ${a.submissions_count || 0} entregas</span></span>
+          <div class="campus-admin-actions">
+            <button onclick="editCampusAssignment(${safeId})" title="Editar">✏️</button>
+            <button onclick="deleteCampusAssignment(${safeId})" title="Eliminar">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderCampusAdminMaterials(materials) {
+    let html = `<div class="campus-admin-section">
+      <button class="campus-admin-add" onclick="showCampusAdminMaterialForm()">+ Nuevo Material</button>
+      <div class="campus-admin-list">`;
+    if (!materials || !materials.length) {
+      html += '<div style="padding:20px;text-align:center;color:#645a78;font-size:0.85rem;">No hay materiales aún.</div>';
+    } else {
+      materials.forEach(m => {
+        const safeId = String(m.id).replace(/[^0-9]/g, '');
+        const safeTitle = _escHtml(m.title || '');
+        const safeLesson = _escHtml(m.lesson_title || '');
+        const safeType = _escHtml(m.type || '');
+        html += `<div class="campus-admin-item">
+          <span>${safeTitle} <span style="font-size:0.7rem;color:#645a78;">[${safeType}] ${safeLesson}</span></span>
+          <div class="campus-admin-actions">
+            <button onclick="editCampusMaterial(${safeId})" title="Editar">✏️</button>
+            <button onclick="deleteCampusMaterial(${safeId})" title="Eliminar">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderCampusAdminSubmissions(submissions) {
+    let html = '<div class="campus-admin-section"><div class="campus-admin-list">';
+    if (!submissions || !submissions.length) {
+      html += '<div style="padding:20px;text-align:center;color:#645a78;font-size:0.85rem;">No hay entregas aún.</div>';
+    } else {
+      submissions.forEach(s => {
+        const safeId = String(s.id).replace(/[^0-9]/g, '');
+        const safeTitle = _escHtml(s.assignment_title || '');
+        const safeUser = _escHtml(s.user_code || '');
+        const status = _escHtml(s.status || 'pending');
+        const grade = s.grade ? `<span style="color:#52c779;font-weight:600;">${_escHtml(s.grade)}</span>` : '<span style="color:#645a78;">—</span>';
+        html += `<div class="campus-admin-item">
+          <span>${safeTitle} · ${safeUser} <span style="font-size:0.7rem;color:#645a78;">[${status}] Nota: ${grade}</span></span>
+          <div class="campus-admin-actions">
+            <button onclick="gradeCampusSubmission(${safeId})" title="Calificar">📝 Calificar</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  document.querySelectorAll('.campus-admin-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.campus-admin-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      renderCampusAdminContent(this.dataset.tab);
+    });
+  });
+
+  // ── Modal helpers ──
+  function closeCampusAdminModal() {
+    const m = document.getElementById('campus-admin-modal');
+    if (m) m.style.display = 'none';
+  }
+  window.closeCampusAdminModal = closeCampusAdminModal;
+
+  function openCampusAdminModal(title, bodyHtml, footerHtml) {
+    document.getElementById('campus-modal-title').textContent = title;
+    document.getElementById('campus-modal-body').innerHTML = bodyHtml;
+    document.getElementById('campus-modal-body').insertAdjacentHTML('beforeend', footerHtml || '');
+    const m = document.getElementById('campus-admin-modal');
+    m.style.display = 'flex';
+  }
+  window.openCampusAdminModal = openCampusAdminModal;
+
+  // ── FORMS ──
+  window.showCampusAdminCourseForm = function(course = null) {
+    const isEdit = !!course;
+    const safeId = course ? String(course.id).replace(/[^0-9]/g, '') : '';
+    const body = `
+      <input class="admin-input" id="cf-emoji" placeholder="Emoji (ej: 📚)" value="${_escHtml(course?.emoji || '')}" style="margin-bottom:10px;">
+      <input class="admin-input" id="cf-title" placeholder="Título del curso *" value="${_escHtml(course?.title || '')}" style="margin-bottom:10px;">
+      <textarea class="admin-textarea" id="cf-description" placeholder="Descripción" style="margin-bottom:10px;">${_escHtml(course?.description || '')}</textarea>
+      <input class="admin-input" id="cf-thumbnail" placeholder="URL thumbnail (opcional)" value="${_escHtml(course?.thumbnail || '')}" type="url" style="margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <input class="admin-input" id="cf-orden" placeholder="Orden (1,2,3...)" type="number" value="${course?.orden ?? 99}">
+        <select class="admin-select" id="cf-active">
+          <option value="true" ${(!course || course.is_active) ? 'selected' : ''}>✅ Activo</option>
+          <option value="false" ${(course && !course.is_active) ? 'selected' : ''}>⛔ Inactivo</option>
+        </select>
+      </div>
+      <input type="hidden" id="cf-id" value="${safeId}">
+      <button class="admin-btn-primary" onclick="saveCampusAdminCourse()" style="width:100%;">${isEdit ? '💾 GUARDAR CAMBIOS' : '➕ CREAR CURSO'}</button>
+    `;
+    openCampusAdminModal(isEdit ? `✏️ Editando Curso #${safeId}` : '➕ Nuevo Curso', body);
+  };
+
+  window.saveCampusAdminCourse = async function() {
+    const id = document.getElementById('cf-id')?.value;
+    const data = {
+      title: document.getElementById('cf-title')?.value.trim(),
+      emoji: document.getElementById('cf-emoji')?.value.trim() || '📚',
+      description: document.getElementById('cf-description')?.value.trim() || null,
+      thumbnail: document.getElementById('cf-thumbnail')?.value.trim() || null,
+      orden: parseInt(document.getElementById('cf-orden')?.value) || 99,
+      is_active: document.getElementById('cf-active')?.value === 'true',
+    };
+    if (!data.title) { showToast('⚠️ El título es obligatorio'); return; }
+    try {
+      if (id) {
+        await API.updateCampusCourse(id, data);
+        showToast('✅ Curso actualizado');
+      } else {
+        await API.createCampusCourse(data);
+        showToast('✅ Curso creado');
+      }
+      closeCampusAdminModal();
+      renderCampusAdminContent('courses');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.editCampusCourse = async function(id) {
+    try {
+      const data = await API.getCampusAdminCourses();
+      const course = (data || []).find(c => String(c.id) === String(id));
+      if (!course) { showToast('❌ Curso no encontrado'); return; }
+      window.showCampusAdminCourseForm(course);
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.deleteCampusCourse = async function(id) {
+    if (!confirm('¿Eliminar este curso? Esta acción no se puede deshacer.')) return;
+    try {
+      await API.deleteCampusCourse(id);
+      showToast('🗑️ Curso eliminado');
+      renderCampusAdminContent('courses');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  // ── MODULES ──
+  window.showCampusAdminModuleForm = async function(module = null) {
+    const isEdit = !!module;
+    const safeId = module ? String(module.id).replace(/[^0-9]/g, '') : '';
+    const courses = await API.getCampusAdminCourses();
+    let courseOptions = '<option value="">-- Seleccionar curso --</option>';
+    (courses || []).forEach(c => {
+      courseOptions += `<option value="${c.id}" ${module && module.course_id == c.id ? 'selected' : ''}>${_escHtml(c.title)}</option>`;
+    });
+    const body = `
+      <select class="admin-select" id="mf-course" style="margin-bottom:10px;">${courseOptions}</select>
+      <input class="admin-input" id="mf-title" placeholder="Título del módulo *" value="${_escHtml(module?.title || '')}" style="margin-bottom:10px;">
+      <textarea class="admin-textarea" id="mf-description" placeholder="Descripción" style="margin-bottom:10px;">${_escHtml(module?.description || '')}</textarea>
+      <input class="admin-input" id="mf-orden" placeholder="Orden" type="number" value="${module?.orden ?? 99}" style="margin-bottom:10px;">
+      <input type="hidden" id="mf-id" value="${safeId}">
+      <button class="admin-btn-primary" onclick="saveCampusAdminModule()" style="width:100%;">${isEdit ? '💾 GUARDAR' : '➕ CREAR MÓDULO'}</button>
+    `;
+    openCampusAdminModal(isEdit ? `✏️ Módulo #${safeId}` : '➕ Nuevo Módulo', body);
+  };
+
+  window.saveCampusAdminModule = async function() {
+    const id = document.getElementById('mf-id')?.value;
+    const data = {
+      course_id: parseInt(document.getElementById('mf-course')?.value) || 0,
+      title: document.getElementById('mf-title')?.value.trim(),
+      description: document.getElementById('mf-description')?.value.trim() || null,
+      orden: parseInt(document.getElementById('mf-orden')?.value) || 99,
+    };
+    if (!data.course_id) { showToast('⚠️ Seleccioná un curso'); return; }
+    if (!data.title) { showToast('⚠️ El título es obligatorio'); return; }
+    try {
+      if (id) await API.updateCampusModule(id, data);
+      else await API.createCampusModule(data);
+      showToast('✅ Módulo guardado');
+      closeCampusAdminModal();
+      renderCampusAdminContent('modules');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.editCampusModule = async function(id) {
+    try {
+      const modules = await API.getCampusAdminModules();
+      const m = (modules || []).find(x => String(x.id) === String(id));
+      if (!m) { showToast('❌ Módulo no encontrado'); return; }
+      window.showCampusAdminModuleForm(m);
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.deleteCampusModule = async function(id) {
+    if (!confirm('¿Eliminar este módulo?')) return;
+    try {
+      await API.deleteCampusModule(id);
+      showToast('🗑️ Módulo eliminado');
+      renderCampusAdminContent('modules');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  // ── LESSONS ──
+  window.showCampusAdminLessonForm = async function(lesson = null) {
+    const isEdit = !!lesson;
+    const safeId = lesson ? String(lesson.id).replace(/[^0-9]/g, '') : '';
+    const modules = await API.getCampusAdminModules();
+    let moduleOptions = '<option value="">-- Seleccionar módulo --</option>';
+    (modules || []).forEach(m => {
+      moduleOptions += `<option value="${m.id}" ${lesson && lesson.module_id == m.id ? 'selected' : ''}>${_escHtml(m.title)} (${_escHtml(m.course_title || '')})</option>`;
+    });
+    const body = `
+      <select class="admin-select" id="lf-module" style="margin-bottom:10px;">${moduleOptions}</select>
+      <input class="admin-input" id="lf-title" placeholder="Título de la lección *" value="${_escHtml(lesson?.title || '')}" style="margin-bottom:10px;">
+      <textarea class="admin-textarea" id="lf-description" placeholder="Descripción" style="margin-bottom:10px;">${_escHtml(lesson?.description || '')}</textarea>
+      <input class="admin-input" id="lf-video" placeholder="URL del video (YouTube, etc.)" value="${_escHtml(lesson?.video_url || '')}" type="url" style="margin-bottom:10px;">
+      <input class="admin-input" id="lf-orden" placeholder="Orden" type="number" value="${lesson?.orden ?? 99}" style="margin-bottom:10px;">
+      <input type="hidden" id="lf-id" value="${safeId}">
+      <button class="admin-btn-primary" onclick="saveCampusAdminLesson()" style="width:100%;">${isEdit ? '💾 GUARDAR' : '➕ CREAR LECCIÓN'}</button>
+    `;
+    openCampusAdminModal(isEdit ? `✏️ Lección #${safeId}` : '➕ Nueva Lección', body);
+  };
+
+  window.saveCampusAdminLesson = async function() {
+    const id = document.getElementById('lf-id')?.value;
+    const data = {
+      module_id: parseInt(document.getElementById('lf-module')?.value) || 0,
+      title: document.getElementById('lf-title')?.value.trim(),
+      description: document.getElementById('lf-description')?.value.trim() || null,
+      video_url: document.getElementById('lf-video')?.value.trim() || null,
+      orden: parseInt(document.getElementById('lf-orden')?.value) || 99,
+    };
+    if (!data.module_id) { showToast('⚠️ Seleccioná un módulo'); return; }
+    if (!data.title) { showToast('⚠️ El título es obligatorio'); return; }
+    try {
+      if (id) await API.updateCampusLesson(id, data);
+      else await API.createCampusLesson(data);
+      showToast('✅ Lección guardada');
+      closeCampusAdminModal();
+      renderCampusAdminContent('lessons');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.editCampusLesson = async function(id) {
+    try {
+      const lessons = await API.getCampusAdminLessons();
+      const l = (lessons || []).find(x => String(x.id) === String(id));
+      if (!l) { showToast('❌ Lección no encontrada'); return; }
+      window.showCampusAdminLessonForm(l);
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.deleteCampusLesson = async function(id) {
+    if (!confirm('¿Eliminar esta lección?')) return;
+    try {
+      await API.deleteCampusLesson(id);
+      showToast('🗑️ Lección eliminada');
+      renderCampusAdminContent('lessons');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  // ── ASSIGNMENTS ──
+  window.showCampusAdminAssignmentForm = async function(assignment = null) {
+    const isEdit = !!assignment;
+    const safeId = assignment ? String(assignment.id).replace(/[^0-9]/g, '') : '';
+    const lessons = await API.getCampusAdminLessons();
+    let lessonOptions = '<option value="">-- Seleccionar lección --</option>';
+    (lessons || []).forEach(l => {
+      lessonOptions += `<option value="${l.id}" ${assignment && assignment.lesson_id == l.id ? 'selected' : ''}>${_escHtml(l.title)} (${_escHtml(l.course_title || '')})</option>`;
+    });
+    const body = `
+      <select class="admin-select" id="af-lesson" style="margin-bottom:10px;">${lessonOptions}</select>
+      <input class="admin-input" id="af-title" placeholder="Título de la tarea *" value="${_escHtml(assignment?.title || '')}" style="margin-bottom:10px;">
+      <textarea class="admin-textarea" id="af-description" placeholder="Descripción" style="margin-bottom:10px;">${_escHtml(assignment?.description || '')}</textarea>
+      <textarea class="admin-textarea" id="af-objective" placeholder="Objetivo" style="margin-bottom:10px;">${_escHtml(assignment?.objective || '')}</textarea>
+      <textarea class="admin-textarea" id="af-instructions" placeholder="Instrucciones" style="margin-bottom:10px;">${_escHtml(assignment?.instructions || '')}</textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <input class="admin-input" id="af-minutes" placeholder="Minutos estimados" type="number" value="${assignment?.estimated_minutes || ''}">
+        <input class="admin-input" id="af-due" placeholder="Fecha límite (YYYY-MM-DD HH:MM)" value="${_escHtml(assignment?.due_date || '')}">
+      </div>
+      <input type="hidden" id="af-id" value="${safeId}">
+      <button class="admin-btn-primary" onclick="saveCampusAdminAssignment()" style="width:100%;">${isEdit ? '💾 GUARDAR' : '➕ CREAR TAREA'}</button>
+    `;
+    openCampusAdminModal(isEdit ? `✏️ Tarea #${safeId}` : '➕ Nueva Tarea', body);
+  };
+
+  window.saveCampusAdminAssignment = async function() {
+    const id = document.getElementById('af-id')?.value;
+    const data = {
+      lesson_id: parseInt(document.getElementById('af-lesson')?.value) || 0,
+      title: document.getElementById('af-title')?.value.trim(),
+      description: document.getElementById('af-description')?.value.trim() || null,
+      objective: document.getElementById('af-objective')?.value.trim() || null,
+      instructions: document.getElementById('af-instructions')?.value.trim() || null,
+      estimated_minutes: parseInt(document.getElementById('af-minutes')?.value) || null,
+      due_date: document.getElementById('af-due')?.value.trim() || null,
+    };
+    if (!data.lesson_id) { showToast('⚠️ Seleccioná una lección'); return; }
+    if (!data.title) { showToast('⚠️ El título es obligatorio'); return; }
+    try {
+      if (id) await API.updateCampusAssignment(id, data);
+      else await API.createCampusAssignment(data);
+      showToast('✅ Tarea guardada');
+      closeCampusAdminModal();
+      renderCampusAdminContent('assignments');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.editCampusAssignment = async function(id) {
+    try {
+      const assignments = await API.getCampusAdminAssignments();
+      const a = (assignments || []).find(x => String(x.id) === String(id));
+      if (!a) { showToast('❌ Tarea no encontrada'); return; }
+      window.showCampusAdminAssignmentForm(a);
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.deleteCampusAssignment = async function(id) {
+    if (!confirm('¿Eliminar esta tarea?')) return;
+    try {
+      await API.deleteCampusAssignment(id);
+      showToast('🗑️ Tarea eliminada');
+      renderCampusAdminContent('assignments');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  // ── MATERIALS ──
+  window.showCampusAdminMaterialForm = async function(material = null) {
+    const isEdit = !!material;
+    const safeId = material ? String(material.id).replace(/[^0-9]/g, '') : '';
+    const lessons = await API.getCampusAdminLessons();
+    let lessonOptions = '<option value="">-- Seleccionar lección --</option>';
+    (lessons || []).forEach(l => {
+      lessonOptions += `<option value="${l.id}" ${material && material.lesson_id == l.id ? 'selected' : ''}>${_escHtml(l.title)} (${_escHtml(l.course_title || '')})</option>`;
+    });
+    const body = `
+      <select class="admin-select" id="matf-lesson" style="margin-bottom:10px;">${lessonOptions}</select>
+      <input class="admin-input" id="matf-title" placeholder="Título del material *" value="${_escHtml(material?.title || '')}" style="margin-bottom:10px;">
+      <select class="admin-select" id="matf-type" style="margin-bottom:10px;">
+        <option value="pdf" ${(!material || material.type === 'pdf') ? 'selected' : ''}>📄 PDF</option>
+        <option value="video" ${material?.type === 'video' ? 'selected' : ''}>🎬 Video</option>
+        <option value="image" ${material?.type === 'image' ? 'selected' : ''}>🖼 Imagen</option>
+        <option value="audio" ${material?.type === 'audio' ? 'selected' : ''}>🎵 Audio</option>
+        <option value="link" ${material?.type === 'link' ? 'selected' : ''}>🔗 Link</option>
+        <option value="other" ${material?.type === 'other' ? 'selected' : ''}>📎 Otro</option>
+      </select>
+      <input class="admin-input" id="matf-url" placeholder="URL del archivo *" value="${_escHtml(material?.url || '')}" style="margin-bottom:10px;">
+      <input class="admin-input" id="matf-orden" placeholder="Orden" type="number" value="${material?.orden ?? 99}" style="margin-bottom:10px;">
+      <input type="hidden" id="matf-id" value="${safeId}">
+      <button class="admin-btn-primary" onclick="saveCampusAdminMaterial()" style="width:100%;">${isEdit ? '💾 GUARDAR' : '➕ CREAR MATERIAL'}</button>
+    `;
+    openCampusAdminModal(isEdit ? `✏️ Material #${safeId}` : '➕ Nuevo Material', body);
+  };
+
+  window.saveCampusAdminMaterial = async function() {
+    const id = document.getElementById('matf-id')?.value;
+    const data = {
+      lesson_id: parseInt(document.getElementById('matf-lesson')?.value) || 0,
+      title: document.getElementById('matf-title')?.value.trim(),
+      type: document.getElementById('matf-type')?.value || 'other',
+      url: document.getElementById('matf-url')?.value.trim(),
+      orden: parseInt(document.getElementById('matf-orden')?.value) || 99,
+    };
+    if (!data.lesson_id) { showToast('⚠️ Seleccioná una lección'); return; }
+    if (!data.title) { showToast('⚠️ El título es obligatorio'); return; }
+    if (!data.url) { showToast('⚠️ La URL es obligatoria'); return; }
+    try {
+      if (id) await API.updateCampusMaterial(id, data);
+      else await API.createCampusMaterial(data);
+      showToast('✅ Material guardado');
+      closeCampusAdminModal();
+      renderCampusAdminContent('materials');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.editCampusMaterial = async function(id) {
+    try {
+      const materials = await API.getCampusAdminMaterials();
+      const m = (materials || []).find(x => String(x.id) === String(id));
+      if (!m) { showToast('❌ Material no encontrado'); return; }
+      window.showCampusAdminMaterialForm(m);
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.deleteCampusMaterial = async function(id) {
+    if (!confirm('¿Eliminar este material?')) return;
+    try {
+      await API.deleteCampusMaterial(id);
+      showToast('🗑️ Material eliminado');
+      renderCampusAdminContent('materials');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  // ── GRADING ──
+  window.gradeCampusSubmission = async function(submissionId) {
+    try {
+      const submissions = await API.getCampusAdminSubmissions();
+      const s = (submissions || []).find(x => String(x.id) === String(submissionId));
+      const safeId = String(submissionId).replace(/[^0-9]/g, '');
+      const safeTitle = _escHtml(s?.assignment_title || '');
+      const safeUser = _escHtml(s?.user_code || '');
+      const body = `
+        <p style="color:#a499b8;font-size:0.85rem;margin-bottom:12px;">Entrega: <strong>${safeTitle}</strong><br>Alumno: <strong>${safeUser}</strong></p>
+        <label style="font-size:0.75rem;color:var(--gold-bright);font-family:'Orbitron',sans-serif;letter-spacing:1px;">NOTA (1-10) *</label>
+        <input type="number" id="grf-grade" min="1" max="10" step="0.5" placeholder="8.5" value="${s?.grade || ''}" class="admin-input" style="margin-bottom:12px;">
+        <label style="font-size:0.75rem;color:var(--gold-bright);font-family:'Orbitron',sans-serif;letter-spacing:1px;">COMENTARIO DE CORRECCIÓN</label>
+        <textarea id="grf-comment" placeholder="Feedback para el alumno..." class="admin-textarea" style="min-height:120px;margin-bottom:12px;">${_escHtml(s?.feedback_comment || '')}</textarea>
+        <input type="hidden" id="grf-id" value="${safeId}">
+        <button class="admin-btn-primary" onclick="saveCampusAdminGrade()" style="width:100%;">💾 GUARDAR CALIFICACIÓN</button>
+      `;
+      openCampusAdminModal('📝 Calificar entrega #' + safeId, body);
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.saveCampusAdminGrade = async function() {
+    const id = document.getElementById('grf-id')?.value;
+    const grade = parseFloat(document.getElementById('grf-grade')?.value);
+    const comment = document.getElementById('grf-comment')?.value.trim() || null;
+    if (!grade || grade < 1 || grade > 10) { showToast('⚠️ Nota entre 1 y 10'); return; }
+    try {
+      await API.gradeCampusSubmission(id, { grade, comment });
+      showToast('✅ Calificación guardada');
+      closeCampusAdminModal();
+      renderCampusAdminContent('submissions');
+    } catch (e) { showToast('❌ ' + e.message); }
+  };
+
+  window.switchCampusSection = switchCampusSection;
+  window.renderCampusContent = renderCampusContent;
+  window.openCampusCourse = openCampusCourse;
+  window.openCampusLesson = openCampusLesson;
+  window.viewCampusAssignment = viewCampusAssignment;
+  window.toggleCampusCourseMaterials = toggleCampusCourseMaterials;
+  window.completeCampusLesson = completeCampusLesson;
+  window.showCampusSubmitForm = showCampusSubmitForm;
+  window.submitCampusAssignment = submitCampusAssignment;
+  window.closeCampusAdmin = closeCampusAdmin;
+  window.checkCampusAdminPass = checkCampusAdminPass;
 })();
